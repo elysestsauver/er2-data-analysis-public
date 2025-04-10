@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, gpplot2)
+p_load(tidyverse, stargazer, gpplot2, sandwich)
 ```
 
 # Initial Data Cleaning
