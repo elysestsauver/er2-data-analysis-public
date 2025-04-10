@@ -1,0 +1,113 @@
+---
+title: "ER2 Kagera Data Analysis 1"
+author: "Elyse St Sauver"
+date: "2025-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(pacman)
+p_load(tidyverse, stargazer)
+```
+
+# Initial Data Cleaning
+
+Notes for Mira: \\
+  Let's import the data and check for abnormalities. More specifically, we're importing the data and looking for odd patterns like: \\ 
+  - NA values where there should be something else (like a 0 or a "False") \\
+  - Columns where every/nearly every participant responded the same \\
+  - Variables out of order \\
+  - Columns that need reformatting (ex. "1 - Least satisfied" and "2" in the same column, or "1 2 3 0 9" which should be one column each for "1" "2", etc.) \\
+  - Anything else that looks unusual or wrong \\
+  
+  Some NA values are fine, we're just especially concerned with those in columns where we need to do analysis. Those include the DCE responses*, 3-study method questions (Haushofer, etc), the activity response section, and the demographics. To start, take a look at the data and see if anything looks weird to you, I've typed up my initial thoughts below. When I figured something out while working with the data, I indicate it below as well. \\
+  
+  *You might notice the returningresults_merged dataset doesn't have the DCE data. For some reason, it's separate in SurveyCTO-- that's okay, we just have to join the datasets together. To begin with, look at the datasets separately and we'll join them in a later step. \\
+  
+
+```{r Non-DCE Data Import}
+
+kageradata <- read.csv("returningresults_merged.csv")
+
+```
+
+Data Notes: 
+  - ID indicator is respondentID or respondent_index
+  - For joining with DCE data, join column is SET.OF.dce_game
+
+Data Issues:
+  - what is respo_confirm? 
+          Answer --> Some respondents did not confirm and are replaced 
+  - * part_study_1, who_participated --> not complete
+  - * contact_research --> not complete ("Did you get contact information for researchers"? Confirm what this question is)
+  - keep_documentation/have_documentation might be in the wrong order (Confirm order)`
+  - * clear_plans, ask_results --> almost empty
+  - num_past_studies has NAs that Should be 0 (when past_study_participation is 0) 
+  - * many 0s for past_study_participation, so much of the activity response section is empty
+  - * future_study_willingness --> not complete
+  
+  
+```{r DCE Data Import}
+
+dcedata <- read.csv("dce_returningresults_merged.csv")
+
+```
+
+DCE Data Notes:
+    - No ID indicator, for joining with Kagera data, join column is SET.OF.dce_game
+    - DCE data has 10 observations per ID, so it will be a many-to-one join (and that's okay)
+    
+DCE Issues: 
+    - Need to parse the game_matrix (stitched_output_##.jpg) to the actual levels and features from the Excel sheet. This means another join
+    - Join on the game_matrix column (to the "image" column in the Excel spreadsheet of DCE features and levels)
+
+# To-Do for Both Datasets: \\
+
+  - Resolve items in Issues sections
+  - Distribute rank_results_methods to their own columns
+  - Current rank_results_methods_1, rank_results_methods_2 are useless, replace with rank *of* results method 1, etc
+  - Distribute first_position, second_position, third_position to "first_study", "first_method", "second study", etc.
+  - Distribute rank_results_preference to Study 1 Rank column, Study 2 Rank column, etc. 
+      - Do the same for rank_formats_preference and rank_formats_clarity
+  - Analyze three study experiment (especially the "likelihood" variables)
+  - Join DCE data with levels/features sheet
+  - Join DCE data post-merge with levels/featuers to the kagera data, and clean
+  - Analyze DCE data
+      - Regress likelihood of choosing A when each feature level is present in A, present in B. 
+      - Create graph of likelihood of choosing A/B given compensation level of A/B. 
+      - Pairwise comparison?
+  - Can we do anything with the activity data? It's very incomplete, but let's try...
+  - Check out comment variables (exercise_comment and exercise_comment_oth for DCE comments, end_commet for overall comments)
+  - Create a table of summary statistics for each variable 
+      - Number of responses (and response rate %)
+      - If numerical: Median, mean, range, standard deviation of responses for numerical
+      - If categorical: Tabulation (Count of each response type)
+      
+
+```{r Data Cleaning}
+
+# Cleaning the main Kagera dataset first. 
+
+  # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
+kageradata <- subset(kageradata, respo_confirm == 1)
+
+  # The column num_past_studies should be 0 when past_study_participation is 0. Fixing that here
+    #   [ CONFIRM, DOES PAST_STUDY_PARTICIPATION INCLUDE KAGERA? IF YES THEN SHOULD BE 1, NOT NA OR 0]
+
+  # Some of the columns have collections of data that should be distributed into individual columns. These are resolved here. 
+  # rank_results_methods
+  # first_position, second_position, third_position
+  # rank_results_preference
+  # rank_formats_preference
+  # rank_formats_clarity
+
+
+  # Here is where we should join the collected DCE data with our spreadsheet of each game's corresponding A/B levels for each feature. 
+
+  # Join the augmented DCE dataset to the Kagera data
+fulldata <- left_join(kageradata, dcedata, by = c("SET.OF.dce_game"))
+
+```
+
