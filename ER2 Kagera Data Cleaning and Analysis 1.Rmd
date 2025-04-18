@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, modelsummary)
 ```
 
 # Initial Data Cleaning
@@ -82,13 +82,12 @@ DCE Issues:
   - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
   - [COMPLETE][Join Sets] Join DCE data with levels/features sheet
   - [COMPLETE][Join Sets] Join DCE data post-merge with levels/featuers to the kagera data, and clean
-  - [To-Do] Analyze DCE data
-      - [To-Do] Regress likelihood of choosing A when each feature level is present in A, present in B. 
-      - [To-Do] Create graph of likelihood of choosing A/B given compensation level of A/B. 
-      - Pairwise comparison?
+  - [COMPLETE][Analyze DCE Data] Analyze DCE data
+      - [COMPLETE][Analyze DCE Data: Linear Regression] Regress likelihood of choosing A when each feature level is present in A, present in B. 
+      - [COMPLETE][Analyze DCE Data: DCE Graph...] Create graph of likelihood of choosing A/B given compensation level of A/B. 
   - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
   - [To-Do] Check out comment variables (exercise_comment and exercise_comment_oth for DCE comments, end_commet for overall comments)
-  - [To-Do] Create a table of summary statistics for each variable 
+  - [To-Do][Summary Statistics Table] Create a table of summary statistics for each variable 
       - Number of responses (and response rate %)
       - If numerical: Median, mean, range, standard deviation of responses for numerical
       - If categorical: Tabulation (Count of each response type)
@@ -328,73 +327,26 @@ while(i <= nrow(dceanalysis)) {
     #Check if any comp or research funding dummy variables are == 1
     #For nonzero variables, case_when assign numerical value
     #Assign comp_delta, comp_funding equal to the differences (A - B, not absolute value since positive/negative indicates whether A or B is greater)
-    dceanalysis[i, "comp_delta"] <- compA - compB
-    dceanalysis[i, "funding_delta"] <- fundingA - fundingB
+    comp_delta_value <- compA[i] - compB[i]
+    funding_delta_value <- fundingA[i] - fundingB[i]
+  
+        # Check for NA and replace with 0 if NA
+    dceanalysis[i, "comp_delta"] <- ifelse(is.na(comp_delta_value), 0, comp_delta_value)
+    dceanalysis[i, "funding_delta"] <- ifelse(is.na(funding_delta_value), 0, funding_delta_value)
+    
     i <- i + 1
 }
 
 ```
 
-```{r To-do: Analyze DCE data}
-
-#- Regress likelihood of choosing A when each feature level is present in A, present in B. 
-## DCE Linear Regression Analysis
-
-# This regression analysis regressed the option selected (A = 1, B = 0) on the presence of the various features and levels therein. Results are presented with robust standard errors and clustered at the respondent level unless otherwise specified.
-
-
-dce_model <- lm(data = dceanalysis, 
-                option_selected ~ 
-                  #Feature Levels
-                participants_image.A_participant1.jpeg
-                + participants_image.A_participant2.jpeg
-                + participants_image.A_participant3.jpeg
-                + community_image.A_community1.jpeg
-                + community_image.A_community2.jpeg
-                + community_image.A_community3.jpeg
-                + policymakers_image.A_policy1.jpeg
-                + policymakers_image.A_policy2.jpeg
-                + policymakers_image.A_policy3.jpeg
-                + participants_image.B_participant1.jpeg
-                + participants_image.B_participant2.jpeg
-                + participants_image.B_participant3.jpeg
-                + community_image.B_community1.jpeg
-                + community_image.B_community2.jpeg
-                + community_image.B_community3.jpeg
-                + policymakers_image.B_policy1.jpeg
-                + policymakers_image.B_policy2.jpeg
-                + policymakers_image.B_policy3.jpeg
-                + comp_delta
-                + funding_delta
-                  #Individual Controls
-                + SET.OF.dce_game #Individual respondent
-                + game_index
-)
-
-#summary(dce_model)
-
-#Test for heteroskedasticity
-bptest(dce_model)
-#Evidence suggests against presence of heteroskedasticity, but code available below for robust standard errors
-
-coeftest(dce_model, vcov = vcovHC(dce_model, type = "HC0"), cluster = ~ SET.OF.dce_Game)
-
-#corrplot(cor(dceanalysis[c(2,3,6, 21:29, 52:60, 83, 84)]), type = "upper", diag = FALSE, tl.cex = 0.5)
-
-```
-
-```{r To-do: DCE Graph of chioce given comp level}
-
-      #- Create graph of likelihood of choosing A/B given compensation level of A/B. 
-
-```
-
-```{r To-do: Create a table of summary statistics for each variable}
+```{r To-do: Summary Statistics Table}
 
 # We basically want summary statistics for every var and a table with everything labeled clearly. Ideally have the question on the left, stats on the right.
 #   - If numerical: Median, mean, range, standard deviation of responses for numerical
 #   - If categorical: Tabulation (Count of each response type)
 #   - For everything, we want a number of responses (N) and response rate (%)
+
+# The part left to do is to finish the pretty variable name correspondence
 
 summary_subset <- select(fulldata, c(
   "location",
@@ -926,6 +878,241 @@ datatable(num_summary,
 #   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
 # 
 # 
+```
+
+```{r Analyze DCE data: Linear Regression}
+
+#- Regress likelihood of choosing A when each feature level is present in A, present in B. 
+## DCE Linear Regression Analysis
+
+# This regression analysis regressed the option selected (A = 1, B = 0) on the presence of the various features and levels therein. Results are presented with robust standard errors and clustered at the respondent level unless otherwise specified.
+
+
+na_summary <- colSums(is.na(dceanalysis))
+
+# Filter to show only columns with at least one NA
+na_summary[na_summary > 0]
+
+# Create a named vector for variable labels
+var_labels <- c(
+  "participants_image.A_participant1.jpeg" = "A - No results returned to participants",
+  "participants_image.A_participant2.jpeg" = "A - Results returned remotely to participants",
+  "participants_image.A_participant3.jpeg" = "A - Results returned in person to participants",
+  "community_image.A_community1.jpeg" = "A - No results returned to community",
+  "community_image.A_community2.jpeg" = "A - Results returned remotely to c. leader",
+  "community_image.A_community3.jpeg" = "A - Results returned in person to community",
+  "policymakers_image.A_policy1.jpeg" = "A - No results returned to policymakers",
+  "policymakers_image.A_policy2.jpeg" = "A - Report to policymakers",
+  "policymakers_image.A_policy3.jpeg" = "A - Half-day policymaker workshop",
+  "participants_image.B_participant1.jpeg" = "B - No results returned to participants",
+  "participants_image.B_participant2.jpeg" = "B - Results returned remotely to participants",
+  "participants_image.B_participant3.jpeg" = "B - Results returned in person to participants",
+  "community_image.B_community1.jpeg" = "B - No results returned to community",
+  "community_image.B_community2.jpeg" = "B - Results returned remotely to c. leader",
+  "community_image.B_community3.jpeg" = "B - Results returned in person to community",
+  "policymakers_image.B_policy1.jpeg" = "B - No results returned to policymakers",
+  "policymakers_image.B_policy2.jpeg" = "B - Report to policymakers",
+  "policymakers_image.B_policy3.jpeg" = "B - Half-day policymaker workshop",
+  "comp_delta" = "Compensation Difference",
+  "funding_delta" = "Funding Difference",
+  "game_index" = "Game Number (1st, 2nd, etc)",
+  "SET.OF.dce_game" = "Fixed Effect (Respondent)"
+)
+
+# Fit the model with fixed effects
+dce_model <- feols(
+  option_selected ~ 
+    participants_image.A_participant1.jpeg +
+    participants_image.A_participant2.jpeg +
+    participants_image.A_participant3.jpeg +
+    community_image.A_community1.jpeg +
+    community_image.A_community2.jpeg +
+    community_image.A_community3.jpeg +
+    policymakers_image.A_policy1.jpeg +
+    policymakers_image.A_policy2.jpeg +
+    policymakers_image.A_policy3.jpeg +
+    participants_image.B_participant1.jpeg +
+    participants_image.B_participant2.jpeg +
+    participants_image.B_participant3.jpeg +
+    community_image.B_community1.jpeg +
+    community_image.B_community2.jpeg +
+    community_image.B_community3.jpeg +
+    policymakers_image.B_policy1.jpeg +
+    policymakers_image.B_policy2.jpeg +
+    policymakers_image.B_policy3.jpeg +
+    comp_delta +
+    funding_delta +
+    game_index | 
+    SET.OF.dce_game,  # This is your fixed effect
+  data = dceanalysis,
+  cluster = ~SET.OF.dce_game  # Clustered standard errors (robust to within-respondent correlation)
+)
+
+# Display results nicely with custom labels
+modelsummary(dce_model, stars = TRUE, gof_omit = 'IC|Log|Adj|FE', 
+             coef_map = var_labels)
+
+
+```
+
+```{r Analyze DCE data: DCE Graph of chioce given comp level}
+
+#- Create graph of likelihood of choosing A/B given compensation level of A/B. 
+dce_compensation_dataset <- select(dceanalysis, c("option_selected", "compensation_image.A", "compensation_image.B")) %>%
+  
+  # Create compA and compB columns based on which image column is 1
+  mutate(
+    compA = case_when(
+      compensation_image.A == "0Tsh.jpeg" ~ 0,
+      compensation_image.A == "1Tsh.jpeg" ~ 1,
+      compensation_image.A == "2Tsh.jpeg" ~ 2,
+      compensation_image.A == "3Tsh.jpeg" ~ 3,
+      compensation_image.A == "4Tsh.jpeg" ~ 4,
+      compensation_image.A == "5Tsh.jpeg" ~ 5,
+      compensation_image.A == "6Tsh.jpeg" ~ 6,
+      compensation_image.A == "7Tsh.jpeg" ~ 7,
+      compensation_image.A == "8Tsh.jpeg" ~ 8,
+      compensation_image.A == "9Tsh.jpeg" ~ 9,
+      compensation_image.A == "10Tsh.jpeg" ~ 10
+    ),
+    compB = case_when(
+      compensation_image.B == "0Tsh.jpeg" ~ 0,
+      compensation_image.B == "1Tsh.jpeg" ~ 1,
+      compensation_image.B == "2Tsh.jpeg" ~ 2,
+      compensation_image.B == "3Tsh.jpeg" ~ 3,
+      compensation_image.B == "4Tsh.jpeg" ~ 4,
+      compensation_image.B == "5Tsh.jpeg" ~ 5,
+      compensation_image.B == "6Tsh.jpeg" ~ 6,
+      compensation_image.B == "7Tsh.jpeg" ~ 7,
+      compensation_image.B == "8Tsh.jpeg" ~ 8,
+      compensation_image.B == "9Tsh.jpeg" ~ 9,
+      compensation_image.B == "10Tsh.jpeg" ~ 10
+    )
+  )
+
+
+# Step 1: Filter out tie situations
+filtered_data <- dce_compensation_dataset %>%
+  filter(compA != compB)
+
+# Step 2: Calculate wins
+comp_wins <- filtered_data %>%
+  mutate(
+    winner_comp = case_when(
+      option_selected == 1 ~ compA,
+      option_selected == 2 ~ compB
+    )
+  ) %>%
+  select(winner_comp) %>%
+  group_by(winner_comp) %>%
+  summarise(wins = n(), .groups = "drop")
+
+# Step 3: Count total appearances
+comp_appearances <- filtered_data %>%
+  select(compA, compB) %>%
+  pivot_longer(cols = everything(), names_to = "type", values_to = "comp") %>%
+  group_by(comp) %>%
+  summarise(appearances = n(), .groups = "drop")
+
+# Step 4: Join + calculate win rate
+comp_stats <- left_join(comp_appearances, comp_wins, by = c("comp" = "winner_comp")) %>%
+  mutate(
+    wins = replace_na(wins, 0),
+    win_rate = wins / appearances
+  )
+
+# Step 5: Compute confidence intervals
+comp_stats <- comp_stats %>%
+  rowwise() %>%
+  mutate(
+    ci = list(binom.test(wins, appearances)$conf.int),
+    ci_lower = ci[[1]],
+    ci_upper = ci[[2]]
+  ) %>%
+  ungroup() %>%
+  select(-ci)
+
+# Step 6: Plot with confidence intervals
+ggplot(comp_stats, aes(x = comp, y = win_rate)) +
+  geom_line(group = 1, color = "blue") +
+  geom_point(size = 2, color = "darkblue") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = 0:10,
+    labels = function(x) paste0(x, " Tsh")
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)
+  ) +
+  labs(
+    title = "Win Rate by Compensation Level (95% CI, Excluding Equal Pairs)",
+    x = "Compensation Amount",
+    y = "Win Rate"
+  ) +
+  theme_minimal()
+
+# We can also *not* exclude the equal pairs: 
+
+# # Step 1: Gather into long format to compare A vs B in a unified way
+# comp_wins <- dce_compensation_dataset %>%
+#   mutate(
+#     winner_comp = case_when(
+#       option_selected == 1 ~ compA,
+#       option_selected == 2 ~ compB
+#     )
+#   ) %>%
+#   select(winner_comp) %>%
+#   group_by(winner_comp) %>%
+#   summarise(wins = n(), .groups = "drop")
+# 
+# # Step 2: Count total appearances of each level
+# comp_appearances <- dce_compensation_dataset %>%
+#   select(compA, compB) %>%
+#   pivot_longer(cols = everything(), names_to = "type", values_to = "comp") %>%
+#   group_by(comp) %>%
+#   summarise(appearances = n(), .groups = "drop")
+# 
+# # Step 3: Join + calculate win rate
+# comp_stats <- left_join(comp_appearances, comp_wins, by = c("comp" = "winner_comp")) %>%
+#   mutate(
+#     wins = replace_na(wins, 0),
+#     win_rate = wins / appearances
+#   )
+# 
+## Step 4: Compute confidence intervals
+# comp_stats <- comp_stats %>%
+#   rowwise() %>%
+#   mutate(
+#     ci = list(binom.test(wins, appearances)$conf.int),
+#     ci_lower = ci[[1]],
+#     ci_upper = ci[[2]]
+#   ) %>%
+#   ungroup() %>%
+#   select(-ci)
+# 
+# # Step 5: Plot with confidence intervals
+# ggplot(comp_stats, aes(x = comp, y = win_rate)) +
+#   geom_line(group = 1, color = "blue") +
+#   geom_point(size = 2, color = "darkblue") +
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(
+#     breaks = 0:10,
+#     labels = function(x) paste0(x, " Tsh")
+#   ) +
+#   scale_y_continuous(
+#     limits = c(0, 1),
+#     breaks = seq(0, 1, by = 0.1)
+#   ) +
+#   labs(
+#     title = "Win Rate by Compensation Level (95% CI, Excluding Equal Pairs)",
+#     x = "Compensation Amount",
+#     y = "Win Rate"
+#   ) +
+#   theme_minimal()
+
 ```
 
 ```{r To-do: Analyze three study experiment (especially the "likelihood" variables)}
