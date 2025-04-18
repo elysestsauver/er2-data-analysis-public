@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest)
 ```
 
 # Initial Data Cleaning
@@ -48,8 +48,9 @@ Data Issues:
   - *** contact_research --> not complete ("Did you get contact information for researchers"? Confirm what this question is)
   - *** clear_plans, ask_results --> almost empty
   
-  - [To-Do] keep_documentation/have_documentation might be in the wrong order (Confirm order)
-  - [To-Do] num_past_studies has NAs that Should be 0 (when past_study_participation is 0) 
+  - [COMPLETE][No code needed] keep_documentation/have_documentation might be in the wrong order (Confirm order)
+          Answer --> Nope, this is fine. It goes "Did they give you a written document to keep" > "Did you keep that document after the interview" > "Do you still have it"
+  - [COMPLETE][Data Cleaning] num_past_studies has NAs that Should be 0 (when past_study_participation is 0) 
   
   - *** many 0s for past_study_participation, so much of the activity response section is empty
   - *** future_study_willingness --> not complete
@@ -57,7 +58,7 @@ Data Issues:
   
 ```{r DCE Data Import}
 dcedata <- read.csv("dce_returningresults_merged.csv")
-#scenarios <- read.csv("scenario_dataset_pilot.csv")
+scenarios <- read.csv("scenario_dataset.csv")
 ```
 
 DCE Data Notes:
@@ -95,18 +96,19 @@ DCE Issues:
 ```{r Join Sets}
 # Augment the DCE dataset with the scenarios set
   # Check for respondent index and image label presence, then join on those variables
-  scenarios <- select(scenarios, -c(respondent_ID, choicenumber, choicenumber2, 
-                                    participants_title.A, participants_title.B, 
-                                    community_title.A, community_title.B, 
-                                    policymakers_title.A, policymakers_title.B, 
-                                    compensation_title.A, compensation_title.B, 
+
+  scenarios <- select(scenarios, -c(respondent_ID, choicenumber, choicenumber2,
+                                    participants_title.A, participants_title.B,
+                                    community_title.A, community_title.B,
+                                    policymakers_title.A, policymakers_title.B,
+                                    compensation_title.A, compensation_title.B,
                                     researchfunding_title.A, researchfunding_title.B))
   
   dcedata |> 
-    filter(is.na(respondent_index) | is.na(game_matrix))
+    filter(is.na(SET.OF.dce_game) | is.na(game_matrix))
   
   kageradata |> 
-    filter(is.na(respondent_index))
+    filter(is.na(SET.OF.dce_game))
   
   scenarios |>
     filter(is.na(image))
@@ -115,7 +117,7 @@ DCE Issues:
   dcedata_aug <- left_join(dcedata, scenarios, by = join_by(game_matrix == image), suffix = c(".Collected", ".Generated"))
 
   # Join the augmented DCE dataset to the Kagera data
-  fulldata <- left_join(kageradata, dcedata_aug, by = c("SET.OF.dce_game"))
+  fulldata <- left_join(dcedata_aug, kageradata, by = c("SET.OF.dce_game"))
 ```
 
 ```{r Data Cleaning}
@@ -123,6 +125,9 @@ DCE Issues:
 
   # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
 fulldata <- subset(fulldata, respo_confirm == 1)
+
+  # num_past_studies has NAs that should be 0 when past_study_participation is 0
+fulldata$num_past_studies[is.na(fulldata$num_past_studies) & fulldata$past_study_participation == 0] <- 0
 
 # Rank varaiables --> columns for radio, sms, etc. and cell values are the rank designated by participant
   # Some of the columns have collections of data that should be distributed into individual columns. These are resolved here. 
@@ -143,26 +148,27 @@ fulldata <- fulldata %>%
   tidyr::separate(third_position, into = c("third_study", "third_method"), sep = " ", convert = TRUE, fill = "right")
 
 
-kanalysis <- fulldata %>%
-  mutate(across(77:85, ~ case_when(
-    . == "not satisfied" ~ as.character(1),
-    . == "very satisfied" ~ as.character(5),
-    TRUE ~ as.character(.)
-  )),
-  across(45, ~ case_when(
-    . == "Not busy at all" ~ as.character(1),
-    . == "Very busy" ~ as.character(5),
-    TRUE ~ as.character(.)
-  )),
-  across(88, ~ case_when(
-    . == "Least interested" ~ as.character(1),
-    . == "Most interested" ~ as.character(5),
-    TRUE ~ as.character(.)
-  )))
+# The following section provides code to fix a miscoding where satisfaction scales show mixed numerical and string output, but this was fixed after the pilot. 
+
+# fulldata <- fulldata %>%
+#   mutate(across(77:85, ~ case_when(
+#     . == "not satisfied" ~ as.character(1),
+#     . == "very satisfied" ~ as.character(5),
+#     TRUE ~ as.character(.)
+#   )),
+#   across(45, ~ case_when(
+#     . == "Not busy at all" ~ as.character(1),
+#     . == "Very busy" ~ as.character(5),
+#     TRUE ~ as.character(.)
+#   )),
+#   across(88, ~ case_when(
+#     . == "Least interested" ~ as.character(1),
+#     . == "Most interested" ~ as.character(5),
+#     TRUE ~ as.character(.)
+#   )))
 
 # Generate dummy var for study, position, method
-
-threestudy_analysis <- select(kanalysis, c(18, 222:236))
+threestudy_analysis <- select(fulldata, c("respondentID", 245:259))
 
 threestudy_analysis <- threestudy_analysis %>%
   pivot_longer(cols = c("first_study", "first_method", "second_study", "second_method", "third_study", "third_method"),
@@ -225,61 +231,18 @@ while(j <= nrow(threestudy_analysis)) {
     j <- j + 1
 }
 
-threestudy_long <- select(threestudy_analysis, c("respondentid", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking"))
-```
-
-```{r To-do: Resolve items in the datasets' Issues sections}
-
-# Two left. These fixes probably belong in the data cleaning section once they're implemented.
-#   - keep_documentation/have_documentation might be in the wrong order (Confirm order in dataset matches with the survey spreadsheet)
-#   - num_past_studies has NAs that I think should be 0 when past_study_participation is 0
+threestudy_long <- unique(select(threestudy_analysis, c("respondentID", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking")))
 
 
-```
 
-```{r To-do: Analyze three study experiment (especially the "likelihood" variables)}
-
-# The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
-
-# Want a simple linear regression controlling for these (results preference, formats preference, and clarity preference)
-
-
-# Interpretation Note: Since the ranking value is greater when the participant preferred the option less, invert interpretations
-# Drawn from these results (i.e. negative coef is more preference, positive coef is less preference)
-
-
-results_pref_model <- lm(results_preference_ranking ~ method + study + order + respondentid, data = threestudy_long)
-#summary(results_pref_model)
-#bptest(results_pref_model)
-#Evidence suggests presence of heteroskedasticity
-coeftest(results_pref_model, vcov = vcovHC(results_pref_model, type = "HC0", cluster = ~respondentid))
-
-formats_pref_model <- lm(formats_preference_ranking ~ method + study + order + respondentid, data = threestudy_long)
-#summary(formats_pref_model)
-#bptest(formats_pref_model)
-#Evidence suggests presence of heteroskedasticity
-coeftest(formats_pref_model, vcov = vcovHC(formats_pref_model, type = "HC0", cluster = ~respondentid))
-
-formats_clarity_model <- lm(formats_clarity_ranking ~ method + study + order + respondentid, data = threestudy_long)
-#summary(formats_clarity_model)
-#bptest(formats_clarity_model)
-#Evidence suggests against presence of heteroskedasticity, but code available below for robust standard errors
-coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0"), cluster = ~respondentid)
-
-```
-
-```{r To-do: Analyze DCE data}
-
-#- Regress likelihood of choosing A when each feature level is present in A, present in B. 
-
-# Add columns for each of 5 features, levels, for each A and B (1 if present, 0 else)
-features <- colnames(dcedata_aug)[10:20]
+#Add columns for each of 5 features, levels, for each A and B (1 if present, 0 else)
+features <- colnames(dcedata_aug)[9:19]
 features <- features[features != "compset"]
 dceanalysis <- dummy_cols(dcedata_aug, select_columns = features)
 
-# If feature is the same in A and B, make 0. For continuous variables, use delta
+#If feature is the same in A and B, make 0. For continuous variables, use delta
 
-# Force shared feature levels across A and B equal to 0
+#Force shared feature levels across A and B equal to 0
 dceanalysis <- dceanalysis %>%
   rowwise() %>%
   mutate(across(starts_with("participants_image.A_") | starts_with("participants_image.B_"), 
@@ -297,15 +260,7 @@ dceanalysis <- dceanalysis %>%
 dceanalysis <- dceanalysis %>%
   rename(option_selected = dce_potion)
 
-dceanalysis <- dceanalysis %>%
-  mutate (
-    option_selected = case_when(
-      option_selected == "Scenation 1" ~ 1,
-      option_selected == "Scenation 2" ~ 0
-    )
-  )
-
-# Create comp_delta and funding_delta for continuous features
+#Create comp_delta and funding_delta for continuous features
 dceanalysis$comp_delta <- NA
 dceanalysis$funding_delta <- NA
 i = 1
@@ -370,15 +325,19 @@ while(i <= nrow(dceanalysis)) {
       current_row$researchfunding_image.B_research20.jpeg == 1 ~ 20,
       .default = 0
     )
-    # Check if any comp or research funding dummy variables are == 1
-    # For nonzero variables, case_when assign numerical value
-    # Assign comp_delta, comp_funding equal to the differences (A - B, not absolute value since positive/negative indicates whether A or B is greater)
+    #Check if any comp or research funding dummy variables are == 1
+    #For nonzero variables, case_when assign numerical value
+    #Assign comp_delta, comp_funding equal to the differences (A - B, not absolute value since positive/negative indicates whether A or B is greater)
     dceanalysis[i, "comp_delta"] <- compA - compB
     dceanalysis[i, "funding_delta"] <- fundingA - fundingB
     i <- i + 1
 }
 
+```
 
+```{r To-do: Analyze DCE data}
+
+#- Regress likelihood of choosing A when each feature level is present in A, present in B. 
 ## DCE Linear Regression Analysis
 
 # This regression analysis regressed the option selected (A = 1, B = 0) on the presence of the various features and levels therein. Results are presented with robust standard errors and clustered at the respondent level unless otherwise specified.
@@ -408,7 +367,7 @@ dce_model <- lm(data = dceanalysis,
                 + comp_delta
                 + funding_delta
                   #Individual Controls
-                + respondent_index
+                + SET.OF.dce_game #Individual respondent
                 + game_index
 )
 
@@ -418,7 +377,7 @@ dce_model <- lm(data = dceanalysis,
 bptest(dce_model)
 #Evidence suggests against presence of heteroskedasticity, but code available below for robust standard errors
 
-coeftest(dce_model, vcov = vcovHC(dce_model, type = "HC0"), cluster = ~ respondentid)
+coeftest(dce_model, vcov = vcovHC(dce_model, type = "HC0"), cluster = ~ SET.OF.dce_Game)
 
 #corrplot(cor(dceanalysis[c(2,3,6, 21:29, 52:60, 83, 84)]), type = "upper", diag = FALSE, tl.cex = 0.5)
 
@@ -427,6 +386,46 @@ coeftest(dce_model, vcov = vcovHC(dce_model, type = "HC0"), cluster = ~ responde
 ```{r To-do: DCE Graph of chioce given comp level}
 
       #- Create graph of likelihood of choosing A/B given compensation level of A/B. 
+
+```
+
+```{r To-do: Create a table of summary statistics for each variable}
+
+# We basically want summary statistics for every var and a table with everything labeled clearly. Ideally have the question on the left, stats on the right.
+#   - If numerical: Median, mean, range, standard deviation of responses for numerical
+#   - If categorical: Tabulation (Count of each response type)
+#   - For everything, we want a number of responses (N) and response rate (%)
+
+```
+
+```{r To-do: Analyze three study experiment (especially the "likelihood" variables)}
+
+# The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
+
+# Want a simple linear regression controlling for these (results preference, formats preference, and clarity preference)
+
+
+# Interpretation Note: Since the ranking value is greater when the participant preferred the option less, invert interpretations
+# Drawn from these results (i.e. negative coef is more preference, positive coef is less preference)
+
+
+results_pref_model <- lm(results_preference_ranking ~ method + study + order + respondentid, data = threestudy_long)
+#summary(results_pref_model)
+#bptest(results_pref_model)
+#Evidence suggests presence of heteroskedasticity
+coeftest(results_pref_model, vcov = vcovHC(results_pref_model, type = "HC0", cluster = ~respondentid))
+
+formats_pref_model <- lm(formats_preference_ranking ~ method + study + order + respondentid, data = threestudy_long)
+#summary(formats_pref_model)
+#bptest(formats_pref_model)
+#Evidence suggests presence of heteroskedasticity
+coeftest(formats_pref_model, vcov = vcovHC(formats_pref_model, type = "HC0", cluster = ~respondentid))
+
+formats_clarity_model <- lm(formats_clarity_ranking ~ method + study + order + respondentid, data = threestudy_long)
+#summary(formats_clarity_model)
+#bptest(formats_clarity_model)
+#Evidence suggests against presence of heteroskedasticity, but code available below for robust standard errors
+coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0"), cluster = ~respondentid)
 
 ```
 
@@ -446,13 +445,5 @@ coeftest(dce_model, vcov = vcovHC(dce_model, type = "HC0"), cluster = ~ responde
 
 ```
 
-```{r To-do: Create a table of summary statistics for each variable}
-
-# We basically want summary statistics for every var and a table with everything labeled clearly. Ideally have the question on the left, stats on the right.
-#   - If numerical: Median, mean, range, standard deviation of responses for numerical
-#   - If categorical: Tabulation (Count of each response type)
-#   - For everything, we want a number of responses (N) and response rate (%)
-
-```
 
 
