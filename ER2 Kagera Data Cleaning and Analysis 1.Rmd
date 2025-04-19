@@ -96,6 +96,10 @@ DCE Issues:
   - [To-Do][Summary Statistics Table] Make variables categorical/numerical as appropriate
   - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
   - [To-Do] Summarize challenges participants identified
+  - [To-Do][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log compensation
+  - [To-Do][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log research funding. Also non diff/non log?
+  - [To-Do][Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 
+  
 
 ```{r Join Sets}
 # Augment the DCE dataset with the scenarios set
@@ -1074,5 +1078,15 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 
 ```
 
+```{r To-do: Regression analysis}
 
+#Alfredo wants standard OLS regression (lm) with controls for game index and respondent fixed effects (using dummy variables), also controlling for age and income. 
+#Also logit model (no fixed effects since he says the model can't do those) and mixed logit.
 
+#Both of these should regress the likelihood of choosing 0/1 (option A or option B) on the difference of feature levels. So, if A's participant feature is level 1, how much more likely is the participant to choose A versus a B option that has feature level 2/3/etc. Each difference should have its own variable (1 v 2, 2 v 3, 1 v 3, for each feature). Compensation and research funding are continuous, so you can use comp_delta and funding_delta. 
+
+#Errors should be robust and clustered at the respondent level. For more info, see Kathleen Mullen's paper. 
+
+```
+
+  - [To-Do][Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 
