@@ -40,39 +40,40 @@ Notes for Mira: \\
 
 ```{r Non-DCE Data Import}
 kageradata <- read.csv("returningresults_merged.csv")
+
+# Data Notes: 
+#   - ID indicator is respondentID or respondent_index
+#   - For joining with DCE data, join column is SET.OF.dce_game
+# 
+# Data Issues:
+#   - [COMPLETE][No code needed] what is respo_confirm? 
+#           Answer --> Some respondents did not confirm and are replaced 
+#   - *** part_study_1, who_participated --> not complete
+#   - *** contact_research --> not complete ("Did you get contact information for researchers"? Confirm what this question is)
+#   - *** clear_plans, ask_results --> almost empty
+#   
+#   - [COMPLETE][No code needed] keep_documentation/have_documentation might be in the wrong order (Confirm order)
+#           Answer --> Nope, this is fine. It goes "Did they give you a written document to keep" > "Did you keep that document after the interview" > "Do you still have it"
+#   - [COMPLETE][Data Cleaning] num_past_studies has NAs that Should be 0 (when past_study_participation is 0) 
+#   
+#   - *** many 0s for past_study_participation, so much of the activity response section is empty
+#   - *** future_study_willingness --> not complete
+#   
 ```
 
-Data Notes: 
-  - ID indicator is respondentID or respondent_index
-  - For joining with DCE data, join column is SET.OF.dce_game
-
-Data Issues:
-  - [COMPLETE][No code needed] what is respo_confirm? 
-          Answer --> Some respondents did not confirm and are replaced 
-  - *** part_study_1, who_participated --> not complete
-  - *** contact_research --> not complete ("Did you get contact information for researchers"? Confirm what this question is)
-  - *** clear_plans, ask_results --> almost empty
-  
-  - [COMPLETE][No code needed] keep_documentation/have_documentation might be in the wrong order (Confirm order)
-          Answer --> Nope, this is fine. It goes "Did they give you a written document to keep" > "Did you keep that document after the interview" > "Do you still have it"
-  - [COMPLETE][Data Cleaning] num_past_studies has NAs that Should be 0 (when past_study_participation is 0) 
-  
-  - *** many 0s for past_study_participation, so much of the activity response section is empty
-  - *** future_study_willingness --> not complete
-  
-  
 ```{r DCE Data Import}
 dcedata <- read.csv("dce_returningresults_merged.csv")
 scenarios <- read.csv("scenario_dataset.csv")
-```
 
-DCE Data Notes:
-    - No ID indicator, for joining with Kagera data, join column is SET.OF.dce_game
-    - DCE data has 10 observations per ID, so it will be a many-to-one join (and that's okay)
-    
-DCE Issues: 
-    - [COMPLETE][Join Sets] Need to parse the game_matrix (stitched_output_##.jpg) to the actual levels and features from the Excel sheet. This means another join
-    - [COMPLETE][Join Sets] Join on the game_matrix column (to the "image" column in the Excel spreadsheet of DCE features and levels)
+
+# DCE Data Notes:
+#     - No ID indicator, for joining with Kagera data, join column is SET.OF.dce_game
+#     - DCE data has 10 observations per ID, so it will be a many-to-one join (and that's okay)
+#     
+# DCE Issues: 
+#     - [COMPLETE][Join Sets] Need to parse the game_matrix (stitched_output_##.jpg) to the actual levels and features from the Excel sheet. This means another join
+#     - [COMPLETE][Join Sets] Join on the game_matrix column (to the "image" column in the Excel spreadsheet of DCE features and levels)
+```
 
 # To-Do for Both Datasets: \\
 
@@ -764,21 +765,21 @@ datatable(num_summary,
           caption = "Summary of Numeric Variables",
           options = list(pageLength = 10, scrollX = TRUE))
 
-# 
-# # Alternate View: Pretty kable tables
-# print("Categorical Summary")
-# cat_summary %>%
-#   arrange(Variable) %>%
-#   kable("html", escape = FALSE, caption = "Summary of Categorical Variables") %>%
-#   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
-# 
-# print("Numeric Summary")
-# num_summary %>%
-#   arrange(Variable) %>%
-#   kable("html", escape = FALSE, caption = "Summary of Numeric Variables") %>%
-#   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
-# 
-# 
+
+# Alternate View: Pretty and static kable tables
+print("Categorical Summary")
+cat_summary %>%
+  arrange(Variable) %>%
+  kable("html", escape = FALSE, caption = "Summary of Categorical Variables") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
+
+print("Numeric Summary")
+num_summary %>%
+  arrange(Variable) %>%
+  kable("html", escape = FALSE, caption = "Summary of Numeric Variables") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
+
+
 ```
 
 ```{r Analyze DCE data: Linear Regression}
@@ -1027,23 +1028,23 @@ ggplot(comp_stats, aes(x = comp, y = win_rate)) +
 # Drawn from these results (i.e. negative coef is more preference, positive coef is less preference)
 
 
-results_pref_model <- lm(results_preference_ranking ~ method + study + order + respondentid, data = threestudy_long)
+results_pref_model <- lm(results_preference_ranking ~ method + study + order + respondentID, data = threestudy_long)
 #summary(results_pref_model)
 #bptest(results_pref_model)
 #Evidence suggests presence of heteroskedasticity
-coeftest(results_pref_model, vcov = vcovHC(results_pref_model, type = "HC0", cluster = ~respondentid))
+coeftest(results_pref_model, vcov = vcovHC(results_pref_model, type = "HC0", cluster = ~respondentID))
 
-formats_pref_model <- lm(formats_preference_ranking ~ method + study + order + respondentid, data = threestudy_long)
+formats_pref_model <- lm(formats_preference_ranking ~ method + study + order + respondentID, data = threestudy_long)
 #summary(formats_pref_model)
 #bptest(formats_pref_model)
 #Evidence suggests presence of heteroskedasticity
-coeftest(formats_pref_model, vcov = vcovHC(formats_pref_model, type = "HC0", cluster = ~respondentid))
+coeftest(formats_pref_model, vcov = vcovHC(formats_pref_model, type = "HC0", cluster = ~respondentID))
 
-formats_clarity_model <- lm(formats_clarity_ranking ~ method + study + order + respondentid, data = threestudy_long)
+formats_clarity_model <- lm(formats_clarity_ranking ~ method + study + order + respondentID, data = threestudy_long)
 #summary(formats_clarity_model)
 #bptest(formats_clarity_model)
 #Evidence suggests against presence of heteroskedasticity, but code available below for robust standard errors
-coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0"), cluster = ~respondentid)
+coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0"), cluster = ~respondentID)
 
 ```
 
