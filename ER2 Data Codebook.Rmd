@@ -317,16 +317,18 @@ lines <- lines[lines != ""]
 
 split_lines <- strsplit(lines, "#")
 cleaned_data <- lapply(split_lines, function(x) trimws(x))
-df <- do.call(rbind, cleaned_data)
-colnames(df) <- c("Variable Name", "Type")
-df <- as.data.frame(df, stringsAsFactors = FALSE)
+codebook <- do.call(rbind, cleaned_data)
+colnames(codebook) <- c("Variable Name", "Type")
+codebook <- as.data.frame(codebook, stringsAsFactors = FALSE)
 
 # Show the interactive data table
-datatable(df, 
+datatable(codebook, 
           options = list(pageLength = 25, autoWidth = TRUE),
           rownames = FALSE,
           filter = 'top',
           caption = 'Interactive Data Dictionary')
+
+write.csv(codebook, "codebook.csv", row.names = FALSE)
 
 ```
 

@@ -90,11 +90,13 @@ scenarios <- read.csv("scenario_dataset.csv")
   - [COMPLETE][Analyze DCE Data] Analyze DCE data
       - [COMPLETE][Analyze DCE Data: Linear Regression] Regress likelihood of choosing A when each feature level is present in A, present in B. 
       - [COMPLETE][Analyze DCE Data: DCE Graph...] Create graph of likelihood of choosing A/B given compensation level of A/B. 
+  - [COMPLETE][Summary Statistics Table] Create a table of summary statistics for each variable 
+  - [COMPLETE][Summary Statistics Table] Make variables categorical/numerical as appropriate
+  
   - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
   - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
   - [To-Do] Summarize comment variables (exercise_comment and exercise_comment_oth for DCE comments, end_commet for overall comments)
-  - [COMPLETE][Summary Statistics Table] Create a table of summary statistics for each variable 
-  - [To-Do][Summary Statistics Table] Make variables categorical/numerical as appropriate
+  - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
   - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
   - [To-Do] Summarize challenges participants identified
   - [To-Do][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log compensation
@@ -155,6 +157,43 @@ fulldata <- fulldata %>%
   tidyr::separate(first_position, into = c("first_study", "first_method"), sep = " ", convert = TRUE, fill = "right") %>%
   tidyr::separate(second_position, into = c("second_study", "second_method"), sep = " ", convert = TRUE, fill = "right") %>%
   tidyr::separate(third_position, into = c("third_study", "third_method"), sep = " ", convert = TRUE, fill = "right")
+
+#Read in the codebook of variable names and types, adjust types that are incorrect
+codebook <- read.csv("codebook.csv")
+
+colnames(codebook) <- c("Variable_Name", "Type")
+
+for (i in seq_len(nrow(codebook))) {
+  var_name <- codebook$Variable_Name[i]
+  expected_type <- codebook$Type[i]
+  
+  if (var_name %in% names(fulldata)) {
+    current_var <- fulldata[[var_name]]
+    
+    # Recode based on expected type and print action
+    if (expected_type == "factor" && !is.factor(current_var)) {
+      fulldata[[var_name]] <- as.factor(current_var)
+      print(paste("Converted", var_name, "to factor."))
+      
+    } else if (expected_type == "ordinal" && !is.ordered(current_var)) {
+      fulldata[[var_name]] <- factor(current_var, ordered = TRUE)
+      print(paste("Converted", var_name, "to ordered factor (ordinal)."))
+      
+    } else if (expected_type == "numerical" && !is.numeric(current_var)) {
+      fulldata[[var_name]] <- as.numeric(as.character(current_var))
+      print(paste("Converted", var_name, "to numeric."))
+      
+    } 
+    # You can also optionally report if the variable already matched
+    # else {
+    #   print(paste(var_name, "already has correct type:", class(current_var)))
+    # }
+    
+  } else {
+    warning(paste("Variable", var_name, "not found in fulldata."))
+  }
+}
+
 
 
 # The following section provides code to fix a miscoding where satisfaction scales show mixed numerical and string output, but this was fixed after the pilot. 
@@ -857,7 +896,7 @@ modelsummary(dce_model, stars = TRUE, gof_omit = 'IC|Log|Adj|FE',
 
 ```
 
-```{r Analyze DCE data: DCE Graph of chioce given comp level}
+```{r Analyze DCE data: DCE Graphs}
 
 #- Create graph of likelihood of choosing A/B given compensation level of A/B. 
 dce_compensation_dataset <- select(dceanalysis, c("option_selected", "compensation_image.A", "compensation_image.B")) %>%
@@ -955,65 +994,73 @@ ggplot(comp_stats, aes(x = comp, y = win_rate)) +
   ) +
   theme_minimal()
 
-# We can also *not* exclude the equal pairs: 
 
-# # Step 1: Gather into long format to compare A vs B in a unified way
-# comp_wins <- dce_compensation_dataset %>%
-#   mutate(
-#     winner_comp = case_when(
-#       option_selected == 1 ~ compA,
-#       option_selected == 2 ~ compB
-#     )
-#   ) %>%
-#   select(winner_comp) %>%
-#   group_by(winner_comp) %>%
-#   summarise(wins = n(), .groups = "drop")
-# 
-# # Step 2: Count total appearances of each level
-# comp_appearances <- dce_compensation_dataset %>%
-#   select(compA, compB) %>%
-#   pivot_longer(cols = everything(), names_to = "type", values_to = "comp") %>%
-#   group_by(comp) %>%
-#   summarise(appearances = n(), .groups = "drop")
-# 
-# # Step 3: Join + calculate win rate
-# comp_stats <- left_join(comp_appearances, comp_wins, by = c("comp" = "winner_comp")) %>%
-#   mutate(
-#     wins = replace_na(wins, 0),
-#     win_rate = wins / appearances
-#   )
-# 
-## Step 4: Compute confidence intervals
-# comp_stats <- comp_stats %>%
-#   rowwise() %>%
-#   mutate(
-#     ci = list(binom.test(wins, appearances)$conf.int),
-#     ci_lower = ci[[1]],
-#     ci_upper = ci[[2]]
-#   ) %>%
-#   ungroup() %>%
-#   select(-ci)
-# 
-# # Step 5: Plot with confidence intervals
-# ggplot(comp_stats, aes(x = comp, y = win_rate)) +
-#   geom_line(group = 1, color = "blue") +
-#   geom_point(size = 2, color = "darkblue") +
-#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
-#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-#   scale_x_continuous(
-#     breaks = 0:10,
-#     labels = function(x) paste0(x, " Tsh")
-#   ) +
-#   scale_y_continuous(
-#     limits = c(0, 1),
-#     breaks = seq(0, 1, by = 0.1)
-#   ) +
-#   labs(
-#     title = "Win Rate by Compensation Level (95% CI, Excluding Equal Pairs)",
-#     x = "Compensation Amount",
-#     y = "Win Rate"
-#   ) +
-#   theme_minimal()
+
+
+
+# Step 1: Create dataset with numerical compensation and comp_diff
+dceanalysis <- dceanalysis %>%
+  select(option_selected, compensation_image.A, compensation_image.B) %>%
+  mutate(
+    compA = as.numeric(gsub("Tsh.jpeg", "", compensation_image.A)),
+    compB = as.numeric(gsub("Tsh.jpeg", "", compensation_image.B)),
+    comp_diff = compA - compB
+  )
+
+# Step 2: Determine whether participant chose the higher compensation
+dceanalysis <- dceanalysis %>%
+  mutate(
+    chose_higher = case_when(
+      compA > compB & option_selected == 1 ~ 1,
+      compA > compB & option_selected == 2 ~ 0,
+      compA < compB & option_selected == 1 ~ 0,
+      compA < compB & option_selected == 2 ~ 1,
+      TRUE ~ NA_real_  # Drop ties or weird cases
+    )
+  ) %>%
+  filter(!is.na(chose_higher))  # Exclude ties or invalid cases
+
+# Step 3: Summarize by comp_diff
+diff_stats <- dceanalysis %>%
+  group_by(comp_diff) %>%
+  summarise(
+    n = n(),
+    wins = sum(chose_higher),
+    win_rate = wins / n,
+    .groups = "drop"
+  )
+
+# Step 4: Compute confidence intervals
+diff_stats <- diff_stats %>%
+  rowwise() %>%
+  mutate(
+    ci = list(binom.test(wins, n)$conf.int),
+    ci_lower = ci[[1]],
+    ci_upper = ci[[2]]
+  ) %>%
+  ungroup() %>%
+  select(-ci)
+
+# Step 5: Plot
+ggplot(diff_stats, aes(x = comp_diff, y = win_rate)) +
+  geom_line(group = 1, color = "blue") +
+  geom_point(size = 2, color = "navy") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = sort(unique(diff_stats$comp_diff)),
+    name = "Compensation Difference (A - B in Tsh)"
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1),
+    name = "Probability of Choosing Higher Compensation"
+  ) +
+  labs(
+    title = "Likelihood of Choosing Higher Compensation by Compensation Difference",
+    subtitle = "Respondents' probability of choosing the higher-paying option"
+  ) +
+  theme_minimal()
 
 ```
 
@@ -1064,10 +1111,11 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 
 ```
 
-```{r To-do: Summary Statistics Table: Convert factor/numerical}
+```{r To-do: Summary Statistics Table fixes}
 
-#      - Several variables are not categorized as factor variables when they should
+#      - [COMPLETE] Several variables are not categorized as factor variables when they should
 #      - The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
+#      - Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
 
 ```
 
