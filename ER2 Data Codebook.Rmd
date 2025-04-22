@@ -12,13 +12,9 @@ library(DT)
 ```
 
 # ER2 Codebook
-
-#To - Do:
-- Indicate factor/numerical/ordinal (meaning first, second, etc)/date
     - Numerical indicates continuous numerical variables where the quantity has an independent meaning (e.g. age, years of schooling, etc)
     - Ordinal indicates discrete numerical variables that only have meaning relative to the other values observed (e.g. 1st/2nd/etc)
     - By default, code binary variables as factors unless otherwise noted
-- Create interactive table (alphabetical sort, sort by type, etc.)
 
 ```{r Raw text of corresponding variable names and types}
 raw_text <- "
