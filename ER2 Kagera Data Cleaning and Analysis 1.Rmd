@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, modelsummary)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, modelsummary, patchwork, plm)
 ```
 
 # Initial Data Cleaning
@@ -132,31 +132,9 @@ scenarios <- read.csv("scenario_dataset.csv")
 ```
 
 ```{r Data Cleaning}
-# Cleaning the main Kagera dataset first. 
 
-  # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
+# Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
 fulldata <- subset(fulldata, respo_confirm == 1)
-
-  # num_past_studies has NAs that should be 0 when past_study_participation is 0
-fulldata$num_past_studies[is.na(fulldata$num_past_studies) & fulldata$past_study_participation == 0] <- 0
-
-# Rank varaiables --> columns for radio, sms, etc. and cell values are the rank designated by participant
-  # Some of the columns have collections of data that should be distributed into individual columns. These are resolved here. 
-  # rank_results_methods
-  # first_position, second_position, third_position
-  # rank_results_preference
-  # rank_formats_preference
-  # rank_formats_clarity
-max_splits <- max(sapply(strsplit(fulldata$rank_results_methods, " "), length)) # Determine max splits
-fulldata <- fulldata %>%
-  tidyr::separate(rank_results_methods, into = paste0("rank_results_methods_", 1:max_splits), sep = " ", convert = TRUE, fill = "right") %>%
-  tidyr::separate(rank_results_preference, into = paste0("rank_results_preference_", 1:3), sep = " ", convert = TRUE, fill = "right") %>%
-  tidyr::separate(rank_formats_preference, into = paste0("rank_formats_preference_", 1:3), sep = " ", convert = TRUE, fill = "right") %>%
-  tidyr::separate(rank_formats_clarity, into = paste0("rank_formats_clarity_", 1:3), sep = " ", convert = TRUE, fill = "right") %>%
-  #Now separate out study title and method
-  tidyr::separate(first_position, into = c("first_study", "first_method"), sep = " ", convert = TRUE, fill = "right") %>%
-  tidyr::separate(second_position, into = c("second_study", "second_method"), sep = " ", convert = TRUE, fill = "right") %>%
-  tidyr::separate(third_position, into = c("third_study", "third_method"), sep = " ", convert = TRUE, fill = "right")
 
 #Read in the codebook of variable names and types, adjust types that are incorrect
 codebook <- read.csv("codebook.csv")
@@ -193,29 +171,89 @@ for (i in seq_len(nrow(codebook))) {
     warning(paste("Variable", var_name, "not found in fulldata."))
   }
 }
+  # num_past_studies has NAs that should be 0 when past_study_participation is 0
+fulldata$num_past_studies[is.na(fulldata$num_past_studies) & fulldata$past_study_participation == 0] <- 0
 
 
 
-# The following section provides code to fix a miscoding where satisfaction scales show mixed numerical and string output, but this was fixed after the pilot. 
+# Rank varaiables --> columns for radio, sms, etc. and cell values are the rank designated by participant
+  # Some of the columns have collections of data that should be distributed into individual columns. These are resolved here. 
+  # rank_results_methods
+  # first_position, second_position, third_position
+  # rank_results_preference
+  # rank_formats_preference
+  # rank_formats_clarity
 
-# fulldata <- fulldata %>%
-#   mutate(across(77:85, ~ case_when(
-#     . == "not satisfied" ~ as.character(1),
-#     . == "very satisfied" ~ as.character(5),
-#     TRUE ~ as.character(.)
-#   )),
-#   across(45, ~ case_when(
-#     . == "Not busy at all" ~ as.character(1),
-#     . == "Very busy" ~ as.character(5),
-#     TRUE ~ as.character(.)
-#   )),
-#   across(88, ~ case_when(
-#     . == "Least interested" ~ as.character(1),
-#     . == "Most interested" ~ as.character(5),
-#     TRUE ~ as.character(.)
-#   )))
+max_splits <- max(sapply(strsplit(fulldata$rank_results_methods, " "), length)) # Determine max splits
+fulldata <- fulldata %>%
+  tidyr::separate(rank_results_methods, into = paste0("rank_results_methods_", 1:max_splits), sep = " ", convert = TRUE, fill = "right") %>%
+  tidyr::separate(rank_results_preference, into = paste0("rank_results_preference_", 1:3), sep = " ", convert = TRUE, fill = "right") %>%
+  tidyr::separate(rank_formats_preference, into = paste0("rank_formats_preference_", 1:3), sep = " ", convert = TRUE, fill = "right") %>%
+  tidyr::separate(rank_formats_clarity, into = paste0("rank_formats_clarity_", 1:3), sep = " ", convert = TRUE, fill = "right") %>%
+  #Now separate out study title and method
+  tidyr::separate(first_position, into = c("first_study", "first_method"), sep = " ", convert = TRUE, fill = "right") %>%
+  tidyr::separate(second_position, into = c("second_study", "second_method"), sep = " ", convert = TRUE, fill = "right") %>%
+  tidyr::separate(third_position, into = c("third_study", "third_method"), sep = " ", convert = TRUE, fill = "right")
 
-# Generate dummy var for study, position, method
+
+
+
+# The commented section provides code to fix a miscoding where satisfaction scales show mixed numerical and string output, but this was fixed after the pilot. 
+    # fulldata <- fulldata %>%
+    #   mutate(across(77:85, ~ case_when(
+    #     . == "not satisfied" ~ as.character(1),
+    #     . == "very satisfied" ~ as.character(5),
+    #     TRUE ~ as.character(.)
+    #   )),
+    #   across(45, ~ case_when(
+    #     . == "Not busy at all" ~ as.character(1),
+    #     . == "Very busy" ~ as.character(5),
+    #     TRUE ~ as.character(.)
+    #   )),
+    #   across(88, ~ case_when(
+    #     . == "Least interested" ~ as.character(1),
+    #     . == "Most interested" ~ as.character(5),
+    #     TRUE ~ as.character(.)
+    #   )))
+
+
+
+# Working with the DCE data. 
+
+  # Rename the option_selected variable from the misspelled version
+  fulldata <- fulldata %>%
+    rename(option_selected = dce_potion)
+  
+  # Recode the option_selected variable as 1 - A and 0 - B rather than 1 - A and 2 - B
+  fulldata <- fulldata %>%
+    mutate(
+      option_selected = ifelse(option_selected == 1, 1, 0)
+      )
+  
+  # Add columns for each of 5 features, levels, for each A and B (1 if present, 0 else)
+  features <- colnames(dcedata_aug)[9:19]
+  features <- features[features != "compset"]
+  fulldata <- dummy_cols(fulldata, select_columns = features)
+
+  # Create comp_delta and funding_delta for continuous features
+  fulldata$comp_delta <- NA
+  fulldata$funding_delta <- NA
+  i = 1
+  
+  fulldata <- fulldata %>%
+    mutate(
+      compA = as.numeric(gsub("Tsh.jpeg", "", compensation_image.A)),
+      compB = as.numeric(gsub("Tsh.jpeg", "", compensation_image.B)),
+      comp_delta = compA - compB,
+      fundA = as.numeric(gsub("^research|\\.jpeg$", "", researchfunding_image.A)),
+      fundB = as.numeric(gsub("^research|\\.jpeg$", "", researchfunding_image.B)),
+      funding_delta = fundA - fundB
+    )
+
+
+
+
+# Clean code for the three study experiment analysis. Generate dummy var for study, position, method
 threestudy_analysis <- select(fulldata, c("respondentID", 245:259))
 
 threestudy_analysis <- threestudy_analysis %>%
@@ -281,111 +319,7 @@ while(j <= nrow(threestudy_analysis)) {
 
 threestudy_long <- unique(select(threestudy_analysis, c("respondentID", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking")))
 
-
-
-#Add columns for each of 5 features, levels, for each A and B (1 if present, 0 else)
-features <- colnames(dcedata_aug)[9:19]
-features <- features[features != "compset"]
-dceanalysis <- dummy_cols(dcedata_aug, select_columns = features)
-
-#If feature is the same in A and B, make 0. For continuous variables, use delta
-
-#Force shared feature levels across A and B equal to 0
-dceanalysis <- dceanalysis %>%
-  rowwise() %>%
-  mutate(across(starts_with("participants_image.A_") | starts_with("participants_image.B_"), 
-                ~ if_else(participants_image.A == participants_image.B, as(0, class(.)), .)),
-         across(starts_with("community_image.A_") | starts_with("community_image.B_"), 
-                ~ if_else(community_image.A == community_image.B, as(0, class(.)), .)),
-         across(starts_with("policymakers_image.A_") | starts_with("policymakers_image.B_"), 
-                ~ if_else(policymakers_image.A == policymakers_image.B, as(0, class(.)), .)),
-         across(starts_with("compensation_image.A_") | starts_with("compensation_image.B_"), 
-                ~ if_else(compensation_image.A == compensation_image.B, as(0, class(.)), .)),
-         across(starts_with("researchfunding_image.A_") | starts_with("researchfunding_image.B_"), 
-                ~ if_else(researchfunding_image.A == researchfunding_image.B, as(0, class(.)), .))) %>%
-  ungroup()
-
-dceanalysis <- dceanalysis %>%
-  rename(option_selected = dce_potion)
-
-#Create comp_delta and funding_delta for continuous features
-dceanalysis$comp_delta <- NA
-dceanalysis$funding_delta <- NA
-i = 1
-
-while(i <= nrow(dceanalysis)) {
-    current_row <- dceanalysis[i,]
-    compA <- 0
-    compB <- 0
-    fundingA <- 0
-    fundingB <- 0
-    compA = case_when(
-      current_row$compensation_image.A_0Tsh.jpeg == 1 ~ 0,
-      current_row$compensation_image.A_1Tsh.jpeg == 1 ~ 1,
-      current_row$compensation_image.A_2Tsh.jpeg == 1 ~ 2,
-      current_row$compensation_image.A_3Tsh.jpeg == 1 ~ 3,
-      current_row$compensation_image.A_4Tsh.jpeg == 1 ~ 4,
-      current_row$compensation_image.A_5Tsh.jpeg == 1 ~ 5,
-      current_row$compensation_image.A_6Tsh.jpeg == 1 ~ 6,
-      current_row$compensation_image.A_7Tsh.jpeg == 1 ~ 7,
-      current_row$compensation_image.A_8Tsh.jpeg == 1 ~ 8,
-      current_row$compensation_image.A_9Tsh.jpeg == 1 ~ 9,
-      current_row$compensation_image.A_10Tsh.jpeg == 1 ~ 10
-    )
-    compB = case_when(
-      current_row$compensation_image.B_0Tsh.jpeg == 1 ~ 0,
-      current_row$compensation_image.B_1Tsh.jpeg == 1 ~ 1,
-      current_row$compensation_image.B_2Tsh.jpeg == 1 ~ 2,
-      current_row$compensation_image.B_3Tsh.jpeg == 1 ~ 3,
-      current_row$compensation_image.B_4Tsh.jpeg == 1 ~ 4,
-      current_row$compensation_image.B_5Tsh.jpeg == 1 ~ 5,
-      current_row$compensation_image.B_6Tsh.jpeg == 1 ~ 6,
-      current_row$compensation_image.B_7Tsh.jpeg == 1 ~ 7,
-      current_row$compensation_image.B_8Tsh.jpeg == 1 ~ 8,
-      current_row$compensation_image.B_9Tsh.jpeg == 1 ~ 9,
-      current_row$compensation_image.B_10Tsh.jpeg == 1 ~ 10
-    )
-    fundingA = case_when(
-      current_row$researchfunding_image.A_research0.jpeg == 1 ~ 0,
-      current_row$researchfunding_image.A_research2.jpeg == 1 ~ 2,
-      current_row$researchfunding_image.A_research4.jpeg == 1 ~ 4,
-      current_row$researchfunding_image.A_research6.jpeg == 1 ~ 6,
-      current_row$researchfunding_image.A_research8.jpeg == 1 ~ 8,
-      current_row$researchfunding_image.A_research10.jpeg == 1 ~ 10,
-      current_row$researchfunding_image.A_research12.jpeg == 1 ~ 12,
-      current_row$researchfunding_image.A_research14.jpeg == 1 ~ 14,
-      current_row$researchfunding_image.A_research16.jpeg == 1 ~ 16,
-      current_row$researchfunding_image.A_research18.jpeg == 1 ~ 18,
-      current_row$researchfunding_image.A_research20.jpeg == 1 ~ 20,
-      .default = 0
-    )
-    fundingB = case_when(
-      current_row$researchfunding_image.B_research0.jpeg == 1 ~ 0,
-      current_row$researchfunding_image.B_research2.jpeg == 1 ~ 2,
-      current_row$researchfunding_image.B_research4.jpeg == 1 ~ 4,
-      current_row$researchfunding_image.B_research6.jpeg == 1 ~ 6,
-      current_row$researchfunding_image.B_research8.jpeg == 1 ~ 8,
-      current_row$researchfunding_image.B_research10.jpeg == 1 ~ 10,
-      current_row$researchfunding_image.B_research12.jpeg == 1 ~ 12,
-      current_row$researchfunding_image.B_research14.jpeg == 1 ~ 14,
-      current_row$researchfunding_image.B_research16.jpeg == 1 ~ 16,
-      current_row$researchfunding_image.B_research18.jpeg == 1 ~ 18,
-      current_row$researchfunding_image.B_research20.jpeg == 1 ~ 20,
-      .default = 0
-    )
-    #Check if any comp or research funding dummy variables are == 1
-    #For nonzero variables, case_when assign numerical value
-    #Assign comp_delta, comp_funding equal to the differences (A - B, not absolute value since positive/negative indicates whether A or B is greater)
-    comp_delta_value <- compA[i] - compB[i]
-    funding_delta_value <- fundingA[i] - fundingB[i]
-  
-        # Check for NA and replace with 0 if NA
-    dceanalysis[i, "comp_delta"] <- ifelse(is.na(comp_delta_value), 0, comp_delta_value)
-    dceanalysis[i, "funding_delta"] <- ifelse(is.na(funding_delta_value), 0, funding_delta_value)
-    
-    i <- i + 1
-}
-
+dceanalysis <- fulldata
 ```
 
 ```{r Summary Statistics Table: Create the table}
@@ -897,161 +831,237 @@ modelsummary(dce_model, stars = TRUE, gof_omit = 'IC|Log|Adj|FE',
 ```
 
 ```{r Analyze DCE data: DCE Graphs}
-
-#- Create graph of likelihood of choosing A/B given compensation level of A/B. 
-dce_compensation_dataset <- select(dceanalysis, c("option_selected", "compensation_image.A", "compensation_image.B")) %>%
-  
-  # Create compA and compB columns based on which image column is 1
+dce_compensation_dataset <- select(dceanalysis, c("option_selected", "compA", "compB")) %>%
   mutate(
-    compA = case_when(
-      compensation_image.A == "0Tsh.jpeg" ~ 0,
-      compensation_image.A == "1Tsh.jpeg" ~ 1,
-      compensation_image.A == "2Tsh.jpeg" ~ 2,
-      compensation_image.A == "3Tsh.jpeg" ~ 3,
-      compensation_image.A == "4Tsh.jpeg" ~ 4,
-      compensation_image.A == "5Tsh.jpeg" ~ 5,
-      compensation_image.A == "6Tsh.jpeg" ~ 6,
-      compensation_image.A == "7Tsh.jpeg" ~ 7,
-      compensation_image.A == "8Tsh.jpeg" ~ 8,
-      compensation_image.A == "9Tsh.jpeg" ~ 9,
-      compensation_image.A == "10Tsh.jpeg" ~ 10
-    ),
-    compB = case_when(
-      compensation_image.B == "0Tsh.jpeg" ~ 0,
-      compensation_image.B == "1Tsh.jpeg" ~ 1,
-      compensation_image.B == "2Tsh.jpeg" ~ 2,
-      compensation_image.B == "3Tsh.jpeg" ~ 3,
-      compensation_image.B == "4Tsh.jpeg" ~ 4,
-      compensation_image.B == "5Tsh.jpeg" ~ 5,
-      compensation_image.B == "6Tsh.jpeg" ~ 6,
-      compensation_image.B == "7Tsh.jpeg" ~ 7,
-      compensation_image.B == "8Tsh.jpeg" ~ 8,
-      compensation_image.B == "9Tsh.jpeg" ~ 9,
-      compensation_image.B == "10Tsh.jpeg" ~ 10
-    )
+    log_compA = log1p(compA),
+    log_compB = log1p(compB)
   )
 
+# -- Win Rate Plot by Raw Compensation Level --
+filtered_data <- dce_compensation_dataset %>% filter(compA != compB)
 
-# Step 1: Filter out tie situations
-filtered_data <- dce_compensation_dataset %>%
-  filter(compA != compB)
-
-# Step 2: Calculate wins
 comp_wins <- filtered_data %>%
-  mutate(
-    winner_comp = case_when(
-      option_selected == 1 ~ compA,
-      option_selected == 2 ~ compB
-    )
-  ) %>%
-  select(winner_comp) %>%
-  group_by(winner_comp) %>%
-  summarise(wins = n(), .groups = "drop")
+  mutate(winner_comp = case_when(option_selected == 1 ~ compA, option_selected == 0 ~ compB)) %>%
+  count(winner_comp, name = "wins")
 
-# Step 3: Count total appearances
 comp_appearances <- filtered_data %>%
-  select(compA, compB) %>%
-  pivot_longer(cols = everything(), names_to = "type", values_to = "comp") %>%
-  group_by(comp) %>%
-  summarise(appearances = n(), .groups = "drop")
+  pivot_longer(cols = c(compA, compB), names_to = "type", values_to = "comp") %>%
+  count(comp, name = "appearances")
 
-# Step 4: Join + calculate win rate
 comp_stats <- left_join(comp_appearances, comp_wins, by = c("comp" = "winner_comp")) %>%
-  mutate(
-    wins = replace_na(wins, 0),
-    win_rate = wins / appearances
-  )
-
-# Step 5: Compute confidence intervals
-comp_stats <- comp_stats %>%
+  mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
   rowwise() %>%
   mutate(
     ci = list(binom.test(wins, appearances)$conf.int),
-    ci_lower = ci[[1]],
-    ci_upper = ci[[2]]
-  ) %>%
-  ungroup() %>%
-  select(-ci)
+    ci_lower = ci[[1]], ci_upper = ci[[2]]
+  ) %>% ungroup() %>% select(-ci)
 
-# Step 6: Plot with confidence intervals
-ggplot(comp_stats, aes(x = comp, y = win_rate)) +
+# Plot: Win Rate by Raw Compensation
+p1 <- ggplot(comp_stats, aes(x = comp, y = win_rate)) +
   geom_line(group = 1, color = "blue") +
   geom_point(size = 2, color = "darkblue") +
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = 0:10,
-    labels = function(x) paste0(x, " Tsh")
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1)
-  ) +
-  labs(
-    title = "Win Rate by Compensation Level (95% CI, Excluding Equal Pairs)",
-    x = "Compensation Amount",
-    y = "Win Rate"
-  ) +
+  scale_x_continuous(breaks = 0:10, labels = function(x) paste0(x, " Tsh")) +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
+  labs(title = "Win Rate by Compensation Level", x = "Compensation (Tsh)", y = "Win Rate") +
   theme_minimal()
 
-
-
-# Step 1: Create dataset with numerical compensation levels and comp_diff
-dceanalysis <- dceanalysis %>%
-  select(option_selected, compensation_image.A, compensation_image.B) %>%
+# -- Log-transformed Win Rate --
+log_filtered <- filtered_data %>%
   mutate(
-    compA = as.numeric(gsub("Tsh.jpeg", "", compensation_image.A)),
-    compB = as.numeric(gsub("Tsh.jpeg", "", compensation_image.B)),
-    comp_diff = compA - compB
+    log_winner = case_when(option_selected == 1 ~ log_compA, option_selected == 0 ~ log_compB)
   )
 
-# Step 2: Create binary variable for choosing A
+log_wins <- log_filtered %>% count(log_winner, name = "wins")
+log_appearances <- log_filtered %>%
+  pivot_longer(cols = c(log_compA, log_compB), names_to = "type", values_to = "log_comp") %>%
+  count(log_comp, name = "appearances")
+
+log_stats <- left_join(log_appearances, log_wins, by = c("log_comp" = "log_winner")) %>%
+  mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
+  rowwise() %>%
+  mutate(
+    ci = list(binom.test(wins, appearances)$conf.int),
+    ci_lower = ci[[1]], ci_upper = ci[[2]]
+  ) %>% ungroup() %>% select(-ci)
+
+# Plot: Win Rate by Log Compensation
+p2 <- ggplot(log_stats, aes(x = log_comp, y = win_rate)) +
+  geom_line(group = 1, color = "forestgreen") +
+  geom_point(size = 2, color = "darkgreen") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  labs(title = "Win Rate by Log(1 + Compensation)", x = "log(1 + Compensation)", y = "Win Rate") +
+  theme_minimal()
+
+# -- Plot Probability of Choosing A by Compensation Difference (Linear and Log) --
 dceanalysis <- dceanalysis %>%
   mutate(
+    log_compA = log1p(compA),
+    log_compB = log1p(compB),
+    log_diff = log_compA - log_compB,
     chose_A = ifelse(option_selected == 1, 1, 0)
   )
 
-# Step 3: Group by comp_diff and calculate probability of choosing A
+# Linear diff
 compdiff_stats <- dceanalysis %>%
-  group_by(comp_diff) %>%
-  summarise(
-    n = n(),
-    n_A = sum(chose_A),
-    prob_choose_A = n_A / n,
-    .groups = "drop"
-  )
-
-# Step 4: Compute confidence intervals
-compdiff_stats <- compdiff_stats %>%
+  group_by(comp_delta) %>%
+  summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
   rowwise() %>%
-  mutate(
-    ci = list(binom.test(n_A, n)$conf.int),
-    ci_lower = ci[[1]],
-    ci_upper = ci[[2]]
-  ) %>%
-  ungroup() %>%
-  select(-ci)
+  mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
+  ungroup() %>% select(-ci)
 
-# Step 5: Plot the results
-ggplot(compdiff_stats, aes(x = comp_diff, y = prob_choose_A)) +
+# Log diff
+logdiff_stats <- dceanalysis %>%
+  group_by(log_diff) %>%
+  summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
+  rowwise() %>%
+  mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
+  ungroup() %>% select(-ci)
+
+# Plot: Linear Diff
+p3 <- ggplot(compdiff_stats, aes(x = comp_delta, y = prob_choose_A)) +
   geom_line(group = 1, color = "steelblue") +
   geom_point(size = 2, color = "darkblue") +
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = sort(unique(compdiff_stats$comp_diff)),
-    name = "Compensation Difference (A - B in Tsh)"
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1),
-    name = "Probability of Choosing Option A"
-  ) +
-  labs(
-    title = "Probability of Choosing Option A by Compensation Difference",
-    subtitle = "With 95% confidence intervals"
-  ) +
+  labs(title = "P(Choose A) by Compensation Difference", x = "Compensation A - B", y = "P(Choose A)") +
   theme_minimal()
+
+# Plot: Log Diff
+p4 <- ggplot(logdiff_stats, aes(x = log_diff, y = prob_choose_A)) +
+  geom_line(group = 1, color = "seagreen") +
+  geom_point(size = 2, color = "darkgreen") +
+  #geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  labs(title = "P(Choose A) by Log(1 + Comp A) - Log(1 + Comp B)", x = "Log Compensation Difference", y = "P(Choose A)") +
+  theme_minimal()
+
+(p1)
+
+(p3)
+
+(p2)
+
+# This graph is not very helpful or informative, as the compensation diff graph does not need to be logged to be comprehensible...
+# I turned off error bars to make it readable at all, but I wouldn't recommend trying to use this visual 
+#(p4)
+
+#------------------------------------------------------------------------------------------------------------------------------------------
+
+# Research Funding Graphs
+
+# Prepare research funding dataset
+dce_funding_dataset <- select(dceanalysis, c("option_selected", "fundA", "fundB")) %>%
+  mutate(
+    log_fundA = log1p(fundA),
+    log_fundB = log1p(fundB)
+  )
+
+
+# Filter for non-tie cases
+dce_funding_dataset <- dce_funding_dataset %>% filter(fundA != fundB)
+
+fund_wins <- dce_funding_dataset %>%
+  mutate(winner_fund = case_when(option_selected == 1 ~ fundA, option_selected == 0 ~ fundB)) %>%
+  count(winner_fund, name = "wins")
+
+fund_appearances <- dce_funding_dataset %>%
+  pivot_longer(cols = c(fundA, fundB), names_to = "type", values_to = "fund") %>%
+  count(fund, name = "appearances")
+
+fund_stats <- left_join(fund_appearances, fund_wins, by = c("fund" = "winner_fund")) %>%
+  mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
+  rowwise() %>%
+  mutate(
+    ci = list(binom.test(wins, appearances)$conf.int),
+    ci_lower = ci[[1]], ci_upper = ci[[2]]
+  ) %>% ungroup() %>% select(-ci)
+
+# Plot
+pf1 <- ggplot(fund_stats, aes(x = fund, y = win_rate)) +
+  geom_line(group = 1, color = "blue") +
+  geom_point(size = 2, color = "darkblue") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  labs(title = "Win Rate by Research Funding Level", x = "Research Funding (Tsh)", y = "Win Rate") +
+  theme_minimal()
+
+log_dce_funding_dataset <- dce_funding_dataset %>%
+  mutate(
+    log_winner = case_when(option_selected == 1 ~ log_fundA, option_selected == 0 ~ log_fundB)
+  )
+
+log_wins_fund <- log_dce_funding_dataset %>%
+  count(log_winner, name = "wins")
+
+log_appearances_fund <- log_dce_funding_dataset %>%
+  pivot_longer(cols = c(log_fundA, log_fundB), names_to = "type", values_to = "log_fund") %>%
+  count(log_fund, name = "appearances")
+
+log_stats_fund <- left_join(log_appearances_fund, log_wins_fund, by = c("log_fund" = "log_winner")) %>%
+  mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
+  rowwise() %>%
+  mutate(
+    ci = list(binom.test(wins, appearances)$conf.int),
+    ci_lower = ci[[1]], ci_upper = ci[[2]]
+  ) %>% ungroup() %>% select(-ci)
+
+# Plot
+pf2 <- ggplot(log_stats_fund, aes(x = log_fund, y = win_rate)) +
+  geom_line(group = 1, color = "forestgreen") +
+  geom_point(size = 2, color = "darkgreen") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  labs(title = "Win Rate by Log(1 + Research Funding)", x = "log(1 + Funding)", y = "Win Rate") +
+  theme_minimal()
+
+dceanalysis <- dceanalysis %>%
+  mutate(
+    log_fundA = log1p(fundA),
+    log_fundB = log1p(fundB),
+    log_diff_fund = log_fundA - log_fundB,
+    chose_A = ifelse(option_selected == 1, 1, 0)
+  )
+
+# Linear difference
+funddiff_stats <- dceanalysis %>%
+  group_by(funding_delta) %>%
+  summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
+  rowwise() %>%
+  mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
+  ungroup() %>% select(-ci)
+
+# Log difference
+logdiff_fund_stats <- dceanalysis %>%
+  group_by(log_diff_fund) %>%
+  summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
+  rowwise() %>%
+  mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
+  ungroup() %>% select(-ci)
+
+# Plot: Linear diff
+pf3 <- ggplot(funddiff_stats, aes(x = funding_delta, y = prob_choose_A)) +
+  geom_line(group = 1, color = "steelblue") +
+  geom_point(size = 2, color = "darkblue") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  labs(title = "P(Choose A) by Research Funding Difference", x = "Funding A - B", y = "P(Choose A)") +
+  theme_minimal()
+
+# Plot: Log diff
+pf4 <- ggplot(logdiff_fund_stats, aes(x = log_diff_fund, y = prob_choose_A)) +
+  geom_line(group = 1, color = "seagreen") +
+  geom_point(size = 2, color = "darkgreen") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  labs(title = "P(Choose A) by Log(1 + A) - Log(1 + B)", x = "Log Funding Difference", y = "P(Choose A)") +
+  theme_minimal()
+
+(pf1 | pf2) 
+(pf3 | pf4)
+
+
 ```
 
 ```{r To-do: Analyze three study experiment}
@@ -1126,6 +1136,45 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 
 #Errors should be robust and clustered at the respondent level. For more info, see Kathleen Mullen's paper. 
 
+#OLS Model: 
+
+#dummy variable creation:
+dceanalysis_dummies <- dummy_cols(dceanalysis, select_columns = c("game_index", "respondentID"))
+
+ols_model <- feols(
+  option_selected ~ 
+    #participants_image.A_participant1.jpeg +
+    participants_image.A_participant2.jpeg +
+    participants_image.A_participant3.jpeg +
+    #community_image.A_community1.jpeg +
+    community_image.A_community2.jpeg +
+    community_image.A_community3.jpeg +
+    #policymakers_image.A_policy1.jpeg +
+    policymakers_image.A_policy2.jpeg +
+    policymakers_image.A_policy3.jpeg +
+    #participants_image.B_participant1.jpeg +
+    participants_image.B_participant2.jpeg +
+    participants_image.B_participant3.jpeg +
+    #community_image.B_community1.jpeg +
+    community_image.B_community2.jpeg +
+    community_image.B_community3.jpeg +
+    #policymakers_image.B_policy1.jpeg +
+    policymakers_image.B_policy2.jpeg +
+    policymakers_image.B_policy3.jpeg +
+    comp_delta +
+    funding_delta 
+  #+
+    #resp_age +
+    #resp_education 
+  | respondentID + game_index,  # Fixed effects
+  cluster = ~respondentID,        # Clustered SEs
+  data = dceanalysis
+)
+
+# Summary of results
+summary(ols_model)
+
+coefplot(ols_model, horiz = TRUE)
 ```
 
   - [To-Do][Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 

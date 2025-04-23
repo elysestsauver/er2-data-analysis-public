@@ -14,15 +14,17 @@ library(DT)
 # ER2 Codebook
     - Numerical indicates continuous numerical variables where the quantity has an independent meaning (e.g. age, years of schooling, etc)
     - Ordinal indicates discrete numerical variables that only have meaning relative to the other values observed (e.g. 1st/2nd/etc)
-    - By default, code binary variables as factors unless otherwise noted
+    - By default, code binary variables as factors unless otherwise noted.
 
 ```{r Raw text of corresponding variable names and types}
+#dce_potion is coded as numerical to allow estimation between 1/2
+
 raw_text <- "
 location # factor,
 game_index # ordinal,
 choicenumber # ordinal,
 game_matrix # factor,
-dce_potion # factor,
+option_selected # numerical,
 PARENT_KEY #factor,
 KEY.x # factor,
 SET.OF.dce_game # factor,
