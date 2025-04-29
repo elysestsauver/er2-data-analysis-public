@@ -780,81 +780,6 @@ num_summary %>%
 
 ```
 
-```{r Analyze DCE data: Linear Regression}
-
-#- Regress likelihood of choosing A when each feature level is present in A, present in B. 
-## DCE Linear Regression Analysis
-
-# This regression analysis regressed the option selected (A = 1, B = 0) on the presence of the various features and levels therein. Results are presented with robust standard errors and clustered at the respondent level unless otherwise specified.
-
-
-na_summary <- colSums(is.na(dceanalysis))
-
-# Filter to show only columns with at least one NA
-na_summary[na_summary > 0]
-
-# Create a named vector for variable labels
-var_labels <- c(
-  "participants_image.A_participant1.jpeg" = "A - No results returned to participants",
-  "participants_image.A_participant2.jpeg" = "A - Results returned remotely to participants",
-  "participants_image.A_participant3.jpeg" = "A - Results returned in person to participants",
-  "community_image.A_community1.jpeg" = "A - No results returned to community",
-  "community_image.A_community2.jpeg" = "A - Results returned remotely to c. leader",
-  "community_image.A_community3.jpeg" = "A - Results returned in person to community",
-  "policymakers_image.A_policy1.jpeg" = "A - No results returned to policymakers",
-  "policymakers_image.A_policy2.jpeg" = "A - Report to policymakers",
-  "policymakers_image.A_policy3.jpeg" = "A - Half-day policymaker workshop",
-  "participants_image.B_participant1.jpeg" = "B - No results returned to participants",
-  "participants_image.B_participant2.jpeg" = "B - Results returned remotely to participants",
-  "participants_image.B_participant3.jpeg" = "B - Results returned in person to participants",
-  "community_image.B_community1.jpeg" = "B - No results returned to community",
-  "community_image.B_community2.jpeg" = "B - Results returned remotely to c. leader",
-  "community_image.B_community3.jpeg" = "B - Results returned in person to community",
-  "policymakers_image.B_policy1.jpeg" = "B - No results returned to policymakers",
-  "policymakers_image.B_policy2.jpeg" = "B - Report to policymakers",
-  "policymakers_image.B_policy3.jpeg" = "B - Half-day policymaker workshop",
-  "comp_delta" = "Compensation Difference",
-  "funding_delta" = "Funding Difference",
-  "game_index" = "Game Number (1st, 2nd, etc)",
-  "SET.OF.dce_game" = "Fixed Effect (Respondent)"
-)
-
-# Fit the model with fixed effects
-dce_model <- feols(
-  option_selected ~ 
-    participants_image.A_participant1.jpeg +
-    participants_image.A_participant2.jpeg +
-    participants_image.A_participant3.jpeg +
-    community_image.A_community1.jpeg +
-    community_image.A_community2.jpeg +
-    community_image.A_community3.jpeg +
-    policymakers_image.A_policy1.jpeg +
-    policymakers_image.A_policy2.jpeg +
-    policymakers_image.A_policy3.jpeg +
-    participants_image.B_participant1.jpeg +
-    participants_image.B_participant2.jpeg +
-    participants_image.B_participant3.jpeg +
-    community_image.B_community1.jpeg +
-    community_image.B_community2.jpeg +
-    community_image.B_community3.jpeg +
-    policymakers_image.B_policy1.jpeg +
-    policymakers_image.B_policy2.jpeg +
-    policymakers_image.B_policy3.jpeg +
-    comp_delta +
-    funding_delta +
-    game_index | 
-    SET.OF.dce_game,  # This is your fixed effect
-  data = dceanalysis,
-  cluster = ~SET.OF.dce_game  # Clustered standard errors (robust to within-respondent correlation)
-)
-
-# Display results nicely with custom labels
-modelsummary(dce_model, stars = TRUE, gof_omit = 'IC|Log|Adj|FE', 
-             coef_map = var_labels)
-
-
-```
-
 ```{r Analyze DCE data: DCE Graphs}
 dce_compensation_dataset <- select(dceanalysis, c("option_selected", "compA", "compB", "comp_delta")) %>%
   mutate(
@@ -1376,7 +1301,7 @@ ggcoefplot(logit_model,
   coord_flip()
 ```
 
-```{r To-Do: DCE Dominant option graphs}
+```{r DCE Dominant option graphs}
 
 # Dominant choice graphs
 
@@ -1616,12 +1541,171 @@ ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_compensation_delta, 
     subtitle = "With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
+```
+
+```{r To-Do: Binary Logit DCE Regression}
+
+# A binary logit regression that regresses whether an option won against its feature levels.  Ex. chosen ~ has_return_results_participants_1 + has_return_results_2 + etc. 
+
+# A binary logit regression that regresses the likelihood of selecting a particular feature against what it's "up against". I.e. return_results_participants_remote_chosen ~ other_option_no_participant_results + other_option_participants_inperson + comp_delta + ....
+
+#To accomplish this, we want a long dataset. 
+
+library(survival)
+
+# Pivot longer
+dce_long <- dceanalysis %>%
+  pivot_longer(
+    cols = c(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, fundA, fundB),
+    names_to = c(".value", "alt"),
+    names_pattern = "(.*)(A|B)"
+  ) %>%
+  mutate(
+    chosen = ifelse((option_selected == 0 & alt == "B") | (option_selected == 1 & alt == "A"), 1, 0)
+  ) %>%
+  select(respondentID, game_index, chosen, alt, participant, community, policy, comp, fund)
+
+dce_long <- dce_long %>%
+  distinct(respondentID, game_index) %>%             # Get unique combinations
+  arrange(respondentID, game_index) %>%              # Order them
+  mutate(game_id = row_number()) %>%                 # Assign global game_id
+  right_join(dce_long, by = c("respondentID", "game_index"))
+
+dce_long$participant <- factor(dce_long$participant,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to participants", "Results returned to participants remotely", "Results returned to participants in person"))
+
+dce_long$community <- factor(dce_long$community,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to community", "Results returned to community leaders remotely", "Results returned to community in-person meeting"))
+
+dce_long$policy <- factor(dce_long$policy,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to policymakers", "Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers"))
+
+general_pref_logit <- clogit(
+  chosen ~ participant + community + policy + comp + fund + strata(game_id),
+  data = dce_long
+)
+
+summary(general_pref_logit)
+
+# Extract model summary in tidy format
+general_pref_logit_tidy <- broom::tidy(general_pref_logit, conf.int = TRUE)
+
+general_pref_logit_tidy$term <- recode(general_pref_logit_tidy$term,
+  "participantResults returned to participants remotely" = "Results returned to participants remotely", 
+  "participantResults returned to participants in person" = "Results returned to participants in person",
+  "communityResults returned to community leaders remotely" = "Results returned to community leaders remotely",
+  "communityResults returned to community in-person meeting" = "Results returned to community in-person meeting",
+  "policyReport of results submitted to policymakers" = "Report of results submitted to policymakers",
+  "policyResults presented in half-day workshop to policymakers" = "Results presented in half-day workshop to policymakers",
+  "comp" = "Compensation",
+  "fund" = "Research Funding"
+)
+
+
+# Basic coefficient plot
+ggplot(general_pref_logit_tidy, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point(color = "steelblue", size = 3) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
+  labs(
+    title = "Estimated Coefficients - Conditional Logit Model",
+    x = "Log-Odds Estimate (±95% CI)",
+    y = "Feature"
+  ) +
+  theme_minimal()
+
+
+```
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+```{r DEPRECATED, ignore = TRUE}
+
+#r [DEPRECATED] Analyze DCE data: Linear Regression
+
+#- Regress likelihood of choosing A when each feature level is present in A, present in B. 
+## DCE Linear Regression Analysis
+
+# This regression analysis regressed the option selected (A = 1, B = 0) on the presence of the various features and levels therein. Results are presented with robust standard errors and clustered at the respondent level unless otherwise specified.
+
+
+na_summary <- colSums(is.na(dceanalysis))
+
+# Filter to show only columns with at least one NA
+na_summary[na_summary > 0]
+
+# Create a named vector for variable labels
+var_labels <- c(
+  "participants_image.A_participant1.jpeg" = "A - No results returned to participants",
+  "participants_image.A_participant2.jpeg" = "A - Results returned remotely to participants",
+  "participants_image.A_participant3.jpeg" = "A - Results returned in person to participants",
+  "community_image.A_community1.jpeg" = "A - No results returned to community",
+  "community_image.A_community2.jpeg" = "A - Results returned remotely to c. leader",
+  "community_image.A_community3.jpeg" = "A - Results returned in person to community",
+  "policymakers_image.A_policy1.jpeg" = "A - No results returned to policymakers",
+  "policymakers_image.A_policy2.jpeg" = "A - Report to policymakers",
+  "policymakers_image.A_policy3.jpeg" = "A - Half-day policymaker workshop",
+  "participants_image.B_participant1.jpeg" = "B - No results returned to participants",
+  "participants_image.B_participant2.jpeg" = "B - Results returned remotely to participants",
+  "participants_image.B_participant3.jpeg" = "B - Results returned in person to participants",
+  "community_image.B_community1.jpeg" = "B - No results returned to community",
+  "community_image.B_community2.jpeg" = "B - Results returned remotely to c. leader",
+  "community_image.B_community3.jpeg" = "B - Results returned in person to community",
+  "policymakers_image.B_policy1.jpeg" = "B - No results returned to policymakers",
+  "policymakers_image.B_policy2.jpeg" = "B - Report to policymakers",
+  "policymakers_image.B_policy3.jpeg" = "B - Half-day policymaker workshop",
+  "comp_delta" = "Compensation Difference",
+  "funding_delta" = "Funding Difference",
+  "game_index" = "Game Number (1st, 2nd, etc)",
+  "SET.OF.dce_game" = "Fixed Effect (Respondent)"
+)
+
+# Fit the model with fixed effects
+dce_model <- feols(
+  option_selected ~ 
+    participants_image.A_participant1.jpeg +
+    participants_image.A_participant2.jpeg +
+    participants_image.A_participant3.jpeg +
+    community_image.A_community1.jpeg +
+    community_image.A_community2.jpeg +
+    community_image.A_community3.jpeg +
+    policymakers_image.A_policy1.jpeg +
+    policymakers_image.A_policy2.jpeg +
+    policymakers_image.A_policy3.jpeg +
+    participants_image.B_participant1.jpeg +
+    participants_image.B_participant2.jpeg +
+    participants_image.B_participant3.jpeg +
+    community_image.B_community1.jpeg +
+    community_image.B_community2.jpeg +
+    community_image.B_community3.jpeg +
+    policymakers_image.B_policy1.jpeg +
+    policymakers_image.B_policy2.jpeg +
+    policymakers_image.B_policy3.jpeg +
+    comp_delta +
+    funding_delta +
+    game_index | 
+    SET.OF.dce_game,  # This is your fixed effect
+  data = dceanalysis,
+  cluster = ~SET.OF.dce_game  # Clustered standard errors (robust to within-respondent correlation)
+)
+
+# Display results nicely with custom labels
+modelsummary(dce_model, stars = TRUE, gof_omit = 'IC|Log|Adj|FE', 
+             coef_map = var_labels)
 
 ```
 
