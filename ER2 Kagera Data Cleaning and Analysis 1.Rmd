@@ -97,10 +97,10 @@ scenarios <- read.csv("scenario_dataset.csv")
       - No longer necessary
   - [Cancelled][Initial OLS and Logit DCE Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 
       - Cancelled because alternate version of logit/mixed logit is preferred. See [Dominant Option Regression]
+  - [COMPLETE][DCE Dominant Option Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
   
   Ordered by priority:
   - [To-Do][DCE Dominant Option Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
-  - [To-Do][DCE Dominant Option Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
   - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
   - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
   - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
