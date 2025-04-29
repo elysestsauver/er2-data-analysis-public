@@ -99,15 +99,14 @@ scenarios <- read.csv("scenario_dataset.csv")
       - Cancelled because alternate version of logit/mixed logit is preferred. See [Dominant Option Regression]
   
   Ordered by priority:
-  - [To-Do][DCE Dominant Option Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
-  - [To-Do][DCE Dominant Option Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
-  - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+  - [To-Do][DCE Dominant Option Regression - E] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
+  - [To-Do][DCE Dominant Option Graphs - E] Create remote v. none, in person v. none, and in person v. remote graphs
+  - [To-Do][Summary Statistics Table fixes - M] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
   - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
   - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
   - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
   - [To-Do] Summarize comment variables (exercise_comment and exercise_comment_oth for DCE comments, end_commet for overall comments)
   - [To-Do] Summarize challenges participants identified
-
   
 
 ```{r Join Sets}
@@ -1151,7 +1150,232 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 
 #      - [COMPLETE] Several variables are not categorized as factor variables when they should
 #      - The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
-#      - Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+#      - [Mira working on It] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+
+#renaming dataset so I don't lose anything
+rankings <- fulldata
+
+#removing duplicates of ranking organized by respondentID
+rankings <- rankings %>%
+  distinct(respondentID, 
+          rank_results_methods_1,
+          rank_results_methods_2,
+          rank_results_methods_3,
+          rank_results_methods_4,
+          rank_results_methods_5,
+          rank_results_methods_6,
+          rank_results_methods_7,
+          rank_results_methods_8,
+          rank_results_methods_9,
+          # Add other rank columns as needed
+          .keep_all = TRUE)
+
+#this collapsed correctly - fulldata has 900 entries, this data has 90 entries, which tracks with the fact that each entry was duplicated 10x over
+
+rankings <- rankings %>%
+  rename(
+    methods_rank_first_choice = rank_results_methods_1,
+    methods_rank_second_choice = rank_results_methods_2,
+    methods_rank_third_choice = rank_results_methods_3,
+    methods_rank_fourth_choice = rank_results_methods_4,
+    methods_rank_fifth_choice = rank_results_methods_5,
+    methods_rank_sixth_choice = rank_results_methods_6,
+    methods_rank_seventh_choice = rank_results_methods_7,
+    methods_rank_eighth_choice = rank_results_methods_8,
+    methods_rank_ninth_choice = rank_results_methods_9)
+
+# creating labels
+method_labels <- c(
+  "1" = "Audio Message",
+  "2" = "SMS",
+  "3" = "Website",
+  "4" = "Flyer (Individual)",
+  "5" = "Flyer (Public)",
+  "6" = "Social Media Post",
+  "7" = "Video",
+  "8" = "Public Meeting",
+  "9" = "Private Meeting"
+)
+
+rank_labels <- c(
+  "first_choice" = "First Choice",
+  "second_choice" = "Second Choice",
+  "third_choice" = "Third Choice",
+  "fourth_choice" = "Fourth Choice",
+  "fifth_choice" = "Fifth Choice",
+  "sixth_choice" = "Sixth Choice",
+  "seventh_choice" = "Seventh Choice",
+  "eighth_choice" = "Eighth Choice",
+  "ninth_choice" = "Ninth Choice"
+)
+
+# stacked ranking
+stacked_rankings <- rankings %>%
+  mutate(across(starts_with("methods_rank_"), as.character)) %>%
+  pivot_longer(
+    cols = starts_with("methods_rank_"),
+    names_to = "rank_position",
+    values_to = "method"
+  ) %>%
+  mutate(
+    rank_position = str_remove(rank_position, "methods_rank_"),
+    rank_position = factor(rank_position, 
+                          levels = c("first_choice", "second_choice", "third_choice", 
+                                     "fourth_choice", "fifth_choice", "sixth_choice", 
+                                     "seventh_choice", "eighth_choice", "ninth_choice"))
+  ) %>%
+  ggplot(aes(x = rank_position, fill = method)) +
+  geom_bar(position = "fill") +
+  scale_fill_discrete(labels = method_labels) +
+  labs(title = "Distribution of Methods Across Rankings",
+       x = "Ranking",
+       y = "Proportion",
+       fill = "Method") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(size = 8),
+    legend.position = "right"
+  )
+
+# flipped stack plot
+stacked_rankings_2 <- rankings %>%
+  mutate(across(starts_with("methods_rank_"), as.character)) %>%
+  pivot_longer(
+    cols = starts_with("methods_rank_"),
+    names_to = "rank_position",
+    values_to = "method"
+  ) %>%
+  mutate(
+    rank_position = str_remove(rank_position, "methods_rank_"),
+    rank_position = factor(rank_position, 
+                          levels = c("first_choice", "second_choice", "third_choice", 
+                                     "fourth_choice", "fifth_choice", "sixth_choice", 
+                                     "seventh_choice", "eighth_choice", "ninth_choice")),
+    method = factor(method, levels = 1:9)
+  ) %>%
+  ggplot(aes(x = method, fill = rank_position)) +
+  geom_bar(position = "fill") +
+  scale_x_discrete(labels = method_labels) +  
+  scale_fill_discrete(labels = rank_labels) +  
+  labs(title = "Proportional Distribution of Rankings",
+       x = "Communication Method",
+       y = "Proportion",
+       fill = "Rank") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(size = 8),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+  )
+
+# First Choice Summary
+first_choice <- data.frame(
+  Count = summary(rankings$methods_rank_first_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "First Choice") %>%
+  arrange(desc(Count))
+
+# Second Choice Summary
+second_choice <- data.frame(
+  Count = summary(rankings$methods_rank_second_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "Second Choice") %>%
+  arrange(desc(Count))
+
+# Third Choice Summary
+third_choice <- data.frame(
+  Count = summary(rankings$methods_rank_third_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "Third Choice") %>%
+  arrange(desc(Count))
+
+# Fourth Choice Summary
+fourth_choice <- data.frame(
+  Count = summary(rankings$methods_rank_fourth_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "Fourth Choice") %>%
+  arrange(desc(Count))
+
+# Fifth Choice Summary
+fifth_choice <- data.frame(
+  Count = summary(rankings$methods_rank_fifth_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "Fifth Choice") %>%
+  arrange(desc(Count))
+
+# Sixth Choice Summary
+sixth_choice <- data.frame(
+  Count = summary(rankings$methods_rank_sixth_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "Sixth Choice") %>%
+  arrange(desc(Count))
+
+# Seventh Choice Summary
+seventh_choice <- data.frame(
+  Count = summary(rankings$methods_rank_seventh_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "Seventh Choice") %>%
+  arrange(desc(Count))
+
+# Eighth Choice Summary
+eighth_choice <- data.frame(
+  Count = summary(rankings$methods_rank_eighth_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "Eighth Choice") %>%
+  arrange(desc(Count))
+
+# Ninth Choice Summary
+ninth_choice <- data.frame(
+  Count = summary(rankings$methods_rank_ninth_choice)) %>%
+  mutate(Method = method_labels[rownames(.)],
+         Rank = "Ninth Choice") %>%
+  arrange(desc(Count))
+
+# combined summaries 
+summary_rank_table <- rbind(first_choice, second_choice, third_choice, fourth_choice,
+      fifth_choice, sixth_choice, seventh_choice, eighth_choice,
+      ninth_choice) %>%
+  select(Rank, Method, Count)
+
+
+# calculating percentages to be used in heat map 
+heatmap_data_pct <- summary_rank_table %>%
+  group_by(Rank) %>%
+  mutate(Percentage = Count/sum(Count) * 100) %>%
+  ungroup() %>%
+  mutate(
+    Rank = factor(Rank, 
+                 levels = c("First Choice", "Second Choice", "Third Choice", 
+                          "Fourth Choice", "Fifth Choice", "Sixth Choice",
+                          "Seventh Choice", "Eighth Choice", "Ninth Choice")),
+    Method = factor(Method)
+  )
+
+
+# creating a heatmap plot
+heatmap <- ggplot(heatmap_data_pct, aes(x = Rank, y = Method, fill = Percentage)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.0f%%", Percentage)), 
+            color = "white", size = 3) +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(
+    title = "Distribution of Rankings for Each Communication Method",
+    x = "Rank Position",
+    y = "Communication Method",
+    fill = "Percentage of\nResponses"
+  )
+
+summary_rank_table
+stacked_rankings_2
+stacked_rankings
+heatmap
 
 ```
 
