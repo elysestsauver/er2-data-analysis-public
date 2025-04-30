@@ -97,11 +97,17 @@ scenarios <- read.csv("scenario_dataset.csv")
       - No longer necessary
   - [Cancelled][Initial OLS and Logit DCE Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 
       - Cancelled because alternate version of logit/mixed logit is preferred. See [Dominant Option Regression]
+  - [COMPLETE][DCE Dominant Option Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
   
   Ordered by priority:
+<<<<<<< HEAD
   - [To-Do][DCE Dominant Option Regression - E] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
   - [To-Do][DCE Dominant Option Graphs - E] Create remote v. none, in person v. none, and in person v. remote graphs
   - [To-Do][Summary Statistics Table fixes - M] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+=======
+  - [To-Do][DCE Dominant Option Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
+  - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+>>>>>>> 18e5f151c6178574fefbaf10395d30738aebcffc
   - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
   - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
   - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
@@ -323,6 +329,27 @@ for (i in seq_len(nrow(codebook))) {
 fulldata$num_past_studies[is.na(fulldata$num_past_studies) & fulldata$past_study_participation == 0] <- 0
 
 dceanalysis <- select(fulldata, c("respondentID", "game_index", 9:19, "option_selected", "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset"))
+
+#Renaming columns for ease of reference
+dceanalysis <- dceanalysis %>%
+  rename(
+    participantA = participants_image.A,
+    participantB = participants_image.B,
+    communityA = community_image.A,
+    communityB = community_image.B,
+    policyA = policymakers_image.A,
+    policyB = policymakers_image.B, 
+    fund_delta = funding_delta
+    )
+
+#Listing the columns with the "participant1.jpeg" format data that needs to be extracted
+columns_to_process = c("participantA", "participantB", "communityA", "communityB", "policyA", "policyB", "compA", "compB", "fundA", "fundB")
+
+#Extract the number from the "participant1.jpeg" formatting
+for (col in columns_to_process) {
+  dceanalysis[[col]] <- as.numeric(gsub("\\D+", "", dceanalysis[[col]]))
+}
+
 ```
 
 ```{r Summary Statistics Table: Create the table}
@@ -1149,6 +1176,7 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 ```{r To-do: Summary Statistics Table fixes}
 
 #      - [COMPLETE] Several variables are not categorized as factor variables when they should
+<<<<<<< HEAD
 #      - The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
 #      - [Mira working on It] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
 
@@ -1376,6 +1404,10 @@ summary_rank_table
 stacked_rankings_2
 stacked_rankings
 heatmap
+=======
+#      - [COMPLETE] The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
+#      - Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+>>>>>>> 18e5f151c6178574fefbaf10395d30738aebcffc
 
 ```
 
@@ -1479,26 +1511,7 @@ ggcoefplot(logit_model,
 ```
 
 ```{r To-Do: DCE Dominant Option Regression}
-#Renaming columns for ease of reference
-dceanalysis <- dceanalysis %>%
-  rename(
-    participantA = participants_image.A,
-    participantB = participants_image.B,
-    communityA = community_image.A,
-    communityB = community_image.B,
-    policyA = policymakers_image.A,
-    policyB = policymakers_image.B, 
-    fund_delta = funding_delta
-    )
-
-#Listing the columns with the "participant1.jpeg" format data that needs to be extracted
-columns_to_process = c("participantA", "participantB", "communityA", "communityB", "policyA", "policyB", "compA", "compB", "fundA", "fundB")
-
-#Extract the number from the "participant1.jpeg" formatting
-for (col in columns_to_process) {
-  dceanalysis[[col]] <- as.numeric(gsub("\\D+", "", dceanalysis[[col]]))
-}
-
+# Excluding dummies
 dceanalysis <- dceanalysis %>%
   select(respondentID, game_index, option_selected, participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, fundA, fundB, comp_delta, fund_delta, compset)
 
@@ -1637,7 +1650,7 @@ ggplot(summary_data, aes(x = dominant_funding_compensation_delta, y = mean_chose
 
 
 
-participantanalysisdataset <- subset(dceanalysis, participantA != participantB)
+participantanalysisdataset <- subset(dceanalysis, participantA != participantB & comp_delta != 0)
 
 # Returns to Participants - In person > Remote > None (3 > 2 > 1)
 
@@ -1665,7 +1678,7 @@ ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_compensation_delta, y
   labs(
     x = "Differential in Compensation",
     y = "Probability of Choosing Dominant Returning Method",
-    title = "Choice of Option with Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
+    title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
     subtitle = "With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
@@ -1699,7 +1712,7 @@ ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_compensation_delta, y
   labs(
     x = "Differential in Compensation",
     y = "Probability of Choosing Dominant Returning Method",
-    title = "Choice of Option with Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
+    title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
     subtitle = "With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
@@ -1709,18 +1722,135 @@ ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_compensation_delta, y
 
 #To-Do: Graphs for the following subsets
 
-rrp_remote_none_subset <- subset(dceanalysis, participantA != 3 & participantB != 3)
-rrp_inperson_none_subet <- subset(dceanalysis, participantA != 2 & participantB != 2)
-rrp_remote_inperson_subet <- subset(dceanalysis, participantA != 1 & participantB != 1)
+rrp_remote_none_subset <- subset(participantanalysisdataset, participantA != 3 & participantB != 3)
+rrp_inperson_none_subset <- subset(participantanalysisdataset, participantA != 2 & participantB != 2)
+rrp_remote_inperson_subset <- subset(participantanalysisdataset, participantA != 1 & participantB != 1)
 
 # Returns to Participants - Remote vs. None (2 > 1)
 
+summary_data_participant_rn <- rrp_remote_none_subset %>%
+  group_by(dominant_rrp_v1_compensation_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chose_dominant_rrp_opton_version1, na.rm = TRUE),
+    se_chose_dominant = sd(chose_dominant_rrp_opton_version1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )
+ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Returning Results Remotely (vs. None)",
+    title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
 # Returns to Participants - In person vs. None (3 > 1)
+
+summary_data_participant_in <- rrp_inperson_none_subset %>%
+  group_by(dominant_rrp_v1_compensation_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chose_dominant_rrp_opton_version1, na.rm = TRUE),
+    se_chose_dominant = sd(chose_dominant_rrp_opton_version1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )
+ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results in Person (vs. None)",
+    title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
 
 # Returns to Participants - In person vs. Remote (3 > 2)
 
+summary_data_participant_ir <- rrp_remote_inperson_subset %>%
+  group_by(dominant_rrp_v1_compensation_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chose_dominant_rrp_opton_version1, na.rm = TRUE),
+    se_chose_dominant = sd(chose_dominant_rrp_opton_version1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )
+ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results In Person (vs. Remote)",
+    title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
 # Returns to Participants - Remote vs. In person (2 > 3, Helpful? Or shouldn't include?)
 
+summary_data_participant_ri <- rrp_remote_inperson_subset %>%
+  group_by(dominant_rrp_v2_compensation_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chose_dominant_rrp_opton_version2, na.rm = TRUE),
+    se_chose_dominant = sd(chose_dominant_rrp_opton_version2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )
+ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_compensation_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
+    title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
 
 
 
