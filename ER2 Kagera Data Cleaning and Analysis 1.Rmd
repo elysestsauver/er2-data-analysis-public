@@ -1100,6 +1100,12 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 #      - [COMPLETE] Several variables are not categorized as factor variables when they should
 #      - The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
 #      - [Mira working on It] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+#      - [COMPLETE] The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
+#      - Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+
+```
+
+```{r To-do: Analyze the rank results methods 1-9 (What are the top method preferences?)}
 
 #renaming dataset so I don't lose anything
 rankings <- fulldata
@@ -1371,14 +1377,6 @@ summary_rank_table
 stacked_rankings_2
 stacked_rankings
 heatmap
-
-#      - [COMPLETE] The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
-#      - Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
-
-```
-
-```{r To-do: Analyze the rank results methods 1-9 (What are the top method preferences?)}
-
 ```
 
 ```{r To-do: Summarize challenges participants identified}
