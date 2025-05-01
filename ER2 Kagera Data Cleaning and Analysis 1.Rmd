@@ -100,14 +100,11 @@ scenarios <- read.csv("scenario_dataset.csv")
   - [COMPLETE][DCE Dominant Option Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
   
   Ordered by priority:
-<<<<<<< HEAD
   - [To-Do][DCE Dominant Option Regression - E] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
   - [To-Do][DCE Dominant Option Graphs - E] Create remote v. none, in person v. none, and in person v. remote graphs
   - [To-Do][Summary Statistics Table fixes - M] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
-=======
   - [To-Do][DCE Dominant Option Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
   - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
->>>>>>> 18e5f151c6178574fefbaf10395d30738aebcffc
   - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
   - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
   - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
@@ -1101,7 +1098,6 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 ```{r To-do: Summary Statistics Table fixes}
 
 #      - [COMPLETE] Several variables are not categorized as factor variables when they should
-<<<<<<< HEAD
 #      - The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
 #      - [Mira working on It] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
 
@@ -1180,6 +1176,7 @@ stacked_rankings <- rankings %>%
   ggplot(aes(x = rank_position, fill = method)) +
   geom_bar(position = "fill") +
   scale_fill_discrete(labels = method_labels) +
+  scale_x_discrete(labels = rank_labels) +  
   labs(title = "Distribution of Methods Across Rankings",
        x = "Ranking",
        y = "Proportion",
@@ -1325,14 +1322,58 @@ heatmap <- ggplot(heatmap_data_pct, aes(x = Rank, y = Method, fill = Percentage)
     fill = "Percentage of\nResponses"
   )
 
+# ranked choice voting analysis - Borda Count
+# Assigns points based on rank to each selection
+
+borda_scores <- rankings %>%
+  mutate(across(starts_with("methods_rank_"), as.character)) %>%
+  pivot_longer(
+    cols = starts_with("methods_rank_"),
+    names_to = "rank",
+    values_to = "method"
+  ) %>%
+  mutate(
+    points = case_when(
+      rank == "methods_rank_first_choice" ~ 9,
+      rank == "methods_rank_second_choice" ~ 8,
+      rank == "methods_rank_third_choice" ~ 7,
+      rank == "methods_rank_fourth_choice" ~ 6,
+      rank == "methods_rank_fifth_choice" ~ 5,
+      rank == "methods_rank_sixth_choice" ~ 4,
+      rank == "methods_rank_seventh_choice" ~ 3,
+      rank == "methods_rank_eighth_choice" ~ 2,
+      rank == "methods_rank_ninth_choice" ~ 1
+    )
+  ) %>%
+  group_by(method) %>%
+  summarize(
+    total_points = sum(points, na.rm = TRUE)
+  ) %>%
+  mutate(
+    method_name = method_labels[method],
+    percentage = round(total_points/sum(total_points) * 100, 2)
+  ) %>%
+  arrange(desc(total_points)) %>%
+  select(method_name, total_points, percentage)
+
+borda_scores <- borda_scores %>%
+  arrange(desc(total_points)) %>%
+  kable("html", escape = FALSE, caption = "Borda Count Ranked Choice Voting Results", col.names = c("Communication Method","Total Points", "Percentage")) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
+
+summary_rank_table <- summary_rank_table %>%
+  #arrange(desc(total_points)) %>%
+  kable("html", escape = FALSE, caption = "Rankings Summary Statistics") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
+
+borda_scores
 summary_rank_table
 stacked_rankings_2
 stacked_rankings
 heatmap
-=======
+
 #      - [COMPLETE] The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
 #      - Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
->>>>>>> 18e5f151c6178574fefbaf10395d30738aebcffc
 
 ```
 
