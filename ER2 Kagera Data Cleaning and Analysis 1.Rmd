@@ -1377,6 +1377,7 @@ summary_rank_table
 stacked_rankings_2
 stacked_rankings
 heatmap
+
 ```
 
 ```{r To-do: Summarize challenges participants identified}
