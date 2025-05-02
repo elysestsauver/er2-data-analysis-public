@@ -354,7 +354,7 @@ write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
 
 ```
 
-```{r Summary Statistics Table: Create the table}
+```{r Summary Statistics Table Create the table}
 
 # We basically want summary statistics for every var and a table with everything labeled clearly. Ideally have the question on the left, stats on the right.
 #   - If numerical: Median, mean, range, standard deviation of responses for numerical
@@ -787,7 +787,7 @@ num_summary %>%
 
 ```
 
-```{r To-do: Analyze three study experiment}
+```{r To-do. Analyze three study experiment}
 
 # The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
 
@@ -818,7 +818,7 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 
 ```
 
-```{r To-do: Analyze activity data}
+```{r To-do. Analyze activity data}
 
 # We asked questions about what activities each participant was involved with. I believe this question set was designed to provide an indication of whether or not individuals correctly recalled participating in the experiment. 
 
@@ -828,13 +828,13 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 
 ```
 
-```{r To-do: Summarize comment variables}
+```{r To-do. Summarize comment variables}
 
 # The comment variables might provide some qualitative information, but it's in Swahili. Can we compile it here and translate it?
 
 ```
 
-```{r To-do: Summary Statistics Table fixes}
+```{r To-do. Summary Statistics Table fixes}
 
 #      - [COMPLETE] Several variables are not categorized as factor variables when they should
 
@@ -1440,7 +1440,7 @@ heatmap
 
 ```
 
-```{r To-do: Analyze the rank results methods 1-9 (What are the top method preferences?)}
+```{r To-do. Analyze the rank results methods 1-9 (What are the top method preferences?)}
 
 
 #renaming dataset so I don't lose anything
@@ -1717,7 +1717,7 @@ heatmap
 
 ```
 
-```{r To-do: Summarize challenges participants identified}
+```{r To-do. Summarize challenges participants identified}
 ```
 
 ```{r Initial OLS and Logit DCE Regression Analysis}
@@ -2054,7 +2054,7 @@ ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean
   theme_minimal()
 ```
 
-```{r To-Do: Binary Logit DCE Regression}
+```{r DCE Long Dataset Creation}
 
 # A binary logit regression that regresses whether an option won against its feature levels.  Ex. chosen ~ has_return_results_participants_1 + has_return_results_2 + etc. 
 
@@ -2093,40 +2093,6 @@ dce_long$community <- factor(dce_long$community,
 dce_long$policy <- factor(dce_long$policy,
                                levels = c(1, 2, 3),
                                labels = c("No results returned to policymakers", "Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers"))
-
-general_pref_logit <- clogit(
-  chosen ~ participant + community + policy + comp + fund + strata(game_id),
-  data = dce_long
-)
-
-summary(general_pref_logit)
-
-# Extract model summary in tidy format
-general_pref_logit_tidy <- broom::tidy(general_pref_logit, conf.int = TRUE)
-
-general_pref_logit_tidy$term <- recode(general_pref_logit_tidy$term,
-  "participantResults returned to participants remotely" = "Results returned to participants remotely", 
-  "participantResults returned to participants in person" = "Results returned to participants in person",
-  "communityResults returned to community leaders remotely" = "Results returned to community leaders remotely",
-  "communityResults returned to community in-person meeting" = "Results returned to community in-person meeting",
-  "policyReport of results submitted to policymakers" = "Report of results submitted to policymakers",
-  "policyResults presented in half-day workshop to policymakers" = "Results presented in half-day workshop to policymakers",
-  "comp" = "Compensation",
-  "fund" = "Research Funding"
-)
-
-
-# Basic coefficient plot
-ggplot(general_pref_logit_tidy, aes(x = estimate, y = reorder(term, estimate))) +
-  geom_point(color = "steelblue", size = 3) +
-  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
-  labs(
-    title = "Estimated Coefficients - Conditional Logit Model",
-    x = "Log-Odds Estimate (±95% CI)",
-    y = "Feature"
-  ) +
-  theme_minimal()
 
 #Want: returning results to participants chosen ~ community + policy + comp + fund, 
      # returning results to community chosen ~ participants + policy + comp + fund,
@@ -2242,12 +2208,10 @@ dce_long <- dce_long %>%
       participant[alt == "A"] == "Results returned to participants in person" & alt == "B" ~ 0,
       participant[alt == "B"] == "Results returned to participants in person" & alt == "B" ~ 1,
       participant[alt == "B"] == "Results returned to participants in person" & alt == "A" ~ 0,
-      
       participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "A" ~ 1,
       participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "B" ~ 0,
       participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "A" ~ 0,
       participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "B" ~ 1,
-      
       TRUE ~ 0
     ),
     
@@ -2262,19 +2226,16 @@ dce_long <- dce_long %>%
       TRUE ~ comp[dominant_rrp_v1 == 1] - comp[dominant_rrp_v1 == 0]
     ),
     
-    
     dominant_rrp_v2 = case_when(
       participant[alt == "A"] == participant[alt == "B"] ~ NA,
       participant[alt == "A"] == "Results returned to participants remotely" & alt == "A" ~ 1,
       participant[alt == "A"] == "Results returned to participants remotely" & alt == "B" ~ 0,
       participant[alt == "B"] == "Results returned to participants remotely" & alt == "B" ~ 1,
       participant[alt == "B"] == "Results returned to participants remotely" & alt == "A" ~ 0,
-      
       participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "A" ~ 1,
       participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "B" ~ 0,
       participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "A" ~ 0,
       participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "B" ~ 1,
-      
       TRUE ~ 0
     ),
     
@@ -2287,24 +2248,151 @@ dce_long <- dce_long %>%
     dominant_rrp_v2_comp_delta = case_when(
       is.na(dominant_rrp_v2) ~ NA,
       TRUE ~ comp[dominant_rrp_v2 == 1] - comp[dominant_rrp_v2 == 0]
-    )
+    ),
     
-  ) %>%
-  ungroup()
-
+    
+    
+    #Now community returning results (rrc)
+    dominant_rrc_v1 = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "B" ~ 1,
+      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "A" ~ 0,
+      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "A" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrc_v1 = case_when(
+      is.na(dominant_rrc_v1) ~ NA,
+      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrc_v1_comp_delta = case_when(
+      is.na(dominant_rrc_v1) ~ NA,
+      TRUE ~ comp[dominant_rrc_v1 == 1] - comp[dominant_rrc_v1 == 0]
+    ),
+    
+    dominant_rrc_v2 = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "B" ~ 1,
+      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "A" ~ 0,
+      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "A" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrc_v2 = case_when(
+      is.na(dominant_rrc_v2) ~ NA,
+      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrc_v2_comp_delta = case_when(
+      is.na(dominant_rrc_v2) ~ NA,
+      TRUE ~ comp[dominant_rrc_v2 == 1] - comp[dominant_rrc_v2 == 0]
+    ),
+    
+    
+    
+    #Now for policymakers. Returning results to policymakers --> rrpolicy
+    dominant_rrpolicy_v1 = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrpolicy_v1 = case_when(
+      is.na(dominant_rrpolicy_v1) ~ NA,
+      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrpolicy_v1_comp_delta = case_when(
+      is.na(dominant_rrpolicy_v1) ~ NA,
+      TRUE ~ comp[dominant_rrpolicy_v1 == 1] - comp[dominant_rrpolicy_v1 == 0]
+    ),
+    
+    dominant_rrpolicy_v2 = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "B" ~ 1,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "A" ~ 0,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "A" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrpolicy_v2 = case_when(
+      is.na(dominant_rrpolicy_v2) ~ NA,
+      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrpolicy_v2_comp_delta = case_when(
+      is.na(dominant_rrpolicy_v2) ~ NA,
+      TRUE ~ comp[dominant_rrpolicy_v2 == 1] - comp[dominant_rrpolicy_v2 == 0]
+    )
+  ) %>% ungroup()
 
 write.csv(dce_long, file = "dcelongdataset.csv")
 
 ```
 
-```{r ASK ALFREDO}
+```{r Conditional Logit DCE Regression}
 
-participant_pref_logit <- clogit(
-  return_results_participants_chosen ~ return_results_participants_remote + return_results_participants_inperson + community + policy + comp + fund + strata(game_id),
-  data = subset(dce_long, !is.na(return_results_participants_chosen))
+general_pref_logit <- clogit(
+  chosen ~ participant + community + policy + comp + fund + strata(game_id),
+  data = dce_long
 )
 
-summary(participant_pref_logit)
+summary(general_pref_logit)
+
+# Extract model summary in tidy format
+general_pref_logit_tidy <- broom::tidy(general_pref_logit, conf.int = TRUE)
+
+general_pref_logit_tidy$term <- recode(general_pref_logit_tidy$term,
+  "participantResults returned to participants remotely" = "Results returned to participants remotely", 
+  "participantResults returned to participants in person" = "Results returned to participants in person",
+  "communityResults returned to community leaders remotely" = "Results returned to community leaders remotely",
+  "communityResults returned to community in-person meeting" = "Results returned to community in-person meeting",
+  "policyReport of results submitted to policymakers" = "Report of results submitted to policymakers",
+  "policyResults presented in half-day workshop to policymakers" = "Results presented in half-day workshop to policymakers",
+  "comp" = "Compensation",
+  "fund" = "Research Funding"
+)
+
+
+# Basic coefficient plot
+ggplot(general_pref_logit_tidy, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point(color = "steelblue", size = 3) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
+  labs(
+    title = "Estimated Coefficients - Conditional Logit Model",
+    x = "Log-Odds Estimate (±95% CI)",
+    y = "Feature"
+  ) +
+  theme_minimal()
+
 ```
 
 ```{r LOng Dataset Dominant Choice Graphs}
@@ -2322,7 +2410,7 @@ summary_data <- fundinganalysisdataset %>%
     se_chose_dominant = sd(chosen_dominant_fund, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )%>%
-  filter(n > 0)
+  filter(n > 1)
 
 ggplot(summary_data, aes(x = dominant_funding_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
@@ -2355,7 +2443,7 @@ summary_data_participantv1 <- participantanalysisdataset %>%
     se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )%>%
-  filter(n > 0)
+  filter(n > 1)
 
 ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
@@ -2390,7 +2478,7 @@ summary_data_participantv2 <- participantanalysisdataset %>%
     se_chose_dominant = sd(chosen_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )%>%
-  filter(n > 0)
+  filter(n > 1)
 
 ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
@@ -2432,7 +2520,7 @@ summary_data_participant_rn <- rrp_remote_none_subset %>%
     se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )%>%
-  filter(n > 0)
+  filter(n > 1)
 
 ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
@@ -2466,7 +2554,7 @@ summary_data_participant_in <- rrp_inperson_none_subset %>%
     se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )%>%
-  filter(n > 0)
+  filter(n > 1)
 
 ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
@@ -2499,7 +2587,7 @@ summary_data_participant_ir <- rrp_remote_inperson_subset %>%
     se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )%>%
-  filter(n > 0)
+  filter(n > 1)
 
 ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
@@ -2533,7 +2621,7 @@ summary_data_participant_ri <- rrp_remote_inperson_subset %>%
     se_chose_dominant = sd(chosen_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )%>%
-  filter(n > 0)
+  filter(n > 1)
 
 ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
@@ -2559,16 +2647,439 @@ ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean
 
 ```
 
+```{r Community Graphs}
+# Returns to Community - In person > Remote > None (3 > 2 > 1)
+
+communityanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_community_chosen))
 
 
+summary_data_communityv1 <- communityanalysisdataset %>%
+  group_by(dominant_rrc_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_communityv1, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
 
 
+# Returns to community - Remote > In person > none (2 > 3 > 1)
 
 
+summary_data_communityv2 <- communityanalysisdataset %>%
+  group_by(dominant_rrc_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_communityv2, aes(x = dominant_rrc_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
 
 
+#_________________________
+
+#To-Do: Graphs for the following subsets
+
+rrc_remote_none_subset <- subset(communityanalysisdataset, community != "Results returned to community in-person meeting")
+rrc_inperson_none_subset <- subset(communityanalysisdataset, community != "Results returned to community leaders remotely")
+rrc_remote_inperson_subset <- subset(communityanalysisdataset, community != "No results returned to community")
+
+# Returns to Communities  - Remote vs. None (2 > 1)
+
+summary_data_community_rn <- rrc_remote_none_subset %>%
+  group_by(dominant_rrc_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_community_rn, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Returning Results Remotely (vs. None)",
+    title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
 
 
+# Returns to Communities - In person vs. None (3 > 1)
+
+summary_data_community_in <- rrc_inperson_none_subset %>%
+  group_by(dominant_rrc_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_community_in, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results in Person (vs. None)",
+    title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+# Returns to Communities - In person vs. Remote (3 > 2)
+
+summary_data_community_ir <- rrc_remote_inperson_subset %>%
+  group_by(dominant_rrc_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_community_ir, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results In Person (vs. Remote)",
+    title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+# Returns to Communities - Remote vs. In person (2 > 3, Helpful? Or shouldn't include?)
+
+summary_data_community_ri <- rrc_remote_inperson_subset %>%
+  group_by(dominant_rrc_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_community_ri, aes(x = dominant_rrc_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
+    title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+```
+
+```{r Policy Graphs}
+# Returns to policy - In person > Remote > None (3 > 2 > 1)
+
+policyanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_policy_chosen))
+
+
+summary_data_policyv1 <- policyanalysisdataset %>%
+  group_by(dominant_rrpolicy_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_policyv1, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+# Returns to policy - Remote > In person > none (2 > 3 > 1)
+
+
+summary_data_policyv2 <- policyanalysisdataset %>%
+  group_by(dominant_rrpolicy_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_policyv2, aes(x = dominant_rrpolicy_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+#_________________________
+
+#To-Do: Graphs for the following subsets
+
+rrpolicy_remote_none_subset <- subset(policyanalysisdataset, policy != "Results presented in half-day workshop to policymakers")
+rrpolicy_inperson_none_subset <- subset(policyanalysisdataset, policy != "Report of results submitted to policymakers")
+rrpolicy_remote_inperson_subset <- subset(policyanalysisdataset, policy != "No results returned to policymakers")
+
+# Returns to Communities  - Remote vs. None (2 > 1)
+
+summary_data_policy_rn <- rrpolicy_remote_none_subset %>%
+  group_by(dominant_rrpolicy_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_policy_rn, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Returning Results Remotely (vs. None)",
+    title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+# Returns to Communities - In person vs. None (3 > 1)
+
+summary_data_policy_in <- rrpolicy_inperson_none_subset %>%
+  group_by(dominant_rrpolicy_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_policy_in, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results in Person (vs. None)",
+    title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+# Returns to Communities - In person vs. Remote (3 > 2)
+
+summary_data_policy_ir <- rrpolicy_remote_inperson_subset %>%
+  group_by(dominant_rrpolicy_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_policy_ir, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results In Person (vs. Remote)",
+    title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+# Returns to Communities - Remote vs. In person (2 > 3, Helpful? Or shouldn't include?)
+
+summary_data_policy_ri <- rrpolicy_remote_inperson_subset %>%
+  group_by(dominant_rrpolicy_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 1)
+
+ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
+    title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+```
 
 
 ```{r DEPRECATED, include = FALSE}
