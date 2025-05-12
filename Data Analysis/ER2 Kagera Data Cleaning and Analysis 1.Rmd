@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr)
 ```
 
 # Initial Data Cleaning
@@ -2348,6 +2348,11 @@ dce_long <- dce_long %>%
     )
   ) %>% ungroup()
 
+dce_long <- dce_long %>%
+  mutate(
+    respondentID = as.numeric(respondentID)
+  )
+
 write.csv(dce_long, file = "dcelongdataset.csv")
 
 ```
@@ -2389,6 +2394,63 @@ ggplot(general_pref_logit_tidy, aes(x = estimate, y = reorder(term, estimate))) 
   theme_minimal()
 
 ```
+
+```{r Mixed Logit DCE Regression}
+
+set.seed(3141592653)
+dce_long$comp_scaled <- (dce_long$comp - min(dce_long$comp, na.rm = TRUE)) / 
+                    (max(dce_long$comp, na.rm = TRUE) - min(dce_long$comp, na.rm = TRUE))
+
+dce_long$fund_scaled <- (dce_long$fund - min(dce_long$fund, na.rm = TRUE)) / 
+                    (max(dce_long$fund, na.rm = TRUE) - min(dce_long$fund, na.rm = TRUE))
+
+
+general_pref_mixed_logit <- logitr(
+  data = dce_long,
+  outcome = 'chosen',
+  obsID = 'game_id',
+  panelID = 'respondentID',
+  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
+  randPars = c(#participant = 'n', 
+               #community = 'n', 
+               #policy = 'n',
+               #comp = 'cn',
+               fund = 'n'
+               ),
+  drawType = 'sobol',
+  numDraws = 1000
+)
+
+summary(general_pref_mixed_logit)
+
+# Extract model summary in tidy format
+general_pref_mixed_logit_tidy <- broom::tidy(general_pref_mixed_logit, conf.int = TRUE)
+
+general_pref_mixed_logit_tidy$term <- recode(general_pref_mixed_logit_tidy$term,
+  "participantResults returned to participants remotely" = "Results returned to participants remotely", 
+  "participantResults returned to participants in person" = "Results returned to participants in person",
+  "communityResults returned to community leaders remotely" = "Results returned to community leaders remotely",
+  "communityResults returned to community in-person meeting" = "Results returned to community in-person meeting",
+  "policyReport of results submitted to policymakers" = "Report of results submitted to policymakers",
+  "policyResults presented in half-day workshop to policymakers" = "Results presented in half-day workshop to policymakers",
+  "comp_scaled" = "Compensation",
+  "fund_scaled" = "Research Funding"
+)
+
+
+# Basic coefficient plot
+ggplot(general_pref_mixed_logit_tidy, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point(color = "steelblue", size = 3) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
+  labs(
+    title = "Estimated Coefficients - Mixed Logit Model",
+    x = "Log-Odds Estimate (±95% CI)",
+    y = "Feature"
+  ) +
+  theme_minimal()
+```
+
 
 ```{r LOng Dataset Dominant Choice Graphs}
 # Dominant choice graphs
