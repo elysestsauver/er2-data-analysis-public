@@ -14,12 +14,7 @@ p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, kni
 
 # Initial Data Cleaning
 
-i am trying to push this from my mac - m
-here is one more line
-
-i am going to try again... 
-
-Notes for Mira: \\
+Key Notes: 
   - The [COMPLETE] tag means the task is fully done. \\
   - Three asterisks (***) mean this is a note to bring up with Henry and/or the enumerators. \\
   - The [To-Do] tag means the task is still incomplete. \\
