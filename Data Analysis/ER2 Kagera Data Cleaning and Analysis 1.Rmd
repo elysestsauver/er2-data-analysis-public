@@ -2469,7 +2469,7 @@ summary_data <- fundinganalysisdataset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data, aes(x = dominant_funding_comp_delta, y = mean_chose_dominant)) +
+plot1 <- ggplot(summary_data, aes(x = dominant_funding_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2502,7 +2502,7 @@ summary_data_participantv1 <- participantanalysisdataset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+plot2 <- ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2537,7 +2537,7 @@ summary_data_participantv2 <- participantanalysisdataset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
+plot3 <- ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2579,7 +2579,7 @@ summary_data_participant_rn <- rrp_remote_none_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+plot4 <- ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2613,7 +2613,7 @@ summary_data_participant_in <- rrp_inperson_none_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+plot5 <- ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2646,7 +2646,7 @@ summary_data_participant_ir <- rrp_remote_inperson_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+plot6 <- ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2680,7 +2680,7 @@ summary_data_participant_ri <- rrp_remote_inperson_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
+plot7 <- ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2719,7 +2719,7 @@ summary_data_communityv1 <- communityanalysisdataset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_communityv1, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+plot8 <- ggplot(summary_data_communityv1, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2754,7 +2754,7 @@ summary_data_communityv2 <- communityanalysisdataset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_communityv2, aes(x = dominant_rrc_v2_comp_delta, y = mean_chose_dominant)) +
+plot9 <- ggplot(summary_data_communityv2, aes(x = dominant_rrc_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2796,7 +2796,7 @@ summary_data_community_rn <- rrc_remote_none_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_community_rn, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+plot10 <- ggplot(summary_data_community_rn, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2830,7 +2830,7 @@ summary_data_community_in <- rrc_inperson_none_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_community_in, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+plot11 <- ggplot(summary_data_community_in, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2863,7 +2863,7 @@ summary_data_community_ir <- rrc_remote_inperson_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_community_ir, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+plot12 <- ggplot(summary_data_community_ir, aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2897,7 +2897,7 @@ summary_data_community_ri <- rrc_remote_inperson_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_community_ri, aes(x = dominant_rrc_v2_comp_delta, y = mean_chose_dominant)) +
+plot13 <- ggplot(summary_data_community_ri, aes(x = dominant_rrc_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2936,7 +2936,7 @@ summary_data_policyv1 <- policyanalysisdataset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_policyv1, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+plot14 <- ggplot(summary_data_policyv1, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -2971,7 +2971,7 @@ summary_data_policyv2 <- policyanalysisdataset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_policyv2, aes(x = dominant_rrpolicy_v2_comp_delta, y = mean_chose_dominant)) +
+plot15 <- ggplot(summary_data_policyv2, aes(x = dominant_rrpolicy_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -3013,7 +3013,7 @@ summary_data_policy_rn <- rrpolicy_remote_none_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_policy_rn, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+plot16 <- ggplot(summary_data_policy_rn, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -3047,7 +3047,7 @@ summary_data_policy_in <- rrpolicy_inperson_none_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_policy_in, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+plot17 <- ggplot(summary_data_policy_in, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -3080,7 +3080,7 @@ summary_data_policy_ir <- rrpolicy_remote_inperson_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_policy_ir, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+plot18 <- ggplot(summary_data_policy_ir, aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -3114,7 +3114,7 @@ summary_data_policy_ri <- rrpolicy_remote_inperson_subset %>%
   )%>%
   filter(n > 1)
 
-ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta, y = mean_chose_dominant)) +
+plot19 <- ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -3135,6 +3135,87 @@ ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta, y = mean
     subtitle = "With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
+
+```
+
+```{r Shiny Graph Display}
+library(shiny)
+
+ui <- fluidPage(
+  titlePanel("Custom Graph Dashboard"),
+
+  h3("Section 0: Research Funding vs. Compensation"),
+  fluidRow(
+    column(12, plotOutput("plot1"))
+  ),
+
+  h3("Section 1a: Returning Results to Participants (None vs. Remote vs. In person"),
+  fluidRow(
+    column(6, plotOutput("plot2")),
+    column(6, plotOutput("plot3"))
+  ),
+
+  h3("Section 1b: Results to Participants Pairwise Comparison"),
+  fluidRow(
+    column(3, plotOutput("plot4")),
+    column(3, plotOutput("plot5")),
+    column(3, plotOutput("plot6")),
+    column(3, plotOutput("plot7"))
+  ),
+
+  h3("Section 2a: Returning Results to Community (None vs. Remote vs. In person with community leaders"),
+  fluidRow(
+    column(6, plotOutput("plot8")),
+    column(6, plotOutput("plot9"))
+  ),
+
+  h3("Section 2b: Results to Community Pairwise Comparison"),
+  fluidRow(
+    column(3, plotOutput("plot10")),
+    column(3, plotOutput("plot11")),
+    column(3, plotOutput("plot12")),
+    column(3, plotOutput("plot13"))
+  ),
+
+  h3("Section 3a: Returning Results to Policymakers (None vs. Report vs. In person workshop"),
+  fluidRow(
+    column(6, plotOutput("plot14")),
+    column(6, plotOutput("plot15"))
+  ),
+
+  h3("Section 3b: Results to Policymakers Pairwise Comparison"),
+  fluidRow(
+    column(3, plotOutput("plot16")),
+    column(3, plotOutput("plot17")),
+    column(3, plotOutput("plot18")),
+    column(3, plotOutput("plot19"))
+  )
+)
+
+server <- function(input, output, session) {
+  output$plot1 <- renderPlot({ plot1 })
+  output$plot2 <- renderPlot({ plot2 })
+  output$plot3 <- renderPlot({ plot3 })
+  output$plot4 <- renderPlot({ plot4 })
+  output$plot5 <- renderPlot({ plot5 })
+  output$plot6 <- renderPlot({ plot6 })
+  output$plot7 <- renderPlot({ plot7 })
+  output$plot8 <- renderPlot({ plot8 })
+  output$plot9 <- renderPlot({ plot9 })
+  output$plot10 <- renderPlot({ plot10 })
+  output$plot11 <- renderPlot({ plot11 })
+  output$plot12 <- renderPlot({ plot12 })
+  output$plot13 <- renderPlot({ plot13 })
+  output$plot14 <- renderPlot({ plot14 })
+  output$plot15 <- renderPlot({ plot15 })
+  output$plot16 <- renderPlot({ plot16 })
+  output$plot17 <- renderPlot({ plot17 })
+  output$plot18 <- renderPlot({ plot18 })
+  output$plot19 <- renderPlot({ plot19 })
+}
+
+shinyApp(ui, server)
+
 
 ```
 
