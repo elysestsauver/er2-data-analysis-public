@@ -1837,7 +1837,7 @@ ggplot(summary_data, aes(x = dominant_funding_compensation_delta, y = mean_chose
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation (Dominant RF - Inferior RF)",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning) (Dominant RF - Inferior RF)",
     y = "Probability of Choosing Dominant Funding",
     title = "Choice of Option with Dominant Funding vs Compensation Delta",
     subtitle = "With Error Bars and 50% Reference Line"
@@ -1872,7 +1872,7 @@ ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_compensation_delta, y
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Dominant Returning Method",
     title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
     subtitle = "With Error Bars and 50% Reference Line"
@@ -1906,7 +1906,7 @@ ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, y = mean_
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Dominant Returning Method",
     title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
     subtitle = "With Error Bars and 50% Reference Line"
@@ -1946,7 +1946,7 @@ ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_compensation_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Returning Results Remotely (vs. None)",
     title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
     subtitle = "With Error Bars and 50% Reference Line"
@@ -1978,7 +1978,7 @@ ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_compensation_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results in Person (vs. None)",
     title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
     subtitle = "With Error Bars and 50% Reference Line"
@@ -2009,7 +2009,7 @@ ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_compensation_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results In Person (vs. Remote)",
     title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
     subtitle = "With Error Bars and 50% Reference Line"
@@ -2041,7 +2041,7 @@ ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
     title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
     subtitle = "With Error Bars and 50% Reference Line"
@@ -2452,7 +2452,7 @@ ggplot(general_pref_mixed_logit_tidy, aes(x = estimate, y = reorder(term, estima
 ```
 
 
-```{r LOng Dataset Dominant Choice Graphs}
+```{r Long Dataset Dominant Choice Graphs}
 # Dominant choice graphs
 
 # Research Funding vs. Compensation Differential
@@ -2485,8 +2485,8 @@ plot1 <- ggplot(summary_data, aes(x = dominant_funding_comp_delta, y = mean_chos
   ) +
   labs(
     x = "Differential in Compensation (Dominant RF - Inferior RF)",
-    y = "Probability of Choosing Dominant Funding",
-    title = "Choice of Option with Dominant Funding vs Compensation Delta",
+    y = "Probability of Choosing Option with Dominant Funding",
+    title = "Dominant Funding vs Compensation Delta",
     subtitle = "With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
@@ -2517,10 +2517,10 @@ plot2 <- ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_comp_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
-    y = "Probability of Choosing Dominant Returning Method",
-    title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Option with Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "In person > Remote > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2552,10 +2552,10 @@ plot3 <- ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Dominant Returning Method",
-    title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "Remote > In person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2594,10 +2594,10 @@ plot4 <- ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_comp_delta,
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
-    y = "Returning Results Remotely (vs. None)",
-    title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. None)",
+    title = "Returning Results Remotely vs Compensation Delta",
+    subtitle = "Remote > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2628,10 +2628,10 @@ plot5 <- ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_comp_delta,
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
-    y = "Probability of Choosing Returning Results in Person (vs. None)",
-    title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results In Person (vs. None)",
+    title = "Returning Results In Person vs Compensation Delta",
+    subtitle = "In Person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2661,10 +2661,10 @@ plot6 <- ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_comp_delta,
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
-    y = "Probability of Choosing Returning Results In Person (vs. Remote)",
-    title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results In Person (vs. Remotely)",
+    title = "Returning Results In Person vs Compensation Delta",
+    subtitle = "In Person > Remote. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2695,10 +2695,10 @@ plot7 <- ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta,
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
-    title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "Returning Results Remotely vs Compensation Delta",
+    subtitle = "Remote > In Person. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2734,10 +2734,10 @@ plot8 <- ggplot(summary_data_communityv1, aes(x = dominant_rrc_v1_comp_delta, y 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Dominant Returning Method",
-    title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "In person > Remote > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2769,10 +2769,10 @@ plot9 <- ggplot(summary_data_communityv2, aes(x = dominant_rrc_v2_comp_delta, y 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Dominant Returning Method",
-    title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "Remote > In person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2811,10 +2811,10 @@ plot10 <- ggplot(summary_data_community_rn, aes(x = dominant_rrc_v1_comp_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
-    y = "Returning Results Remotely (vs. None)",
-    title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. None)",
+    title = "Remote Returning Results vs Compensation Delta",
+    subtitle = "Remote > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2845,10 +2845,10 @@ plot11 <- ggplot(summary_data_community_in, aes(x = dominant_rrc_v1_comp_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
-    y = "Probability of Choosing Returning Results in Person (vs. None)",
-    title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results In Person (vs. None)",
+    title = "In-Person Returning Results vs Compensation Delta",
+    subtitle = "In Person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2878,10 +2878,10 @@ plot12 <- ggplot(summary_data_community_ir, aes(x = dominant_rrc_v1_comp_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results In Person (vs. Remote)",
-    title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "In-Person Returning Results vs Compensation Delta",
+    subtitle = "In person > Remote. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2912,10 +2912,10 @@ plot13 <- ggplot(summary_data_community_ri, aes(x = dominant_rrc_v2_comp_delta, 
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
-    title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "Remotely Returning Results vs Compensation Delta",
+    subtitle = "Remote > In person. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2951,10 +2951,10 @@ plot14 <- ggplot(summary_data_policyv1, aes(x = dominant_rrpolicy_v1_comp_delta,
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Dominant Returning Method",
-    title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "In person > Remote > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -2986,10 +2986,10 @@ plot15 <- ggplot(summary_data_policyv2, aes(x = dominant_rrpolicy_v2_comp_delta,
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Dominant Returning Method",
-    title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "Remote > In person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -3028,10 +3028,10 @@ plot16 <- ggplot(summary_data_policy_rn, aes(x = dominant_rrpolicy_v1_comp_delta
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
-    y = "Returning Results Remotely (vs. None)",
-    title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. None)",
+    title = "Remote Returning Results vs Compensation Delta",
+    subtitle = "Remote > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -3062,10 +3062,10 @@ plot17 <- ggplot(summary_data_policy_in, aes(x = dominant_rrpolicy_v1_comp_delta
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results in Person (vs. None)",
-    title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "In-Person Returning Results vs Compensation Delta",
+    subtitle = "In Person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -3095,10 +3095,10 @@ plot18 <- ggplot(summary_data_policy_ir, aes(x = dominant_rrpolicy_v1_comp_delta
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results In Person (vs. Remote)",
-    title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "In-Person Returning Results vs Compensation Delta",
+    subtitle = "In person > Remote. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -3129,10 +3129,10 @@ plot19 <- ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta
     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
   ) +
   labs(
-    x = "Differential in Compensation",
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
     y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
-    title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
-    subtitle = "With Error Bars and 50% Reference Line"
+    title = "Remotely Returning Results vs Compensation Delta",
+    subtitle = "Remote > In person. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
 
@@ -3142,11 +3142,11 @@ plot19 <- ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta
 library(shiny)
 
 ui <- fluidPage(
-  titlePanel("Custom Graph Dashboard"),
+  titlePanel("DCE Trade-Off Visualization"),
 
   h3("Section 0: Research Funding vs. Compensation"),
   fluidRow(
-    column(12, plotOutput("plot1"))
+    column(9, plotOutput("plot1"))
   ),
 
   h3("Section 1a: Returning Results to Participants (None vs. Remote vs. In person"),
@@ -3216,6 +3216,732 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 
+
+```
+
+```{r Interactive Shiny Graph Display}
+
+ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+      #floatingSidebar {
+        position: fixed;
+        top: 0;   /* Adjust depending on your navbar/header height */
+        left: 0;
+        width: 250px;  /* Match the sidebar width */
+        z-index: 1000;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-right: 1px solid #ddd;
+        height: calc(100% - 70px); /* Full height minus header */
+        overflow-y: auto;
+      }
+
+      .mainContent {
+        margin-left: 270px;  /* Leave room for the sidebar */
+      }
+    "))
+  ),
+
+ 
+
+  # Floating sidebar
+  div(id = "floatingSidebar",
+      titlePanel("DCE Trade-Off Visualization"),
+      sliderInput("nFilter", "Minimum n (sample size per group):",
+                  min = 1, max = 10, value = 1, step = 1)
+  ),
+
+  # Main content with offset
+  div(class = "mainContent",
+      h3("Section 0: Research Funding vs. Compensation"),
+      div(style = "text-align: center;",
+          plotOutput("plot1", height = "450px", width = "70%")),
+
+      h3("Section 1a: Returning Results to Participants (None vs. Remote vs. In person"),
+      fluidRow(
+        column(6, plotOutput("plot2")),
+        column(6, plotOutput("plot3"))
+      ),
+
+      h3("Section 1b: Results to Participants Pairwise Comparison"),
+      fluidRow(
+        column(3, plotOutput("plot4")),
+        column(3, plotOutput("plot5")),
+        column(3, plotOutput("plot6")),
+        column(3, plotOutput("plot7"))
+      ),
+
+      h3("Section 2a: Returning Results to Community (None vs. Remote vs. In person with community leaders)"),
+      fluidRow(
+        column(6, plotOutput("plot8")),
+        column(6, plotOutput("plot9"))
+      ),
+
+      h3("Section 2b: Results to Community Pairwise Comparison"),
+      fluidRow(
+        column(3, plotOutput("plot10")),
+        column(3, plotOutput("plot11")),
+        column(3, plotOutput("plot12")),
+        column(3, plotOutput("plot13"))
+      ),
+
+      h3("Section 3a: Returning Results to Policymakers (None vs. Report vs. In person workshop)"),
+      fluidRow(
+        column(6, plotOutput("plot14")),
+        column(6, plotOutput("plot15"))
+      ),
+
+      h3("Section 3b: Results to Policymakers Pairwise Comparison"),
+      fluidRow(
+        column(3, plotOutput("plot16")),
+        column(3, plotOutput("plot17")),
+        column(3, plotOutput("plot18")),
+        column(3, plotOutput("plot19"))
+      )
+    )  # end of mainPanel
+  )  # end of sidebarLayout
+
+
+server <- function(input, output, session) {
+  # Dynamic filtered data
+  filtered_summary_data1 <- reactive({
+    fundinganalysisdataset %>%
+      group_by(dominant_funding_comp_delta) %>%
+      summarise(
+        mean_chose_dominant = mean(chosen_dominant_fund, na.rm = TRUE),
+        se_chose_dominant = sd(chosen_dominant_fund, na.rm = TRUE) / sqrt(n()),
+        n = n()
+      ) %>%
+      filter(n > input$nFilter)
+  })
+
+  filtered_summary_data2 <- reactive({
+    participantanalysisdataset %>%
+      group_by(dominant_rrp_v1_comp_delta) %>%
+      summarise(
+        mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+        se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),
+        n = n()
+      ) %>%
+      filter(n > input$nFilter)
+  })
+
+  filtered_summary_data3 <- reactive({
+    participantanalysisdataset %>%
+      group_by(dominant_rrp_v2_comp_delta) %>%
+      summarise(
+        mean_chose_dominant = mean(chosen_dominant_rrp_v2, na.rm = TRUE),
+        se_chose_dominant = sd(chosen_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),
+        n = n()
+      ) %>%
+      filter(n > input$nFilter)
+  })
+
+  # Add reactive subsets for plots 4–7
+ filtered_summary_data4 <- reactive({
+    rrp_remote_none_subset %>%
+      group_by(dominant_rrp_v1_comp_delta) %>%
+      summarise(
+        mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+        se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),
+        n = n()
+      ) %>%
+      filter(n > input$nFilter)
+  })
+
+ filtered_summary_data5 <- reactive({
+    rrp_inperson_none_subset %>%
+      group_by(dominant_rrp_v1_comp_delta) %>%
+      summarise(
+        mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+        se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),
+        n = n()
+      ) %>%
+      filter(n > input$nFilter)
+  })
+
+ filtered_summary_data6 <- reactive({
+    rrp_remote_inperson_subset %>%
+      group_by(dominant_rrp_v1_comp_delta) %>%
+      summarise(
+        mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+        se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),
+        n = n()
+      ) %>%
+      filter(n > input$nFilter)
+  })
+
+filtered_summary_data7 <- reactive({
+  rrp_remote_inperson_subset %>%
+    group_by(dominant_rrp_v2_comp_delta) %>%
+    summarise(
+      mean_chose_dominant = mean(chosen_dominant_rrp_v2, na.rm = TRUE),
+      se_chose_dominant = sd(chosen_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),
+      n = n()
+    ) %>%
+    filter(n > input$nFilter)
+})
+  
+  filtered_summary_data8 <- reactive({
+  communityanalysisdataset %>%
+  group_by(dominant_rrc_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data9 <- reactive({
+  communityanalysisdataset %>%
+  group_by(dominant_rrc_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data10 <- reactive({
+  rrc_remote_none_subset %>%
+  group_by(dominant_rrc_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data11 <- reactive({
+    rrc_inperson_none_subset %>%
+  group_by(dominant_rrc_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data12 <- reactive({
+    rrc_remote_inperson_subset %>%
+  group_by(dominant_rrc_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data13 <- reactive({
+    rrc_remote_inperson_subset %>%
+  group_by(dominant_rrc_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrc_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrc_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data14 <- reactive({
+    policyanalysisdataset %>%
+  group_by(dominant_rrpolicy_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data15 <- reactive({
+    policyanalysisdataset %>%
+  group_by(dominant_rrpolicy_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data16 <- reactive({
+  rrpolicy_remote_none_subset %>%
+  group_by(dominant_rrpolicy_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data17 <- reactive({
+    rrpolicy_inperson_none_subset %>%
+  group_by(dominant_rrpolicy_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data18 <- reactive({
+    rrpolicy_remote_inperson_subset %>%
+  group_by(dominant_rrpolicy_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+  
+  filtered_summary_data19 <- reactive({
+    rrpolicy_remote_inperson_subset %>%
+  group_by(dominant_rrpolicy_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrpolicy_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrpolicy_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  ) %>% filter(n > input$nFilter)
+  })
+
+  # Plots 1–3
+  output$plot1 <- renderPlot({
+    ggplot(filtered_summary_data1(), aes(x = dominant_funding_comp_delta, y = mean_chose_dominant)) +
+      geom_point() + geom_line() +
+      geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant,
+                        ymax = mean_chose_dominant + se_chose_dominant), width = 0.1) +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+      scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+      scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
+      labs(
+        x = "Differential in Compensation (Dominant RF - Inferior RF)",
+        y = "Probability of Choosing Option with Dominant Funding",
+        title = "Dominant Funding vs Compensation Delta",
+        subtitle = paste0("With Error Bars and 50% Reference Line. | n > ", input$nFilter)
+      ) +
+      theme_minimal()
+  })
+
+  output$plot2 <- renderPlot({
+    ggplot(filtered_summary_data2(), aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+      geom_point() + geom_line() +
+      geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant,
+                        ymax = mean_chose_dominant + se_chose_dominant), width = 0.1) +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+      scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+      scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
+      labs(
+        x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+        y = "Probability of Choosing Option with Dominant Returning Method",
+        title = "Dominant Returning Method vs Compensation Delta",
+        subtitle = paste0("In person > Remote > None. | n > ", input$nFilter)
+      ) +
+      theme_minimal()
+  })
+
+  output$plot3 <- renderPlot({
+    ggplot(filtered_summary_data3(), aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
+      geom_point() + geom_line() +
+      geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant,
+                        ymax = mean_chose_dominant + se_chose_dominant), width = 0.1) +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+      scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+      scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
+      labs(
+        x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+        y = "Probability of Choosing Dominant Returning Method",
+        title = "Dominant Returning Method vs Compensation Delta",
+        subtitle = paste0("Remote > In person > None. | n > ", input$nFilter)
+      ) +
+      theme_minimal()
+  })
+  
+  output$plot4 <- renderPlot({
+    ggplot(filtered_summary_data4(), aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. None)",
+    title = "Returning Results Remotely vs Compensation Delta",
+    subtitle = "Remote > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot5 <- renderPlot({
+    ggplot(filtered_summary_data5(), aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results In Person (vs. None)",
+    title = "Returning Results In Person vs Compensation Delta",
+    subtitle = "In Person > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot6 <- renderPlot({
+     ggplot(filtered_summary_data6(), aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results In Person (vs. Remotely)",
+    title = "Returning Results In Person vs Compensation Delta",
+    subtitle = "In Person > Remote. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot7 <- renderPlot({
+    ggplot(filtered_summary_data7(), aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
+    title = "Returning Results Remotely vs Compensation Delta",
+    subtitle = "Remote > In Person. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot8 <- renderPlot({
+    ggplot(filtered_summary_data8(), aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "In person > Remote > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot9 <- renderPlot({
+    ggplot(filtered_summary_data9(), aes(x = dominant_rrc_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "Remote > In person > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot10 <- renderPlot({
+    ggplot(filtered_summary_data10(), aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. None)",
+    title = "Remote Returning Results vs Compensation Delta",
+    subtitle = "Remote > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot11 <- renderPlot({
+    ggplot(filtered_summary_data11(), aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results In Person (vs. None)",
+    title = "In-Person Returning Results vs Compensation Delta",
+    subtitle = "In Person > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot12 <- renderPlot({
+    ggplot(filtered_summary_data12(), aes(x = dominant_rrc_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results In Person (vs. Remote)",
+    title = "In-Person Returning Results vs Compensation Delta",
+    subtitle = "In person > Remote. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot13 <- renderPlot({
+    ggplot(filtered_summary_data13(), aes(x = dominant_rrc_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
+    title = "Remotely Returning Results vs Compensation Delta",
+    subtitle = "Remote > In person. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot14 <- renderPlot({
+    ggplot(filtered_summary_data14(), aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "In person > Remote > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot15 <- renderPlot({
+    ggplot(filtered_summary_data15(), aes(x = dominant_rrpolicy_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta",
+    subtitle = "Remote > In person > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot16 <- renderPlot({
+  ggplot(filtered_summary_data16(), aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. None)",
+    title = "Remote Returning Results vs Compensation Delta",
+    subtitle = "Remote > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+    
+  })
+  
+  output$plot17 <- renderPlot({
+    ggplot(filtered_summary_data17(), aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results in Person (vs. None)",
+    title = "In-Person Returning Results vs Compensation Delta",
+    subtitle = "In Person > None. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot18 <- renderPlot({
+    ggplot(filtered_summary_data18(), aes(x = dominant_rrpolicy_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results In Person (vs. Remote)",
+    title = "In-Person Returning Results vs Compensation Delta",
+    subtitle = "In person > Remote. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+  
+  output$plot19 <- renderPlot({
+    ggplot(filtered_summary_data19(), aes(x = dominant_rrpolicy_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+    y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
+    title = "Remotely Returning Results vs Compensation Delta",
+    subtitle = "Remote > In person. With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+  })
+}
+
+shinyApp(ui, server)
 
 ```
 
