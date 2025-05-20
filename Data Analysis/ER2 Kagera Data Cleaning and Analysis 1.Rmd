@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny)
 ```
 
 # Initial Data Cleaning
@@ -2421,6 +2421,7 @@ general_pref_mixed_logit <- logitr(
   numDraws = 1000
 )
 
+
 summary(general_pref_mixed_logit)
 
 # Extract model summary in tidy format
@@ -2450,7 +2451,6 @@ ggplot(general_pref_mixed_logit_tidy, aes(x = estimate, y = reorder(term, estima
   ) +
   theme_minimal()
 ```
-
 
 ```{r Long Dataset Dominant Choice Graphs}
 # Dominant choice graphs
@@ -3942,6 +3942,54 @@ filtered_summary_data7 <- reactive({
 }
 
 shinyApp(ui, server)
+
+```
+
+```{r Interactive Regression Results Table}
+library(reactable)
+library(data.table)
+
+summary_model <- summary(general_pref_mixed_logit)
+
+# Extract coefficients, std. errors, and z-values
+coefs_table <- summary_model$coefTable
+
+# coefs_table is typically a matrix with columns: Estimate, Std. Error, z-value, Pr(>|z|)
+# Convert to data.table
+logit_results <- data.table(
+  Variables = rownames(coefs_table),
+  Coefficient = as.numeric(coefs_table[, 1]),
+  StdError = as.numeric(coefs_table[, 2]),
+  Zvalue = as.numeric(coefs_table[, 3]),
+  Pvalue = coefs_table[, 4]
+)
+
+logit_results$changeodds <- (exp(logit_results$Coefficient) -1) * 100
+
+reactable(
+  logit_results,
+    striped = TRUE,
+  bordered = TRUE,
+  highlight = TRUE,
+  resizable = TRUE,
+  defaultColDef = colDef(align = "center", format = colFormat(digits = 4)),
+  columns = list(
+    Coefficient = colDef(name = "Estimate"),
+    StdError = colDef(name = "Std. Error"),
+    Zvalue = colDef(name = "Z-value"),
+    Pvalue = colDef(name = "P-value", format = colFormat(digits = 4)),
+    changeodds = colDef(name = "% Change in Odds", format = colFormat(digits = 2))
+  ),
+  rowStyle = function(index) {
+    if (logit_results[index, "Pvalue"] < 0.05) {
+      list(background = "#d4f7d4")
+    }
+    else {
+      list(background = "#f7d4d4")
+    }
+  }
+  
+  )
 
 ```
 
