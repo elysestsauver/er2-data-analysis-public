@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg)
 ```
 
 # Initial Data Cleaning
@@ -93,9 +93,9 @@ scenarios <- read.csv("scenario_dataset.csv")
   - [Cancelled][Initial OLS and Logit DCE Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 
       - Cancelled because alternate version of logit/mixed logit is preferred. See [Dominant Option Regression]
   - [COMPLETE][DCE Dominant Option Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
+  - [COMPLETE][DCE Dominant Option Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
   
   Ordered by priority:
-  - [To-Do][DCE Dominant Option Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
   - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
   - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
   - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
@@ -1715,341 +1715,7 @@ heatmap
 ```{r To-do. Summarize challenges participants identified}
 ```
 
-```{r Initial OLS and Logit DCE Regression Analysis}
-
-#Alfredo wants standard OLS regression (lm) with controls for game index and respondent fixed effects (using dummy variables), also controlling for age and income. 
-#Also logit model (no fixed effects since he says the model can't do those) and mixed logit.
-
-#Both of these should regress the likelihood of choosing 0/1 (option A or option B) on the difference of feature levels. So, if A's participant feature is level 1, how much more likely is the participant to choose A versus a B option that has feature level 2/3/etc. Each difference should have its own variable (1 v 2, 2 v 3, 1 v 3, for each feature). Compensation and research funding are continuous, so you can use comp_delta and funding_delta. 
-
-#Errors should be robust and clustered at the respondent level. For more info, see Kathleen Mullen's paper. 
-
-# OLS Model: 
-
-#dummy variable creation:
-dceanalysis_dummies <- dummy_cols(dceanalysis, select_columns = c("game_index", "respondentID"))
-
-ols_model <- feols(
-  option_selected ~ 
-    #participants_image.A_participant1.jpeg +
-    participants_image.A_participant2.jpeg +
-    participants_image.A_participant3.jpeg +
-    #community_image.A_community1.jpeg +
-    community_image.A_community2.jpeg +
-    community_image.A_community3.jpeg +
-    #policymakers_image.A_policy1.jpeg +
-    policymakers_image.A_policy2.jpeg +
-    policymakers_image.A_policy3.jpeg +
-    #participants_image.B_participant1.jpeg +
-    participants_image.B_participant2.jpeg +
-    participants_image.B_participant3.jpeg +
-    #community_image.B_community1.jpeg +
-    community_image.B_community2.jpeg +
-    community_image.B_community3.jpeg +
-    #policymakers_image.B_policy1.jpeg +
-    policymakers_image.B_policy2.jpeg +
-    policymakers_image.B_policy3.jpeg +
-    comp_delta +
-    funding_delta +
-    #+ log(20 + comp_delta)
-    # + log(20 + funding_delta) 
-    #+ resp_age +
-    #+ resp_education +
-    game_index,
-  #| 
-    #respondentID + 
-    #game_index,  # Fixed effects
-  cluster = ~respondentID,        # Clustered SEs
-  data = dceanalysis
-)
-
-summary(ols_model)
-ggcoefplot(ols_model, 
-           type = "est", 
-           size = 3) + 
-  coord_flip()
-
-
-# Logit Model: 
-
-logit_model <- feglm(
-  option_selected ~ 
-    # Reference categories omitted to avoid multicollinearity
-    participants_image.A_participant2.jpeg +
-    participants_image.A_participant3.jpeg +
-    community_image.A_community2.jpeg +
-    community_image.A_community3.jpeg +
-    policymakers_image.A_policy2.jpeg +
-    policymakers_image.A_policy3.jpeg +
-    participants_image.B_participant2.jpeg +
-    participants_image.B_participant3.jpeg +
-    community_image.B_community2.jpeg +
-    community_image.B_community3.jpeg +
-    policymakers_image.B_policy2.jpeg +
-    policymakers_image.B_policy3.jpeg +
-    comp_delta +
-    funding_delta + 
-    #log(comp_delta) + 
-    #log(funding_delta) + 
-    resp_age + resp_education + resp_gender,
-  cluster = ~respondentID,     # Clustered standard errors
-  family = "binomial",         # Logit link
-  data = dceanalysis
-)
-
-# Summary of the model
-summary(logit_model)
-ggcoefplot(logit_model, 
-           type = "est", 
-           size = 3) + 
-  coord_flip()
-
-
-```
-
-```{r DCE Dominant option graphs}
-
-# Dominant choice graphs
-
-# Research Funding vs. Compensation Differential
-fundinganalysisdataset <- subset(dceanalysis, comp_delta != 0 & fund_delta != 0)
-participantresultdataset <- subset(dceanalysis, comp_delta != 0 & returnresults_participants != 0)
-
-summary_data <- fundinganalysisdataset %>%
-  group_by(dominant_funding_compensation_delta) %>%
-  summarise(
-    mean_chose_dominant = mean(chose_dominant_funding_option, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_funding_option, na.rm = TRUE) / sqrt(n()),  # standard error
-    n = n()
-  )
-ggplot(summary_data, aes(x = dominant_funding_compensation_delta, y = mean_chose_dominant)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
-                    ymax = mean_chose_dominant + se_chose_dominant),
-                width = 0.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
-  ) +
-  labs(
-    x = "Differential in Compensation (Dominant Returning - Inferior Returning) (Dominant RF - Inferior RF)",
-    y = "Probability of Choosing Dominant Funding",
-    title = "Choice of Option with Dominant Funding vs Compensation Delta",
-    subtitle = "With Error Bars and 50% Reference Line"
-  ) +
-  theme_minimal()
-
-
-
-participantanalysisdataset <- subset(dceanalysis, participantA != participantB & comp_delta != 0)
-
-# Returns to Participants - In person > Remote > None (3 > 2 > 1)
-
-summary_data_participantv1 <- participantanalysisdataset %>%
-  group_by(dominant_rrp_v1_compensation_delta) %>%
-  summarise(
-    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
-    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
-    n = n()
-  )
-ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
-                    ymax = mean_chose_dominant + se_chose_dominant),
-                width = 0.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
-  ) +
-  labs(
-    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
-    y = "Probability of Choosing Dominant Returning Method",
-    title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
-  ) +
-  theme_minimal()
-
-
-
-# Returns to Participants - Remote > In person > none (2 > 3 > 1)
-
-
-summary_data_participantv2 <- participantanalysisdataset %>%
-  group_by(dominant_rrp_v2_comp_delta) %>%
-  summarise(
-    mean_chose_dominant = mean(chose_dominant_rrp_v2, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
-    n = n()
-  )
-ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
-                    ymax = mean_chose_dominant + se_chose_dominant),
-                width = 0.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
-  ) +
-  labs(
-    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
-    y = "Probability of Choosing Dominant Returning Method",
-    title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
-  ) +
-  theme_minimal()
-
-
-#_________________________
-
-#To-Do: Graphs for the following subsets
-
-rrp_remote_none_subset <- subset(participantanalysisdataset, participantA != 3 & participantB != 3)
-rrp_inperson_none_subset <- subset(participantanalysisdataset, participantA != 2 & participantB != 2)
-rrp_remote_inperson_subset <- subset(participantanalysisdataset, participantA != 1 & participantB != 1)
-
-# Returns to Participants - Remote vs. None (2 > 1)
-
-summary_data_participant_rn <- rrp_remote_none_subset %>%
-  group_by(dominant_rrp_v1_compensation_delta) %>%
-  summarise(
-    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
-    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
-    n = n()
-  )
-ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
-                    ymax = mean_chose_dominant + se_chose_dominant),
-                width = 0.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
-  ) +
-  labs(
-    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
-    y = "Returning Results Remotely (vs. None)",
-    title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
-  ) +
-  theme_minimal()
-
-
-# Returns to Participants - In person vs. None (3 > 1)
-
-summary_data_participant_in <- rrp_inperson_none_subset %>%
-  group_by(dominant_rrp_v1_compensation_delta) %>%
-  summarise(
-    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
-    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
-    n = n()
-  )
-ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
-                    ymax = mean_chose_dominant + se_chose_dominant),
-                width = 0.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
-  ) +
-  labs(
-    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
-    y = "Probability of Choosing Returning Results in Person (vs. None)",
-    title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
-    subtitle = "With Error Bars and 50% Reference Line"
-  ) +
-  theme_minimal()
-
-# Returns to Participants - In person vs. Remote (3 > 2)
-
-summary_data_participant_ir <- rrp_remote_inperson_subset %>%
-  group_by(dominant_rrp_v1_compensation_delta) %>%
-  summarise(
-    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
-    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
-    n = n()
-  )
-ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
-                    ymax = mean_chose_dominant + se_chose_dominant),
-                width = 0.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
-  ) +
-  labs(
-    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
-    y = "Probability of Choosing Returning Results In Person (vs. Remote)",
-    title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
-    subtitle = "With Error Bars and 50% Reference Line"
-  ) +
-  theme_minimal()
-
-
-# Returns to Participants - Remote vs. In person (2 > 3, Helpful? Or shouldn't include?)
-
-summary_data_participant_ri <- rrp_remote_inperson_subset %>%
-  group_by(dominant_rrp_v2_comp_delta) %>%
-  summarise(
-    mean_chose_dominant = mean(chose_dominant_rrp_v2, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
-    n = n()
-  )
-ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
-                    ymax = mean_chose_dominant + se_chose_dominant),
-                width = 0.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
-  ) +
-  labs(
-    x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
-    y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
-    title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
-    subtitle = "With Error Bars and 50% Reference Line"
-  ) +
-  theme_minimal()
-```
-
-```{r DCE Long Dataset Creation}
+```{r DCE Long Dataset Initialization}
 
 # A binary logit regression that regresses whether an option won against its feature levels.  Ex. chosen ~ has_return_results_participants_1 + has_return_results_2 + etc. 
 
@@ -2354,10 +2020,16 @@ dce_long <- dce_long %>%
   )
 
 write.csv(dce_long, file = "dcelongdataset.csv")
-
 ```
 
-```{r Conditional Logit DCE Regression}
+```{r Logit DCE Regression}
+
+set.seed(3141592653)
+dce_long$comp_scaled <- (dce_long$comp - min(dce_long$comp, na.rm = TRUE)) / 
+                    (max(dce_long$comp, na.rm = TRUE) - min(dce_long$comp, na.rm = TRUE))
+
+dce_long$fund_scaled <- (dce_long$fund - min(dce_long$fund, na.rm = TRUE)) / 
+                    (max(dce_long$fund, na.rm = TRUE) - min(dce_long$fund, na.rm = TRUE))
 
 general_pref_logit <- clogit(
   chosen ~ participant + community + policy + comp + fund + strata(game_id),
@@ -2393,28 +2065,16 @@ ggplot(general_pref_logit_tidy, aes(x = estimate, y = reorder(term, estimate))) 
   ) +
   theme_minimal()
 
-```
-
-```{r Mixed Logit DCE Regression}
-
-set.seed(3141592653)
-dce_long$comp_scaled <- (dce_long$comp - min(dce_long$comp, na.rm = TRUE)) / 
-                    (max(dce_long$comp, na.rm = TRUE) - min(dce_long$comp, na.rm = TRUE))
-
-dce_long$fund_scaled <- (dce_long$fund - min(dce_long$fund, na.rm = TRUE)) / 
-                    (max(dce_long$fund, na.rm = TRUE) - min(dce_long$fund, na.rm = TRUE))
-
-
 general_pref_mixed_logit <- logitr(
   data = dce_long,
   outcome = 'chosen',
   obsID = 'game_id',
   panelID = 'respondentID',
   pars = c('participant', 'community', 'policy', 'comp', 'fund'),
-  randPars = c(#participant = 'n', 
-               #community = 'n', 
-               #policy = 'n',
-               #comp = 'cn',
+  randPars = c(participant = 'n', 
+               community = 'n', 
+               policy = 'n',
+               comp = 'cn',
                fund = 'n'
                ),
   drawType = 'sobol',
@@ -2453,8 +2113,6 @@ ggplot(general_pref_mixed_logit_tidy, aes(x = estimate, y = reorder(term, estima
 ```
 
 ```{r Long Dataset Dominant Choice Graphs}
-# Dominant choice graphs
-
 # Research Funding vs. Compensation Differential
 fundinganalysisdataset <- subset(dce_long, comp_delta != 0 & fund_delta != 0)
 participantanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_participants_chosen))
@@ -2491,6 +2149,7 @@ plot1 <- ggplot(summary_data, aes(x = dominant_funding_comp_delta, y = mean_chos
   ) +
   theme_minimal()
 
+# PARTICIPANT GRAPHS
 # Returns to Participants - In person > Remote > None (3 > 2 > 1)
 
 summary_data_participantv1 <- participantanalysisdataset %>%
@@ -2558,11 +2217,6 @@ plot3 <- ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, 
     subtitle = "Remote > In person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
-
-
-#_________________________
-
-#To-Do: Graphs for the following subsets
 
 rrp_remote_none_subset <- subset(participantanalysisdataset, participant != "Results returned to participants in person")
 rrp_inperson_none_subset <- subset(participantanalysisdataset, participant != "Results returned to participants remotely")
@@ -2702,9 +2356,10 @@ plot7 <- ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta,
   ) +
   theme_minimal()
 
-```
 
-```{r Community Graphs}
+
+
+# COMMUNITY GRAPHS
 # Returns to Community - In person > Remote > None (3 > 2 > 1)
 
 communityanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_community_chosen))
@@ -2775,11 +2430,6 @@ plot9 <- ggplot(summary_data_communityv2, aes(x = dominant_rrc_v2_comp_delta, y 
     subtitle = "Remote > In person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
-
-
-#_________________________
-
-#To-Do: Graphs for the following subsets
 
 rrc_remote_none_subset <- subset(communityanalysisdataset, community != "Results returned to community in-person meeting")
 rrc_inperson_none_subset <- subset(communityanalysisdataset, community != "Results returned to community leaders remotely")
@@ -2919,9 +2569,7 @@ plot13 <- ggplot(summary_data_community_ri, aes(x = dominant_rrc_v2_comp_delta, 
   ) +
   theme_minimal()
 
-```
-
-```{r Policy Graphs}
+# POLICY GRAPHS
 # Returns to policy - In person > Remote > None (3 > 2 > 1)
 
 policyanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_policy_chosen))
@@ -2992,11 +2640,6 @@ plot15 <- ggplot(summary_data_policyv2, aes(x = dominant_rrpolicy_v2_comp_delta,
     subtitle = "Remote > In person > None. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
-
-
-#_________________________
-
-#To-Do: Graphs for the following subsets
 
 rrpolicy_remote_none_subset <- subset(policyanalysisdataset, policy != "Results presented in half-day workshop to policymakers")
 rrpolicy_inperson_none_subset <- subset(policyanalysisdataset, policy != "Report of results submitted to policymakers")
@@ -3135,87 +2778,6 @@ plot19 <- ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta
     subtitle = "Remote > In person. With Error Bars and 50% Reference Line"
   ) +
   theme_minimal()
-
-```
-
-```{r Shiny Graph Display}
-library(shiny)
-
-ui <- fluidPage(
-  titlePanel("DCE Trade-Off Visualization"),
-
-  h3("Section 0: Research Funding vs. Compensation"),
-  fluidRow(
-    column(9, plotOutput("plot1"))
-  ),
-
-  h3("Section 1a: Returning Results to Participants (None vs. Remote vs. In person"),
-  fluidRow(
-    column(6, plotOutput("plot2")),
-    column(6, plotOutput("plot3"))
-  ),
-
-  h3("Section 1b: Results to Participants Pairwise Comparison"),
-  fluidRow(
-    column(3, plotOutput("plot4")),
-    column(3, plotOutput("plot5")),
-    column(3, plotOutput("plot6")),
-    column(3, plotOutput("plot7"))
-  ),
-
-  h3("Section 2a: Returning Results to Community (None vs. Remote vs. In person with community leaders"),
-  fluidRow(
-    column(6, plotOutput("plot8")),
-    column(6, plotOutput("plot9"))
-  ),
-
-  h3("Section 2b: Results to Community Pairwise Comparison"),
-  fluidRow(
-    column(3, plotOutput("plot10")),
-    column(3, plotOutput("plot11")),
-    column(3, plotOutput("plot12")),
-    column(3, plotOutput("plot13"))
-  ),
-
-  h3("Section 3a: Returning Results to Policymakers (None vs. Report vs. In person workshop"),
-  fluidRow(
-    column(6, plotOutput("plot14")),
-    column(6, plotOutput("plot15"))
-  ),
-
-  h3("Section 3b: Results to Policymakers Pairwise Comparison"),
-  fluidRow(
-    column(3, plotOutput("plot16")),
-    column(3, plotOutput("plot17")),
-    column(3, plotOutput("plot18")),
-    column(3, plotOutput("plot19"))
-  )
-)
-
-server <- function(input, output, session) {
-  output$plot1 <- renderPlot({ plot1 })
-  output$plot2 <- renderPlot({ plot2 })
-  output$plot3 <- renderPlot({ plot3 })
-  output$plot4 <- renderPlot({ plot4 })
-  output$plot5 <- renderPlot({ plot5 })
-  output$plot6 <- renderPlot({ plot6 })
-  output$plot7 <- renderPlot({ plot7 })
-  output$plot8 <- renderPlot({ plot8 })
-  output$plot9 <- renderPlot({ plot9 })
-  output$plot10 <- renderPlot({ plot10 })
-  output$plot11 <- renderPlot({ plot11 })
-  output$plot12 <- renderPlot({ plot12 })
-  output$plot13 <- renderPlot({ plot13 })
-  output$plot14 <- renderPlot({ plot14 })
-  output$plot15 <- renderPlot({ plot15 })
-  output$plot16 <- renderPlot({ plot16 })
-  output$plot17 <- renderPlot({ plot17 })
-  output$plot18 <- renderPlot({ plot18 })
-  output$plot19 <- renderPlot({ plot19 })
-}
-
-shinyApp(ui, server)
-
 
 ```
 
@@ -3945,54 +3507,232 @@ shinyApp(ui, server)
 
 ```
 
-```{r Interactive Regression Results Table}
-library(reactable)
-library(data.table)
+```{r Pretty Regression Results Table}
 
-summary_model <- summary(general_pref_mixed_logit)
+# Want a table that displays 
+# - OLS results (Coef, std error, p value, significant stars)
+# - Mixed logit results (Coef, std error, p value, significant stars, log-odds change) with alternate versions for mixed logit vars given normal distribution or not
+# - Rows will be 5 feature levels, plus fixed effects, game index factor and game index continuous
 
-# Extract coefficients, std. errors, and z-values
-coefs_table <- summary_model$coefTable
+# Ensure game_index is numeric
+dce_long$game_index <- as.numeric(dce_long$game_index)
 
-# coefs_table is typically a matrix with columns: Estimate, Std. Error, z-value, Pr(>|z|)
-# Convert to data.table
-logit_results <- data.table(
-  Variables = rownames(coefs_table),
-  Coefficient = as.numeric(coefs_table[, 1]),
-  StdError = as.numeric(coefs_table[, 2]),
-  Zvalue = as.numeric(coefs_table[, 3]),
-  Pvalue = coefs_table[, 4]
+# Fit OLS models
+ols_long <- glm(chosen ~ participant + community + policy + comp + fund + respondentID + game_index, data = dce_long)
+ols_long_indexfactor <- glm(chosen ~ participant + community + policy + comp + fund + respondentID + as.factor(game_index), data = dce_long)
+
+# Fit mixed logit models
+set.seed(31415926)
+mixed_logit <- logitr(
+  data = dce_long,
+  outcome = 'chosen',
+  obsID = 'game_id',
+  panelID = 'respondentID',
+  pars = c('participant', 'community', 'policy', 'comp', 'fund', 'game_index'),
+  drawType = 'sobol',
+  numDraws = 1000
 )
 
-logit_results$changeodds <- (exp(logit_results$Coefficient) -1) * 100
+mixed_logit_p <- logitr(
+  data = dce_long,
+  outcome = 'chosen',
+  obsID = 'game_id',
+  panelID = 'respondentID',
+  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
+  randPars = c(participant = 'n'
+               #, 
+               #community = 'n', 
+               #policy = 'n', 
+               #comp = 'cn', 
+               #fund = 'n'
+               ),
+  drawType = 'sobol',
+  numDraws = 1000
+)
 
-reactable(
-  logit_results,
-    striped = TRUE,
-  bordered = TRUE,
-  highlight = TRUE,
-  resizable = TRUE,
-  defaultColDef = colDef(align = "center", format = colFormat(digits = 4)),
-  columns = list(
-    Coefficient = colDef(name = "Estimate"),
-    StdError = colDef(name = "Std. Error"),
-    Zvalue = colDef(name = "Z-value"),
-    Pvalue = colDef(name = "P-value", format = colFormat(digits = 4)),
-    changeodds = colDef(name = "% Change in Odds", format = colFormat(digits = 2))
-  ),
-  rowStyle = function(index) {
-    if (logit_results[index, "Pvalue"] < 0.05) {
-      list(background = "#d4f7d4")
-    }
-    else {
-      list(background = "#f7d4d4")
-    }
+mixed_logit_pc <- logitr(
+  data = dce_long,
+  outcome = 'chosen',
+  obsID = 'game_id',
+  panelID = 'respondentID',
+  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
+  randPars = c(participant = 'n', 
+               community = 'n'
+               #, 
+               #policy = 'n', 
+               #comp = 'cn', 
+               #fund = 'n'
+               ),
+  drawType = 'sobol',
+  numDraws = 1000
+)
+
+mixed_logit_pcp <- logitr(
+  data = dce_long,
+  outcome = 'chosen',
+  obsID = 'game_id',
+  panelID = 'respondentID',
+  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
+  randPars = c(participant = 'n', 
+               community = 'n', 
+               policy = 'n'
+               #, 
+               #comp = 'cn', 
+               #fund = 'n'
+               ),
+  drawType = 'sobol',
+  numDraws = 1000
+)
+
+mixed_logit_allbutcomp <- logitr(
+  data = dce_long,
+  outcome = 'chosen',
+  obsID = 'game_id',
+  panelID = 'respondentID',
+  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
+  randPars = c(participant = 'n', 
+               community = 'n', 
+               policy = 'n', 
+               #comp = 'cn', 
+               fund = 'n'),
+  drawType = 'sobol',
+  numDraws = 1000
+)
+
+mixed_logit_all <- logitr(
+  data = dce_long,
+  outcome = 'chosen',
+  obsID = 'game_id',
+  panelID = 'respondentID',
+  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
+  randPars = c(participant = 'n', 
+               community = 'n', 
+               policy = 'n', 
+               comp = 'cn', 
+               fund = 'n'),
+  drawType = 'sobol',
+  numDraws = 1000
+)
+
+# Define extract function for logitr models
+extract.logitr <- function(model, odds = FALSE, ...) {
+  s <- summary(model)
+  coefs <- coef(s)
+  estimates <- s[["coefTable"]][["Estimate"]]
+  se <- s[["coefTable"]][["Std. Error"]]
+  pvals <- s[["coefTable"]][["Pr(>|z|)"]]
+
+  if (odds) {
+    estimates <- (exp(s[["coefTable"]][["Estimate"]]) -1) * 100
+    se <- NA  # Standard errors for odds ratios are not directly available
   }
-  
+
+  texreg::createTexreg(
+    coef.names = rownames(coef(s)),
+    coef = s[["coefTable"]][["Estimate"]],
+    se = s[["coefTable"]][["Std. Error"]],
+    pvalues = s[["coefTable"]][["Pr(>|z|)"]],
+    gof.names = c("Log-Likelihood", "AIC", "BIC"),
+    gof = c(logLik(model), AIC(model), BIC(model))
   )
+}
+
+# Create texreg objects
+tr_mixed_logit <- extract.logitr(mixed_logit)
+tr_mixed_logit@model.name <- "Mixed Logit (No Varying Pars)"
+
+tr_mixed_logit_p <- extract.logitr(mixed_logit_p)
+tr_mixed_logit_p@model.name <- "Mixed Logit (Part. Vary)"
+
+tr_mixed_logit_pc <- extract.logitr(mixed_logit_pc)
+tr_mixed_logit_pc@model.name <- "Mixed Logit (Part, Com Vary)"
+
+tr_mixed_logit_pcp <- extract.logitr(mixed_logit_pcp)
+tr_mixed_logit_pcp@model.name <- "Mixed Logit (Part, Com, Pol Vary)"
+
+tr_mixed_logit_allbutcomp <- extract.logitr(mixed_logit_allbutcomp)
+tr_mixed_logit_allbutcomp@model.name <- "Mixed Logit (All Varying But Comp)"
+
+tr_mixed_logit_all <- extract.logitr(mixed_logit_all)
+tr_mixed_logit_all@model.name <- "Mixed Logit (All Varying)"
+
+# Define custom labels
+custom_labels <- list(
+  "(Intercept)" = "Intercept",
+  "participantResults returned to participants remotely" = "Participants: Remotely",
+  "participantResults returned to participants in person" = "Participants: In person",
+  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
+  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
+  "policyReport of results submitted to policymakers" = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding",
+  "as.factor(game_index)2" = "Game Index - 2",
+  "as.factor(game_index)3" = "Game Index - 3",
+  "as.factor(game_index)4" = "Game Index - 4",
+  "as.factor(game_index)5" = "Game Index - 5",
+  "as.factor(game_index)6" = "Game Index - 6",
+  "as.factor(game_index)7" = "Game Index - 7",
+  "as.factor(game_index)8" = "Game Index - 8",
+  "as.factor(game_index)9" = "Game Index - 9",
+  "as.factor(game_index)10" = "Game Index - 10",
+  "game_index" = "Game Index",
+  "respondentID" = "Respondent Fixed Effects",
+  "sd_participantResults returned to participants remotely" = "SD: Participants (2)",
+  "sd_participantResults returned to participants in person" = "SD: Participants (3)",
+  "sd_communityResults returned to community leaders remotely" = "SD: Community (2)",
+  "sd_communityResults returned to community in-person meeting" = "SD: Community (3)",
+  "sd_policyReport of results submitted to policymakers" = "SD: Policy (2)",
+  "sd_policyResults presented in half-day workshop to policymakers" = "SD: Policy (3)",
+  "sd_comp" = "SD: Compensation",
+  "sd_fund" = "SD: Research Funding"
+)
+
+# Display the regression results
+
+# #Linear Regressions
+# screenreg(
+#   list(
+#     ols_long,
+#     ols_long_indexfactor
+#   ),
+#   custom.model.names = c(
+#     "OLS (Numeric Game Index)",
+#     "OLS (Factor Game Index)"
+#   ),
+#   custom.coef.map = custom_labels,
+#   custom.note = "Standard errors in parentheses. OR: Odds Ratios. * p<0.1; ** p<0.05; *** p<0.01",
+#   digits = 3,
+#   stars = c(0.01, 0.05, 0.1),
+#   single.row = TRUE
+# )
+
+#Mixed Logit Regressions
+screenreg(
+  list(
+    tr_mixed_logit,
+    tr_mixed_logit_p,
+    tr_mixed_logit_pc,
+    tr_mixed_logit_pcp,
+    tr_mixed_logit_allbutcomp,
+    tr_mixed_logit_all
+  ),
+  custom.model.names = c(
+    "Mixed Logit (None Vary)",
+    "Mixed Logit (Part.)",
+    "Mixed Logit (Part, Com)",
+    "Mixed Logit (Part, Com, Pol)",
+    "Mixed Logit (All But Comp)",
+    "Mixed Logit (All Vary)"
+  ),
+  custom.coef.map = custom_labels,
+  custom.note = "Standard errors in parentheses. OR: Odds Ratios. * p<0.1; ** p<0.05; *** p<0.01",
+  digits = 3,
+  stars = c(0.01, 0.05, 0.1),
+  single.row = TRUE
+)
 
 ```
-
 
 ```{r DEPRECATED, include = FALSE}
 # 
@@ -4432,3 +4172,336 @@ reactable(
 #            type = "est", 
 #            size = 3) + 
 #   coord_flip()
+
+#{r Initial OLS and Logit DCE Regression Analysis}
+
+#Alfredo wants standard OLS regression (lm) with controls for game index and respondent fixed effects (using dummy variables), also controlling for age and income. 
+#Also logit model (no fixed effects since he says the model can't do those) and mixed logit.
+
+#Both of these should regress the likelihood of choosing 0/1 (option A or option B) on the difference of feature levels. So, if A's participant feature is level 1, how much more likely is the participant to choose A versus a B option that has feature level 2/3/etc. Each difference should have its own variable (1 v 2, 2 v 3, 1 v 3, for each feature). Compensation and research funding are continuous, so you can use comp_delta and funding_delta. 
+
+#Errors should be robust and clustered at the respondent level. For more info, see Kathleen Mullen's paper. 
+
+# OLS Model: 
+
+#dummy variable creation:
+# dceanalysis_dummies <- dummy_cols(dceanalysis, select_columns = c("game_index", "respondentID"))
+# 
+# ols_model <- feols(
+#   option_selected ~ 
+#     #participants_image.A_participant1.jpeg +
+#     participants_image.A_participant2.jpeg +
+#     participants_image.A_participant3.jpeg +
+#     #community_image.A_community1.jpeg +
+#     community_image.A_community2.jpeg +
+#     community_image.A_community3.jpeg +
+#     #policymakers_image.A_policy1.jpeg +
+#     policymakers_image.A_policy2.jpeg +
+#     policymakers_image.A_policy3.jpeg +
+#     #participants_image.B_participant1.jpeg +
+#     participants_image.B_participant2.jpeg +
+#     participants_image.B_participant3.jpeg +
+#     #community_image.B_community1.jpeg +
+#     community_image.B_community2.jpeg +
+#     community_image.B_community3.jpeg +
+#     #policymakers_image.B_policy1.jpeg +
+#     policymakers_image.B_policy2.jpeg +
+#     policymakers_image.B_policy3.jpeg +
+#     comp_delta +
+#     funding_delta +
+#     #+ log(20 + comp_delta)
+#     # + log(20 + funding_delta) 
+#     #+ resp_age +
+#     #+ resp_education +
+#     game_index,
+#   #| 
+#     #respondentID + 
+#     #game_index,  # Fixed effects
+#   cluster = ~respondentID,        # Clustered SEs
+#   data = dceanalysis
+# )
+# 
+# summary(ols_model)
+# ggcoefplot(ols_model, 
+#            type = "est", 
+#            size = 3) + 
+#   coord_flip()
+# 
+# 
+# # Logit Model: 
+# 
+# logit_model <- feglm(
+#   option_selected ~ 
+#     # Reference categories omitted to avoid multicollinearity
+#     participants_image.A_participant2.jpeg +
+#     participants_image.A_participant3.jpeg +
+#     community_image.A_community2.jpeg +
+#     community_image.A_community3.jpeg +
+#     policymakers_image.A_policy2.jpeg +
+#     policymakers_image.A_policy3.jpeg +
+#     participants_image.B_participant2.jpeg +
+#     participants_image.B_participant3.jpeg +
+#     community_image.B_community2.jpeg +
+#     community_image.B_community3.jpeg +
+#     policymakers_image.B_policy2.jpeg +
+#     policymakers_image.B_policy3.jpeg +
+#     comp_delta +
+#     funding_delta + 
+#     #log(comp_delta) + 
+#     #log(funding_delta) + 
+#     resp_age + resp_education + resp_gender,
+#   cluster = ~respondentID,     # Clustered standard errors
+#   family = "binomial",         # Logit link
+#   data = dceanalysis
+# )
+# 
+# # Summary of the model
+# summary(logit_model)
+# ggcoefplot(logit_model, 
+#            type = "est", 
+#            size = 3) + 
+#   coord_flip()
+# 
+# 
+# 
+# ```{r DCE Dominant option graphs}
+# 
+# # Dominant choice graphs
+# 
+# # Research Funding vs. Compensation Differential
+# fundinganalysisdataset <- subset(dceanalysis, comp_delta != 0 & fund_delta != 0)
+# participantresultdataset <- subset(dceanalysis, comp_delta != 0 & returnresults_participants != 0)
+# 
+# summary_data <- fundinganalysisdataset %>%
+#   group_by(dominant_funding_compensation_delta) %>%
+#   summarise(
+#     mean_chose_dominant = mean(chose_dominant_funding_option, na.rm = TRUE),
+#     se_chose_dominant = sd(chose_dominant_funding_option, na.rm = TRUE) / sqrt(n()),  # standard error
+#     n = n()
+#   )
+# ggplot(summary_data, aes(x = dominant_funding_compensation_delta, y = mean_chose_dominant)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+#                     ymax = mean_chose_dominant + se_chose_dominant),
+#                 width = 0.1) +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(
+#     breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+#   ) +
+#   scale_y_continuous(
+#     limits = c(0, 1),
+#     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+#   ) +
+#   labs(
+#     x = "Differential in Compensation (Dominant Returning - Inferior Returning) (Dominant RF - Inferior RF)",
+#     y = "Probability of Choosing Dominant Funding",
+#     title = "Choice of Option with Dominant Funding vs Compensation Delta",
+#     subtitle = "With Error Bars and 50% Reference Line"
+#   ) +
+#   theme_minimal()
+# 
+# 
+# 
+# participantanalysisdataset <- subset(dceanalysis, participantA != participantB & comp_delta != 0)
+# 
+# # Returns to Participants - In person > Remote > None (3 > 2 > 1)
+# 
+# summary_data_participantv1 <- participantanalysisdataset %>%
+#   group_by(dominant_rrp_v1_compensation_delta) %>%
+#   summarise(
+#     mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+#     se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+#     n = n()
+#   )
+# ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+#                     ymax = mean_chose_dominant + se_chose_dominant),
+#                 width = 0.1) +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(
+#     breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+#   ) +
+#   scale_y_continuous(
+#     limits = c(0, 1),
+#     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+#   ) +
+#   labs(
+#     x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+#     y = "Probability of Choosing Dominant Returning Method",
+#     title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
+#     subtitle = "With Error Bars and 50% Reference Line"
+#   ) +
+#   theme_minimal()
+# 
+# 
+# 
+# # Returns to Participants - Remote > In person > none (2 > 3 > 1)
+# 
+# 
+# summary_data_participantv2 <- participantanalysisdataset %>%
+#   group_by(dominant_rrp_v2_comp_delta) %>%
+#   summarise(
+#     mean_chose_dominant = mean(chose_dominant_rrp_v2, na.rm = TRUE),
+#     se_chose_dominant = sd(chose_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+#     n = n()
+#   )
+# ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+#                     ymax = mean_chose_dominant + se_chose_dominant),
+#                 width = 0.1) +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(
+#     breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+#   ) +
+#   scale_y_continuous(
+#     limits = c(0, 1),
+#     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+#   ) +
+#   labs(
+#     x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+#     y = "Probability of Choosing Dominant Returning Method",
+#     title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
+#     subtitle = "With Error Bars and 50% Reference Line"
+#   ) +
+#   theme_minimal()
+# 
+# 
+# #_________________________
+# 
+# #To-Do: Graphs for the following subsets
+# 
+# rrp_remote_none_subset <- subset(participantanalysisdataset, participantA != 3 & participantB != 3)
+# rrp_inperson_none_subset <- subset(participantanalysisdataset, participantA != 2 & participantB != 2)
+# rrp_remote_inperson_subset <- subset(participantanalysisdataset, participantA != 1 & participantB != 1)
+# 
+# # Returns to Participants - Remote vs. None (2 > 1)
+# 
+# summary_data_participant_rn <- rrp_remote_none_subset %>%
+#   group_by(dominant_rrp_v1_compensation_delta) %>%
+#   summarise(
+#     mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+#     se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+#     n = n()
+#   )
+# ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+#                     ymax = mean_chose_dominant + se_chose_dominant),
+#                 width = 0.1) +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(
+#     breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+#   ) +
+#   scale_y_continuous(
+#     limits = c(0, 1),
+#     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+#   ) +
+#   labs(
+#     x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+#     y = "Returning Results Remotely (vs. None)",
+#     title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
+#     subtitle = "With Error Bars and 50% Reference Line"
+#   ) +
+#   theme_minimal()
+# 
+# 
+# # Returns to Participants - In person vs. None (3 > 1)
+# 
+# summary_data_participant_in <- rrp_inperson_none_subset %>%
+#   group_by(dominant_rrp_v1_compensation_delta) %>%
+#   summarise(
+#     mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+#     se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+#     n = n()
+#   )
+# ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+#                     ymax = mean_chose_dominant + se_chose_dominant),
+#                 width = 0.1) +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(
+#     breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+#   ) +
+#   scale_y_continuous(
+#     limits = c(0, 1),
+#     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+#   ) +
+#   labs(
+#     x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+#     y = "Probability of Choosing Returning Results in Person (vs. None)",
+#     title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
+#     subtitle = "With Error Bars and 50% Reference Line"
+#   ) +
+#   theme_minimal()
+# 
+# # Returns to Participants - In person vs. Remote (3 > 2)
+# 
+# summary_data_participant_ir <- rrp_remote_inperson_subset %>%
+#   group_by(dominant_rrp_v1_compensation_delta) %>%
+#   summarise(
+#     mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+#     se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+#     n = n()
+#   )
+# ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+#                     ymax = mean_chose_dominant + se_chose_dominant),
+#                 width = 0.1) +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(
+#     breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+#   ) +
+#   scale_y_continuous(
+#     limits = c(0, 1),
+#     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+#   ) +
+#   labs(
+#     x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+#     y = "Probability of Choosing Returning Results In Person (vs. Remote)",
+#     title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
+#     subtitle = "With Error Bars and 50% Reference Line"
+#   ) +
+#   theme_minimal()
+# 
+# 
+# # Returns to Participants - Remote vs. In person (2 > 3, Helpful? Or shouldn't include?)
+# 
+# summary_data_participant_ri <- rrp_remote_inperson_subset %>%
+#   group_by(dominant_rrp_v2_comp_delta) %>%
+#   summarise(
+#     mean_chose_dominant = mean(chose_dominant_rrp_v2, na.rm = TRUE),
+#     se_chose_dominant = sd(chose_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+#     n = n()
+#   )
+# ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+#                     ymax = mean_chose_dominant + se_chose_dominant),
+#                 width = 0.1) +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(
+#     breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+#   ) +
+#   scale_y_continuous(
+#     limits = c(0, 1),
+#     breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+#   ) +
+#   labs(
+#     x = "Differential in Compensation (Dominant Returning - Inferior Returning)",
+#     y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
+#     title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
+#     subtitle = "With Error Bars and 50% Reference Line"
+#   ) +
+#   theme_minimal()
+```
