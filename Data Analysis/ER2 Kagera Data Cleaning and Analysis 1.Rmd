@@ -9,17 +9,51 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival)
 ```
-
-# Initial Data Cleaning
 
 Key Notes: 
   - The [COMPLETE] tag means the task is fully done. \\
   - Three asterisks (***) mean this is a note to bring up with Henry and/or the enumerators. \\
   - The [To-Do] tag means the task is still incomplete. \\
   
+# To-Do for Both Datasets: \\
+
+  Each section below is organized to address one of these points. Oustanding tasks (to-dos) are tagged with that in the section heading
+
+  - [COMPLETE][Initialize] Resolve items in Issues sections
+  - [COMPLETE][Initialize] Distribute rank_results_methods to their own columns
+  - [COMPLETE][Initialize] Current rank_results_methods_1, rank_results_methods_2 are useless, replace with rank *of* results method 1, etc
+  - [COMPLETE][Initialize] Distribute first_position, second_position, third_position to "first_study", "first_method", "second study", etc.
+  - [COMPLETE][Initialize] Distribute rank_results_preference to Study 1 Rank column, Study 2 Rank column, etc. 
+      - [COMPLETE][Initialize] Do the same for rank_formats_preference and rank_formats_clarity
+  - [COMPLETE][Initialize] Join DCE data with levels/features sheet
+  - [COMPLETE][Initialize] Join DCE data post-merge with levels/featuers to the kagera data, and clean
+  - [COMPLETE][Analyze DCE Data] Analyze DCE data
+      - [COMPLETE][Analyze DCE Data: Linear Regression] Regress likelihood of choosing A when each feature level is present in A, present in B. 
+      - [COMPLETE][Analyze DCE Data: DCE Graph...] Create graph of likelihood of choosing A/B given compensation level of A/B. 
+  - [COMPLETE][Summary Statistics Table] Create a table of summary statistics for each variable 
+  - [COMPLETE][Summary Statistics Table] Make variables categorical/numerical as appropriate
+  - [Complete][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log compensation
+  - [Cancelled][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log research funding. Also non diff/non log?
+      - No longer necessary
+  - [Cancelled][Initial OLS and Logit DCE Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 
+      - Cancelled because alternate version of logit/mixed logit is preferred. See [Dominant Option Regression]
+  - [COMPLETE][DCE Dominant Choice Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
+  - [COMPLETE][DCE Logit Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
+  
+  Ordered by priority:
+  - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
+  - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
+  - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
+  - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
+  - [To-Do] Summarize comment variables (exercise_comment and exercise_comment_oth for DCE comments, end_commet for overall comments)
+  - [To-Do] Summarize challenges participants identified
+
   ____________________________________________________________________________________________________________________________________________________
+  
+  
+# Initial Data Cleaning
 
   Let's import the data and check for abnormalities. More specifically, we're importing the data and looking for odd patterns like: \\ 
   - NA values where there should be something else (like a 0 or a "False") \\
@@ -33,9 +67,8 @@ Key Notes:
   *You might notice the returningresults_merged dataset doesn't have the DCE data. For some reason, it's separate in SurveyCTO-- that's okay, we just have to join the datasets together. To begin with, look at the datasets separately and we'll join them in a later step. \\
   
 
-```{r Non-DCE Data Import}
+```{r Initialize}
 kageradata <- read.csv("returningresults_merged.csv")
-
 # Data Notes: 
 #   - ID indicator is respondentID or respondent_index
 #   - For joining with DCE data, join column is SET.OF.dce_game
@@ -54,13 +87,9 @@ kageradata <- read.csv("returningresults_merged.csv")
 #   - *** many 0s for past_study_participation, so much of the activity response section is empty
 #   - *** future_study_willingness --> not complete
 #   
-```
 
-```{r DCE Data Import}
 dcedata <- read.csv("dce_returningresults_merged.csv")
 scenarios <- read.csv("scenario_dataset.csv")
-
-
 # DCE Data Notes:
 #     - No ID indicator, for joining with Kagera data, join column is SET.OF.dce_game
 #     - DCE data has 10 observations per ID, so it will be a many-to-one join (and that's okay)
@@ -68,44 +97,9 @@ scenarios <- read.csv("scenario_dataset.csv")
 # DCE Issues: 
 #     - [COMPLETE][Join Sets] Need to parse the game_matrix (stitched_output_##.jpg) to the actual levels and features from the Excel sheet. This means another join
 #     - [COMPLETE][Join Sets] Join on the game_matrix column (to the "image" column in the Excel spreadsheet of DCE features and levels)
-```
 
-# To-Do for Both Datasets: \\
 
-  Each section below is organized to address one of these points. Oustanding tasks (to-dos) are tagged with that in the section heading
-
-  - [COMPLETE][Data Cleaning] Resolve items in Issues sections
-  - [COMPLETE][Data cleaning] Distribute rank_results_methods to their own columns
-  - [COMPLETE][Data cleaning] Current rank_results_methods_1, rank_results_methods_2 are useless, replace with rank *of* results method 1, etc
-  - [COMPLETE][Data cleaning] Distribute first_position, second_position, third_position to "first_study", "first_method", "second study", etc.
-  - [COMPLETE][Data cleaning] Distribute rank_results_preference to Study 1 Rank column, Study 2 Rank column, etc. 
-      - [COMPLETE][Data cleaning] Do the same for rank_formats_preference and rank_formats_clarity
-  - [COMPLETE][Join Sets] Join DCE data with levels/features sheet
-  - [COMPLETE][Join Sets] Join DCE data post-merge with levels/featuers to the kagera data, and clean
-  - [COMPLETE][Analyze DCE Data] Analyze DCE data
-      - [COMPLETE][Analyze DCE Data: Linear Regression] Regress likelihood of choosing A when each feature level is present in A, present in B. 
-      - [COMPLETE][Analyze DCE Data: DCE Graph...] Create graph of likelihood of choosing A/B given compensation level of A/B. 
-  - [COMPLETE][Summary Statistics Table] Create a table of summary statistics for each variable 
-  - [COMPLETE][Summary Statistics Table] Make variables categorical/numerical as appropriate
-  - [Complete][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log compensation
-  - [Cancelled][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log research funding. Also non diff/non log?
-      - No longer necessary
-  - [Cancelled][Initial OLS and Logit DCE Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 
-      - Cancelled because alternate version of logit/mixed logit is preferred. See [Dominant Option Regression]
-  - [COMPLETE][DCE Dominant Option Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
-  - [COMPLETE][DCE Dominant Option Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
-  
-  Ordered by priority:
-  - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
-  - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
-  - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
-  - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
-  - [To-Do] Summarize comment variables (exercise_comment and exercise_comment_oth for DCE comments, end_commet for overall comments)
-  - [To-Do] Summarize challenges participants identified
-
-  
-
-```{r Join Sets}
+# Join Datasets
 # Augment the DCE dataset with the scenarios set
   # Check for respondent index and image label presence, then join on those variables
 
@@ -130,9 +124,7 @@ scenarios <- read.csv("scenario_dataset.csv")
 
   # Join the augmented DCE dataset to the Kagera data
   fulldata <- left_join(dcedata_aug, kageradata, by = c("SET.OF.dce_game"))
-```
-
-```{r Data Cleaning}
+# Data Cleaning
 
 # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
 fulldata <- subset(fulldata, respo_confirm == 1)
@@ -159,31 +151,6 @@ fulldata <- fulldata %>%
   tidyr::separate(first_position, into = c("first_study", "first_method"), sep = " ", convert = TRUE, fill = "right") %>%
   tidyr::separate(second_position, into = c("second_study", "second_method"), sep = " ", convert = TRUE, fill = "right") %>%
   tidyr::separate(third_position, into = c("third_study", "third_method"), sep = " ", convert = TRUE, fill = "right")
-
-
-
-
-# The commented section provides code to fix a miscoding where satisfaction scales show mixed numerical and string output, but this was fixed after the pilot. 
-    # fulldata <- fulldata %>%
-    #   mutate(across(77:85, ~ case_when(
-    #     . == "not satisfied" ~ as.character(1),
-    #     . == "very satisfied" ~ as.character(5),
-    #     TRUE ~ as.character(.)
-    #   )),
-    #   across(45, ~ case_when(
-    #     . == "Not busy at all" ~ as.character(1),
-    #     . == "Very busy" ~ as.character(5),
-    #     TRUE ~ as.character(.)
-    #   )),
-    #   across(88, ~ case_when(
-    #     . == "Least interested" ~ as.character(1),
-    #     . == "Most interested" ~ as.character(5),
-    #     TRUE ~ as.character(.)
-    #   )))
-
-
-
-# Working with the DCE data. 
 
   # Rename the option_selected variable from the misspelled version
   fulldata <- fulldata %>%
@@ -214,7 +181,6 @@ fulldata <- fulldata %>%
       fundB = as.numeric(gsub("^research|\\.jpeg$", "", researchfunding_image.B)),
       funding_delta = fundA - fundB
     )
-
 
 
 
@@ -345,8 +311,311 @@ for (col in columns_to_process) {
 }
 
 write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
+```
+
+```{r DCE Initialization Long Datset}
+
+# A binary logit regression that regresses whether an option won against its feature levels.  Ex. chosen ~ has_return_results_participants_1 + has_return_results_2 + etc. 
+
+# A binary logit regression that regresses the likelihood of selecting a particular feature against what it's "up against". I.e. return_results_participants_remote_chosen ~ other_option_no_participant_results + other_option_participants_inperson + comp_delta + ....
+
+#To accomplish this, we want a long dataset. 
+
+# Pivot longer
+dce_long <- dceanalysis %>%
+  pivot_longer(
+    cols = c(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, fundA, fundB),
+    names_to = c(".value", "alt"),
+    names_pattern = "(.*)(A|B)"
+  ) %>%
+  mutate(
+    chosen = ifelse((option_selected == 0 & alt == "B") | (option_selected == 1 & alt == "A"), 1, 0)
+  ) %>%
+  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund)
+
+dce_long <- dce_long %>%
+  distinct(respondentID, game_index) %>%             # Get unique combinations
+  arrange(respondentID, game_index) %>%              # Order them
+  mutate(game_id = row_number()) %>%                 # Assign global game_id
+  right_join(dce_long, by = c("respondentID", "game_index"))
+
+dce_long$participant <- factor(dce_long$participant,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to participants", "Results returned to participants remotely", "Results returned to participants in person"))
+
+dce_long$community <- factor(dce_long$community,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to community", "Results returned to community leaders remotely", "Results returned to community in-person meeting"))
+
+dce_long$policy <- factor(dce_long$policy,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to policymakers", "Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers"))
+
+#Want: returning results to participants chosen ~ community + policy + comp + fund, 
+     # returning results to community chosen ~ participants + policy + comp + fund,
+     # returning results to policymakers chosen ~ participants + community + comp + fund,
+
+dce_long <- dce_long %>%
+  group_by(game_id) %>%
+  mutate(
+    chosen_participant = participant[chosen == 1],
+    other_participant = participant[chosen == 0],
+    chosen_community = community[chosen == 1],
+    other_community = community[chosen == 0],
+    chosen_policy = policy[chosen == 1],
+    other_policy = policy[chosen == 0],
+    chosen_comp = comp[chosen == 1],
+    other_comp = comp[chosen == 0],
+    chosen_fund = fund[chosen == 1],
+    other_fund = fund[chosen == 0],
+    dominant_comp = case_when(
+      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "A"],
+      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "B"],
+      comp[alt == "A"] == comp[alt == "B"] ~ NA
+      ),
+    nondominant_comp = case_when(
+      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "B"],
+      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "A"],
+      comp[alt == "A"] == comp[alt == "B"] ~ NA
+    ),
+    dominant_fund = case_when(
+      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "A"],
+      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "B"],
+      fund[alt == "A"] == fund[alt == "B"] ~ NA
+      ),
+    nondominant_fund = case_when(
+      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "B"],
+      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "A"],
+      fund[alt == "A"] == fund[alt == "B"] ~ NA
+      ),
+    chosen_dominant_comp = case_when(
+      dominant_comp == NA ~ NA,
+      chosen == 1 & dominant_comp == comp ~ 1,
+      chosen == 0 & nondominant_comp == comp ~ 1,
+      TRUE ~ 0
+    ),
+    chosen_dominant_fund = case_when(
+      dominant_fund == NA ~ NA,
+      chosen == 1 & dominant_fund == fund ~ 1,
+      chosen == 0 & nondominant_fund == fund ~ 1,
+      TRUE ~ 0
+    ),
+    comp_delta = ifelse(!is.na(dominant_comp - nondominant_comp), dominant_comp - nondominant_comp, NA),
+    fund_delta = ifelse(!is.na(dominant_fund - nondominant_fund), dominant_fund - nondominant_fund, NA),
+    dominant_funding_comp_delta = case_when(
+      fund[alt == "A"] == fund[alt == "B"] ~ NA,
+      fund[alt == "A"] > fund[alt == "B"] ~ comp[alt == "A"] - comp[alt == "B"],
+      fund[alt == "B"] > fund[alt == "A"] ~ comp[alt == "B"] - comp[alt == "A"],
+    ),
+    return_results_participants = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] != "No results returned to participants" | participant[alt == "B"] != "No results returned to participants" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_participants_none = ifelse(participant == "No results returned to participants", 1, 0),
+    return_results_participants_remote = ifelse(participant == "Results returned to participants remotely", 1, 0),
+    return_results_participants_inperson = ifelse(participant == "Results returned to participants in person", 1, 0),
+    return_results_community = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] != "No results returned to community" | community[alt == "B"] != "No results returned to community" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_policy = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] != "No results returned to policymakers" | policy[alt == "B"] != "No results returned to policymakers" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_participants_chosen = case_when(
+      chosen == 1 &
+      chosen_participant %in% c("Results returned to participants remotely", "Results returned to participants in person") &
+      chosen_participant != other_participant ~ 1,
+      chosen_participant == other_participant ~ NA,
+      TRUE ~ 0
+    ),
+    return_results_community_chosen = case_when(
+      chosen == 1 &
+      chosen_community %in% c("Results returned to community leaders remotely", "Results returned to community in-person meeting") &
+      chosen_community != other_community ~ 1,
+      chosen_community == other_community ~ NA,
+      TRUE ~ 0
+    ),
+    return_results_policy_chosen = case_when(
+      chosen == 1 &
+      chosen_policy %in% c("Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers") &
+      chosen_policy != other_policy ~ 1,
+      chosen_policy == other_policy ~ NA,
+      TRUE ~ 0
+    )
+    
+  ) %>%
+  ungroup()
 
 
+# Added columns to make participant graphs
+dce_long <- dce_long %>%
+  group_by(game_id) %>%
+  mutate(
+    #Need an indicator for which has dominant participant option (v1 and v2)
+    #Need an indicator for if the dominant participant option was chosen
+    #Need an indicator for what the compensation difference is between the dominant participant option and the non dominant participant option
+    
+    dominant_rrp_v1 = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] == "Results returned to participants in person" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants in person" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & alt == "B" ~ 1,
+      participant[alt == "B"] == "Results returned to participants in person" & alt == "A" ~ 0,
+      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "A" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrp_v1 = case_when(
+      is.na(dominant_rrp_v1) ~ NA,
+      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrp_v1_comp_delta = case_when(
+      is.na(dominant_rrp_v1) ~ NA,
+      TRUE ~ comp[dominant_rrp_v1 == 1] - comp[dominant_rrp_v1 == 0]
+    ),
+    
+    dominant_rrp_v2 = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] == "Results returned to participants remotely" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants remotely" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & alt == "B" ~ 1,
+      participant[alt == "B"] == "Results returned to participants remotely" & alt == "A" ~ 0,
+      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "A" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrp_v2 = case_when(
+      is.na(dominant_rrp_v2) ~ NA,
+      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrp_v2_comp_delta = case_when(
+      is.na(dominant_rrp_v2) ~ NA,
+      TRUE ~ comp[dominant_rrp_v2 == 1] - comp[dominant_rrp_v2 == 0]
+    ),
+    
+    
+    
+    #Now community returning results (rrc)
+    dominant_rrc_v1 = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "B" ~ 1,
+      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "A" ~ 0,
+      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "A" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrc_v1 = case_when(
+      is.na(dominant_rrc_v1) ~ NA,
+      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrc_v1_comp_delta = case_when(
+      is.na(dominant_rrc_v1) ~ NA,
+      TRUE ~ comp[dominant_rrc_v1 == 1] - comp[dominant_rrc_v1 == 0]
+    ),
+    
+    dominant_rrc_v2 = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "B" ~ 1,
+      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "A" ~ 0,
+      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "A" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrc_v2 = case_when(
+      is.na(dominant_rrc_v2) ~ NA,
+      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrc_v2_comp_delta = case_when(
+      is.na(dominant_rrc_v2) ~ NA,
+      TRUE ~ comp[dominant_rrc_v2 == 1] - comp[dominant_rrc_v2 == 0]
+    ),
+    
+    
+    
+    #Now for policymakers. Returning results to policymakers --> rrpolicy
+    dominant_rrpolicy_v1 = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrpolicy_v1 = case_when(
+      is.na(dominant_rrpolicy_v1) ~ NA,
+      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrpolicy_v1_comp_delta = case_when(
+      is.na(dominant_rrpolicy_v1) ~ NA,
+      TRUE ~ comp[dominant_rrpolicy_v1 == 1] - comp[dominant_rrpolicy_v1 == 0]
+    ),
+    
+    dominant_rrpolicy_v2 = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "B" ~ 1,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "A" ~ 0,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "A" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrpolicy_v2 = case_when(
+      is.na(dominant_rrpolicy_v2) ~ NA,
+      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrpolicy_v2_comp_delta = case_when(
+      is.na(dominant_rrpolicy_v2) ~ NA,
+      TRUE ~ comp[dominant_rrpolicy_v2 == 1] - comp[dominant_rrpolicy_v2 == 0]
+    )
+  ) %>% ungroup()
+
+dce_long <- dce_long %>%
+  mutate(
+    respondentID = as.numeric(respondentID)
+  )
+
+write.csv(dce_long, file = "dcelongdataset.csv")
 ```
 
 ```{r Summary Statistics Table Create the table}
@@ -1715,314 +1984,7 @@ heatmap
 ```{r To-do. Summarize challenges participants identified}
 ```
 
-```{r DCE Long Dataset Initialization}
-
-# A binary logit regression that regresses whether an option won against its feature levels.  Ex. chosen ~ has_return_results_participants_1 + has_return_results_2 + etc. 
-
-# A binary logit regression that regresses the likelihood of selecting a particular feature against what it's "up against". I.e. return_results_participants_remote_chosen ~ other_option_no_participant_results + other_option_participants_inperson + comp_delta + ....
-
-#To accomplish this, we want a long dataset. 
-
-library(survival)
-
-# Pivot longer
-dce_long <- dceanalysis %>%
-  pivot_longer(
-    cols = c(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, fundA, fundB),
-    names_to = c(".value", "alt"),
-    names_pattern = "(.*)(A|B)"
-  ) %>%
-  mutate(
-    chosen = ifelse((option_selected == 0 & alt == "B") | (option_selected == 1 & alt == "A"), 1, 0)
-  ) %>%
-  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund)
-
-dce_long <- dce_long %>%
-  distinct(respondentID, game_index) %>%             # Get unique combinations
-  arrange(respondentID, game_index) %>%              # Order them
-  mutate(game_id = row_number()) %>%                 # Assign global game_id
-  right_join(dce_long, by = c("respondentID", "game_index"))
-
-dce_long$participant <- factor(dce_long$participant,
-                               levels = c(1, 2, 3),
-                               labels = c("No results returned to participants", "Results returned to participants remotely", "Results returned to participants in person"))
-
-dce_long$community <- factor(dce_long$community,
-                               levels = c(1, 2, 3),
-                               labels = c("No results returned to community", "Results returned to community leaders remotely", "Results returned to community in-person meeting"))
-
-dce_long$policy <- factor(dce_long$policy,
-                               levels = c(1, 2, 3),
-                               labels = c("No results returned to policymakers", "Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers"))
-
-#Want: returning results to participants chosen ~ community + policy + comp + fund, 
-     # returning results to community chosen ~ participants + policy + comp + fund,
-     # returning results to policymakers chosen ~ participants + community + comp + fund,
-
-dce_long <- dce_long %>%
-  group_by(game_id) %>%
-  mutate(
-    chosen_participant = participant[chosen == 1],
-    other_participant = participant[chosen == 0],
-    chosen_community = community[chosen == 1],
-    other_community = community[chosen == 0],
-    chosen_policy = policy[chosen == 1],
-    other_policy = policy[chosen == 0],
-    chosen_comp = comp[chosen == 1],
-    other_comp = comp[chosen == 0],
-    chosen_fund = fund[chosen == 1],
-    other_fund = fund[chosen == 0],
-    dominant_comp = case_when(
-      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "A"],
-      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "B"],
-      comp[alt == "A"] == comp[alt == "B"] ~ NA
-      ),
-    nondominant_comp = case_when(
-      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "B"],
-      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "A"],
-      comp[alt == "A"] == comp[alt == "B"] ~ NA
-    ),
-    dominant_fund = case_when(
-      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "A"],
-      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "B"],
-      fund[alt == "A"] == fund[alt == "B"] ~ NA
-      ),
-    nondominant_fund = case_when(
-      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "B"],
-      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "A"],
-      fund[alt == "A"] == fund[alt == "B"] ~ NA
-      ),
-    chosen_dominant_comp = case_when(
-      dominant_comp == NA ~ NA,
-      chosen == 1 & dominant_comp == comp ~ 1,
-      chosen == 0 & nondominant_comp == comp ~ 1,
-      TRUE ~ 0
-    ),
-    chosen_dominant_fund = case_when(
-      dominant_fund == NA ~ NA,
-      chosen == 1 & dominant_fund == fund ~ 1,
-      chosen == 0 & nondominant_fund == fund ~ 1,
-      TRUE ~ 0
-    ),
-    comp_delta = ifelse(!is.na(dominant_comp - nondominant_comp), dominant_comp - nondominant_comp, NA),
-    fund_delta = ifelse(!is.na(dominant_fund - nondominant_fund), dominant_fund - nondominant_fund, NA),
-    dominant_funding_comp_delta = case_when(
-      fund[alt == "A"] == fund[alt == "B"] ~ NA,
-      fund[alt == "A"] > fund[alt == "B"] ~ comp[alt == "A"] - comp[alt == "B"],
-      fund[alt == "B"] > fund[alt == "A"] ~ comp[alt == "B"] - comp[alt == "A"],
-    ),
-    return_results_participants = case_when(
-      participant[alt == "A"] == participant[alt == "B"] ~ NA,
-      participant[alt == "A"] != "No results returned to participants" | participant[alt == "B"] != "No results returned to participants" ~ 1,
-      TRUE ~ 0
-    ),
-    return_results_participants_none = ifelse(participant == "No results returned to participants", 1, 0),
-    return_results_participants_remote = ifelse(participant == "Results returned to participants remotely", 1, 0),
-    return_results_participants_inperson = ifelse(participant == "Results returned to participants in person", 1, 0),
-    return_results_community = case_when(
-      community[alt == "A"] == community[alt == "B"] ~ NA,
-      community[alt == "A"] != "No results returned to community" | community[alt == "B"] != "No results returned to community" ~ 1,
-      TRUE ~ 0
-    ),
-    return_results_policy = case_when(
-      policy[alt == "A"] == policy[alt == "B"] ~ NA,
-      policy[alt == "A"] != "No results returned to policymakers" | policy[alt == "B"] != "No results returned to policymakers" ~ 1,
-      TRUE ~ 0
-    ),
-    return_results_participants_chosen = case_when(
-      chosen == 1 &
-      chosen_participant %in% c("Results returned to participants remotely", "Results returned to participants in person") &
-      chosen_participant != other_participant ~ 1,
-      chosen_participant == other_participant ~ NA,
-      TRUE ~ 0
-    ),
-    return_results_community_chosen = case_when(
-      chosen == 1 &
-      chosen_community %in% c("Results returned to community leaders remotely", "Results returned to community in-person meeting") &
-      chosen_community != other_community ~ 1,
-      chosen_community == other_community ~ NA,
-      TRUE ~ 0
-    ),
-    return_results_policy_chosen = case_when(
-      chosen == 1 &
-      chosen_policy %in% c("Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers") &
-      chosen_policy != other_policy ~ 1,
-      chosen_policy == other_policy ~ NA,
-      TRUE ~ 0
-    )
-    
-  ) %>%
-  ungroup()
-
-
-# Added columns to make participant graphs
-dce_long <- dce_long %>%
-  group_by(game_id) %>%
-  mutate(
-    #Need an indicator for which has dominant participant option (v1 and v2)
-    #Need an indicator for if the dominant participant option was chosen
-    #Need an indicator for what the compensation difference is between the dominant participant option and the non dominant participant option
-    
-    dominant_rrp_v1 = case_when(
-      participant[alt == "A"] == participant[alt == "B"] ~ NA,
-      participant[alt == "A"] == "Results returned to participants in person" & alt == "A" ~ 1,
-      participant[alt == "A"] == "Results returned to participants in person" & alt == "B" ~ 0,
-      participant[alt == "B"] == "Results returned to participants in person" & alt == "B" ~ 1,
-      participant[alt == "B"] == "Results returned to participants in person" & alt == "A" ~ 0,
-      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "A" ~ 1,
-      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "B" ~ 0,
-      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "A" ~ 0,
-      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrp_v1 = case_when(
-      is.na(dominant_rrp_v1) ~ NA,
-      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrp_v1_comp_delta = case_when(
-      is.na(dominant_rrp_v1) ~ NA,
-      TRUE ~ comp[dominant_rrp_v1 == 1] - comp[dominant_rrp_v1 == 0]
-    ),
-    
-    dominant_rrp_v2 = case_when(
-      participant[alt == "A"] == participant[alt == "B"] ~ NA,
-      participant[alt == "A"] == "Results returned to participants remotely" & alt == "A" ~ 1,
-      participant[alt == "A"] == "Results returned to participants remotely" & alt == "B" ~ 0,
-      participant[alt == "B"] == "Results returned to participants remotely" & alt == "B" ~ 1,
-      participant[alt == "B"] == "Results returned to participants remotely" & alt == "A" ~ 0,
-      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "A" ~ 1,
-      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "B" ~ 0,
-      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "A" ~ 0,
-      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrp_v2 = case_when(
-      is.na(dominant_rrp_v2) ~ NA,
-      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrp_v2_comp_delta = case_when(
-      is.na(dominant_rrp_v2) ~ NA,
-      TRUE ~ comp[dominant_rrp_v2 == 1] - comp[dominant_rrp_v2 == 0]
-    ),
-    
-    
-    
-    #Now community returning results (rrc)
-    dominant_rrc_v1 = case_when(
-      community[alt == "A"] == community[alt == "B"] ~ NA,
-      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "A" ~ 1,
-      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "B" ~ 0,
-      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "B" ~ 1,
-      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "A" ~ 0,
-      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "A" ~ 1,
-      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "B" ~ 0,
-      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "A" ~ 0,
-      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrc_v1 = case_when(
-      is.na(dominant_rrc_v1) ~ NA,
-      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrc_v1_comp_delta = case_when(
-      is.na(dominant_rrc_v1) ~ NA,
-      TRUE ~ comp[dominant_rrc_v1 == 1] - comp[dominant_rrc_v1 == 0]
-    ),
-    
-    dominant_rrc_v2 = case_when(
-      community[alt == "A"] == community[alt == "B"] ~ NA,
-      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "A" ~ 1,
-      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "B" ~ 0,
-      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "B" ~ 1,
-      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "A" ~ 0,
-      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "A" ~ 1,
-      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "B" ~ 0,
-      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "A" ~ 0,
-      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrc_v2 = case_when(
-      is.na(dominant_rrc_v2) ~ NA,
-      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrc_v2_comp_delta = case_when(
-      is.na(dominant_rrc_v2) ~ NA,
-      TRUE ~ comp[dominant_rrc_v2 == 1] - comp[dominant_rrc_v2 == 0]
-    ),
-    
-    
-    
-    #Now for policymakers. Returning results to policymakers --> rrpolicy
-    dominant_rrpolicy_v1 = case_when(
-      policy[alt == "A"] == policy[alt == "B"] ~ NA,
-      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
-      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
-      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
-      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
-      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
-      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
-      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
-      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrpolicy_v1 = case_when(
-      is.na(dominant_rrpolicy_v1) ~ NA,
-      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrpolicy_v1_comp_delta = case_when(
-      is.na(dominant_rrpolicy_v1) ~ NA,
-      TRUE ~ comp[dominant_rrpolicy_v1 == 1] - comp[dominant_rrpolicy_v1 == 0]
-    ),
-    
-    dominant_rrpolicy_v2 = case_when(
-      policy[alt == "A"] == policy[alt == "B"] ~ NA,
-      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "A" ~ 1,
-      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "B" ~ 0,
-      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "B" ~ 1,
-      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "A" ~ 0,
-      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "A" ~ 1,
-      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "B" ~ 0,
-      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "A" ~ 0,
-      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrpolicy_v2 = case_when(
-      is.na(dominant_rrpolicy_v2) ~ NA,
-      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrpolicy_v2_comp_delta = case_when(
-      is.na(dominant_rrpolicy_v2) ~ NA,
-      TRUE ~ comp[dominant_rrpolicy_v2 == 1] - comp[dominant_rrpolicy_v2 == 0]
-    )
-  ) %>% ungroup()
-
-dce_long <- dce_long %>%
-  mutate(
-    respondentID = as.numeric(respondentID)
-  )
-
-write.csv(dce_long, file = "dcelongdataset.csv")
-```
-
-```{r Logit DCE Regression}
+```{r DCE Logit Regression}
 
 set.seed(3141592653)
 dce_long$comp_scaled <- (dce_long$comp - min(dce_long$comp, na.rm = TRUE)) / 
@@ -2112,7 +2074,7 @@ ggplot(general_pref_mixed_logit_tidy, aes(x = estimate, y = reorder(term, estima
   theme_minimal()
 ```
 
-```{r Long Dataset Dominant Choice Graphs}
+```{r DCE Dominant Choice Graphs}
 # Research Funding vs. Compensation Differential
 fundinganalysisdataset <- subset(dce_long, comp_delta != 0 & fund_delta != 0)
 participantanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_participants_chosen))
@@ -2781,7 +2743,7 @@ plot19 <- ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta
 
 ```
 
-```{r Interactive Shiny Graph Display}
+```{r Interactive Dominant Choice Graph Display}
 
 ui <- fluidPage(
   tags$head(
