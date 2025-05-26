@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun)
 ```
 
 Key Notes: 
@@ -1051,6 +1051,195 @@ num_summary %>%
 
 ```
 
+```{r To-Do Mira. Summary Statistics Figures}
+
+# making separate dataset so I do not mess up future code. collapsed down by respondant ID to remove duplicates.
+sum_figs <- fulldata
+
+sum_figs <- sum_figs %>%
+  distinct(respondentID, 
+          .keep_all = TRUE)
+
+sum_figs_filt <- sum_figs %>% 
+  select(
+    # Respondent and Household Information
+    location, districtID, district_name, wardID, ward_name, villageID, 
+    village_name, respondentID, control,
+    hh_adults, hh_children, hh_teen, resp_education, work_seven_days, work_three_month, resp_busy,
+    
+    # Study Enrollment and Understanding
+    hear_study, enrol_study, receive_result, explain_study, understand_study,
+    study_documentation, keep_documentation, have_documentation,
+    researchers_names, contact_research, informed_consent, informed_study_results, 
+    clear_plans, ask_results,
+    
+    # Study Activities
+    activity_1, activity_1b, activity_2, activity_2b, activity_3, activity_3b,
+    activity_4, activity_4b, activity_5, activity_5b, activity_6, activity_6b,
+    
+    # Satisfaction
+    satisfied_compensation, satisfied_time, satisfied_interaction, satisfied_information,
+    info_received_during_study, info_received_end_study, clarity_timelines,
+    relevance_personal, relevance_community, lasting_impacts, future_participation_interest,
+    
+    # Challenges
+    challenges_encountered, past_study_participation, num_past_studies,
+    past_study_challenges_details, past_study_challenges_addressed_by,
+    other_participant_challenges_heard, other_participant_challenges_details,
+    other_participant_challenges_addressed_by,
+    
+    # Activities List
+    study_activities, study_activities_1, study_activities_2, study_activities_3,
+    study_activities_4, study_activities_5, study_activities_6, study_activities_7,
+    study_activities_8, study_activities_9, study_activities_10, study_activities_11,
+    study_activities_12, study_activities_13, studies_returned_info,
+
+    # Return of Results - Audio
+    audio_results_received, audio_message_listened, audio_results_understandable,
+
+    # SMS
+    sms_results_received, sms_message_read, sms_results_understandable,
+
+    # Website
+    website_results_received, website_link_clicked, website_results_understandable,
+
+    # Flyers
+    flyer_results_received, flyer_read, flyer_results_understandable,
+    posted_flyer_results_received, posted_flyer_read, posted_flyer_results_understandable,
+
+    # Social Media
+    social_media_results_seen, social_media_interacted, social_media_results_understandable,
+
+    # Video
+    video_results_received, video_watched, video_results_understandable,
+
+    # Meetings
+    public_meeting_invited, public_meeting_attended, public_meeting_results_understandable,
+    private_meeting_invited, private_meeting_attended, private_meeting_results_understandable,
+
+    # Phone and Other
+    phone_call_results_heard, phone_call_answered, phone_call_results_understandable,
+    other_results_received, other_results_understandable,
+
+    # Perceptions and Willingness
+    results_wait_time_perception, results_return_time_satisfaction, future_study_willingness,
+
+    # Opinions on Returning Results
+    important_to_return_results_resources, returning_results_shows_respect,
+    participants_right_to_results, importance_of_results_returned,
+    preferred_results_return_method,
+
+    # Who Should Receive Results
+    study_participants, non_participants_research_communities, local_community_leaders,
+    local_government_officials, foreign_government_officials, religious_leaders, other_researchers,
+
+    # Result Method Preferences
+    first_study, first_method, second_study, second_method, third_study, third_method,
+    rank_results_preference_1, rank_results_preference_2, rank_formats_preference_3,
+    rank_formats_clarity_1, rank_formats_clarity_2, rank_formats_clarity_3,
+
+    # Likelihood of Using Formats
+    likelihood_watch_video_results, likelihood_read_sms_results, likelihood_listen_audio_results,
+
+    # Enumerator Observations and Technology
+    read_sms, own_mobile_phone, own_smartphone, received_messages_30days, interested_receive_result
+  )
+
+# removing columns with no responses in them (predominately questions where we left room for extra options)
+sum_figs_filt <- sum_figs_filt %>%
+  select(where(~ !all(is.na(.))))
+
+skim(sum_figs_filt)
+
+# data has been cleaned and filtered, starting tables and figs
+
+skim(sum_figs_filt %>%
+  select(control, hh_adults, hh_children, hh_teen, resp_education,
+         work_seven_days, own_mobile_phone, own_smartphone) )
+
+# Choose your demographic variables
+demo_vars <- c("hh_adults", "hh_children", "hh_teen", "resp_education", 
+               "work_seven_days", "work_three_month", "resp_busy",
+               "own_mobile_phone", "own_smartphone")
+# labels
+education_labels <- c(
+  "1" = "No formal education",
+  "2" = "Primary education",
+  "3" = "Secondary education",
+  "4" = "University degree",
+  "5" = "Trade School",
+  "6" = "Other"
+)
+
+
+# Apply relabeling just to resp_education
+sum_figs_labeled <- sum_figs_filt %>%
+  mutate(resp_education = recode(as.character(resp_education), !!!education_labels))
+
+# Build summary
+pretty_demo <- sum_figs_labeled %>%
+  select(all_of(demo_vars)) %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>% 
+  mutate(Value = ifelse(is.na(Value), "Missing", Value)) %>%
+  group_by(Variable, Value) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Total = sum(N),
+    Percent = round(100 * N / Total, 1),
+    Row_Label = Value,
+    Count = paste0(N, " (", Percent, "%)"),
+    Variable = ifelse(row_number() == 1, Variable, "")
+  ) %>%
+  select(Variable, Row_Label, Count)
+
+pretty_demo %>%
+  kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  collapse_rows(columns = 1, valign = "top")
+
+
+
+# Clean and format for pretty table
+pretty_demo <- sum_figs_filt %>%
+  select(all_of(demo_vars)) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
+  mutate(Value = ifelse(is.na(Value), "Missing", as.character(Value))) %>%
+  group_by(Variable, Value) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Total = sum(N),
+    Percent = round(100 * N / Total, 1),
+    Row_Label = paste0(Value),
+    Count = paste0(N, " (", Percent, "%)"),
+    Variable = ifelse(row_number() == 1, Variable, "")  # Only label the first row of each group
+  ) %>%
+  select(Variable, Row_Label, Count)
+
+
+
+# Make the table pretty
+pretty_demo %>%
+  kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  collapse_rows(columns = 1, valign = "top")  # groups the variable names
+
+
+
+
+```
+
+
 ```{r To-do. Analyze three study experiment}
 
 # The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
@@ -1722,7 +1911,6 @@ rankings <- rankings %>%
           rank_results_methods_7,
           rank_results_methods_8,
           rank_results_methods_9,
-          # Add other rank columns as needed
           .keep_all = TRUE)
 
 #this collapsed correctly - fulldata has 900 entries, this data has 90 entries, which tracks with the fact that each entry was duplicated 10x over
@@ -1978,10 +2166,6 @@ stacked_rankings_2
 stacked_rankings
 heatmap
 
-<<<<<<< HEAD
-=======
-
->>>>>>> e8639afa054b1a76fc8e08d84ac28c90ad574c9d
 ```
 
 ```{r To-do. Summarize challenges participants identified}
