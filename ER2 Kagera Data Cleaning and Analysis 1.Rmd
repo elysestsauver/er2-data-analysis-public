@@ -100,9 +100,6 @@ scenarios <- read.csv("scenario_dataset.csv")
   - [COMPLETE][DCE Dominant Option Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
   
   Ordered by priority:
-  - [To-Do][DCE Dominant Option Regression - E] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
-  - [To-Do][DCE Dominant Option Graphs - E] Create remote v. none, in person v. none, and in person v. remote graphs
-  - [To-Do][Summary Statistics Table fixes - M] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
   - [To-Do][DCE Dominant Option Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
   - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
   - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
@@ -110,6 +107,7 @@ scenarios <- read.csv("scenario_dataset.csv")
   - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
   - [To-Do] Summarize comment variables (exercise_comment and exercise_comment_oth for DCE comments, end_commet for overall comments)
   - [To-Do] Summarize challenges participants identified
+
   
 
 ```{r Join Sets}
@@ -143,6 +141,10 @@ scenarios <- read.csv("scenario_dataset.csv")
 
 # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
 fulldata <- subset(fulldata, respo_confirm == 1)
+
+fulldata <- subset(fulldata, exercise_comment < 3)
+
+fulldata <- subset(fulldata, interviewer != 1)
 
 # Rank varaiables --> columns for radio, sms, etc. and cell values are the rank designated by participant
   # Some of the columns have collections of data that should be distributed into individual columns. These are resolved here. 
@@ -325,7 +327,7 @@ for (i in seq_len(nrow(codebook))) {
   # num_past_studies has NAs that should be 0 when past_study_participation is 0
 fulldata$num_past_studies[is.na(fulldata$num_past_studies) & fulldata$past_study_participation == 0] <- 0
 
-dceanalysis <- select(fulldata, c("respondentID", "game_index", 9:19, "option_selected", "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset"))
+dceanalysis <- select(fulldata, c("respondentID", "game_index", 9:19, "option_selected", "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "understood_exercise", "exercise_comment", "exercise_comment_oth"))
 
 #Renaming columns for ease of reference
 dceanalysis <- dceanalysis %>%
@@ -346,6 +348,9 @@ columns_to_process = c("participantA", "participantB", "communityA", "communityB
 for (col in columns_to_process) {
   dceanalysis[[col]] <- as.numeric(gsub("\\D+", "", dceanalysis[[col]]))
 }
+
+write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
+
 
 ```
 
@@ -782,272 +787,6 @@ num_summary %>%
 
 ```
 
-```{r Analyze DCE data: DCE Graphs}
-dce_compensation_dataset <- select(dceanalysis, c("option_selected", "compA", "compB", "comp_delta")) %>%
-  mutate(
-    log_compA = log1p(compA),
-    log_compB = log1p(compB)
-  )
-
-# -- Win Rate Plot by Raw Compensation Level --
-filtered_data <- dce_compensation_dataset %>% filter(comp_delta != 0)
-
-comp_wins <- filtered_data %>%
-  mutate(winner_comp = case_when(option_selected == 1 ~ compA, option_selected == 0 ~ compB)) %>%
-  count(winner_comp, name = "wins")
-
-comp_appearances <- filtered_data %>%
-  pivot_longer(cols = c(compA, compB), names_to = "type", values_to = "comp") %>%
-  count(comp, name = "appearances")
-
-comp_stats <- left_join(comp_appearances, comp_wins, by = c("comp" = "winner_comp")) %>%
-  mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
-  rowwise() %>%
-  mutate(
-    ci = list(binom.test(wins, appearances)$conf.int),
-    ci_lower = ci[[1]], ci_upper = ci[[2]]
-  ) %>% ungroup() %>% select(-ci)
-
-# Plot: Win Rate by Raw Compensation
-p1 <- ggplot(comp_stats, aes(x = comp, y = win_rate)) +
-  geom_line(group = 1, color = "blue") +
-  geom_point(size = 2, color = "darkblue") +
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  scale_x_continuous(breaks = 0:10, labels = function(x) paste0(x, " Tsh")) +
-  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
-  labs(title = "Win Rate by Compensation Level", x = "Compensation (Tsh)", y = "Win Rate") +
-  theme_minimal()
-
-(p1)
-
-# -- Log-transformed Win Rate --
-log_filtered <- filtered_data %>%
-  mutate(
-    log_winner = case_when(option_selected == 1 ~ log_compA, option_selected == 0 ~ log_compB)
-  )
-
-log_wins <- log_filtered %>% count(log_winner, name = "wins")
-log_appearances <- log_filtered %>%
-  pivot_longer(cols = c(log_compA, log_compB), names_to = "type", values_to = "log_comp") %>%
-  count(log_comp, name = "appearances")
-
-log_stats <- left_join(log_appearances, log_wins, by = c("log_comp" = "log_winner")) %>%
-  mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
-  rowwise() %>%
-  mutate(
-    ci = list(binom.test(wins, appearances)$conf.int),
-    ci_lower = ci[[1]], ci_upper = ci[[2]]
-  ) %>% ungroup() %>% select(-ci)
-
-# Plot: Win Rate by Log Compensation
-p2 <- ggplot(log_stats, aes(x = log_comp, y = win_rate)) +
-  geom_line(group = 1, color = "forestgreen") +
-  geom_point(size = 2, color = "darkgreen") +
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  labs(title = "Win Rate by Log(1 + Compensation)", x = "log(1 + Compensation)", y = "Win Rate") +
-  theme_minimal()
-
-# -- Plot Probability of Choosing A by Compensation Difference (Linear and Log) --
-filtered_data <- filtered_data %>%
-  mutate(
-    log_compA = log1p(compA),
-    log_compB = log1p(compB),
-    log_diff = log_compA - log_compB,
-    chose_A = ifelse(option_selected == 1, 1, 0)
-  )
-
-# Linear diff
-compdiff_stats <- filtered_data %>%
-  group_by(comp_delta) %>%
-  summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
-  rowwise() %>%
-  mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
-  ungroup() %>% select(-ci)
-
-# Log diff
-logdiff_stats <- filtered_data  %>%
-  group_by(log_diff) %>%
-  summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
-  rowwise() %>%
-  mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
-  ungroup() %>% select(-ci)
-
-# Plot: Linear Diff with Choose A on Y axis
-p3 <- ggplot(compdiff_stats, aes(x = comp_delta, y = prob_choose_A)) +
-  geom_line(group = 1, color = "steelblue") +
-  geom_point(size = 2, color = "darkblue") +
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  labs(title = "P(Choose A) by Compensation Difference", x = "Compensation A - B", y = "P(Choose A)") +
-  theme_minimal()
-
-# Plot: Log Diff
-p4 <- ggplot(logdiff_stats, aes(x = log_diff, y = prob_choose_A)) +
-  geom_line(group = 1, color = "seagreen") +
-  geom_point(size = 2, color = "darkgreen") +
-  #geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  labs(title = "P(Choose A) by Log(1 + Comp A) - Log(1 + Comp B)", x = "Log Compensation Difference", y = "P(Choose A)") +
-  theme_minimal()
-
-(p1)
-
-(p3)
-
-(p2)
-
-# Plot: Linear Diff with Choose B on Y axis
-
-# Linear diff
-compdiff_statsB <- filtered_data %>%
-  group_by(comp_delta) %>%
-  summarise(
-    n = n(),
-    n_B = sum(1 - chose_A),  # number of people who chose B
-    prob_choose_B = n_B / n,
-    .groups = "drop"
-  ) %>%
-  rowwise() %>%
-  mutate(
-    ci = list(binom.test(n_B, n)$conf.int),
-    ci_lower = ci[[1]],
-    ci_upper = ci[[2]]
-  ) %>%
-  ungroup() %>%
-  select(-ci)
-
-p5 <- ggplot(compdiff_statsB, aes(x = comp_delta, y = prob_choose_B)) +
-  geom_line(group = 1, color = "steelblue") +
-  geom_point(size = 2, color = "darkblue") +
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  labs(title = "P(Choose B) by Compensation Difference", x = "Compensation A - B", y = "P(Choose B)") +
-  theme_minimal()
-
-p5
-
-# This graph is not very helpful or informative, as the compensation diff graph does not need to be logged to be comprehensible...
-# I turned off error bars to make it readable at all, but I wouldn't recommend trying to use this visual 
-#(p4)
-
-#------------------------------------------------------------------------------------------------------------------------------------------
-
-# Research Funding Graphs
-
-# Prepare research funding dataset
-dce_funding_dataset <- select(dceanalysis, c("option_selected", "fundA", "fundB")) %>%
-  mutate(
-    log_fundA = log1p(fundA),
-    log_fundB = log1p(fundB)
-  )
-
-
-# Filter for non-tie cases
-dce_funding_dataset <- dce_funding_dataset %>% filter(fundA != fundB)
-
-fund_wins <- dce_funding_dataset %>%
-  mutate(winner_fund = case_when(option_selected == 1 ~ fundA, option_selected == 0 ~ fundB)) %>%
-  count(winner_fund, name = "wins")
-
-fund_appearances <- dce_funding_dataset %>%
-  pivot_longer(cols = c(fundA, fundB), names_to = "type", values_to = "fund") %>%
-  count(fund, name = "appearances")
-
-fund_stats <- left_join(fund_appearances, fund_wins, by = c("fund" = "winner_fund")) %>%
-  mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
-  rowwise() %>%
-  mutate(
-    ci = list(binom.test(wins, appearances)$conf.int),
-    ci_lower = ci[[1]], ci_upper = ci[[2]]
-  ) %>% ungroup() %>% select(-ci)
-
-# Plot
-pf1 <- ggplot(fund_stats, aes(x = fund, y = win_rate)) +
-  geom_line(group = 1, color = "blue") +
-  geom_point(size = 2, color = "darkblue") +
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  labs(title = "Win Rate by Research Funding Level", x = "Research Funding (Tsh)", y = "Win Rate") +
-  theme_minimal()
-
-log_dce_funding_dataset <- dce_funding_dataset %>%
-  mutate(
-    log_winner = case_when(option_selected == 1 ~ log_fundA, option_selected == 0 ~ log_fundB)
-  )
-
-log_wins_fund <- log_dce_funding_dataset %>%
-  count(log_winner, name = "wins")
-
-log_appearances_fund <- log_dce_funding_dataset %>%
-  pivot_longer(cols = c(log_fundA, log_fundB), names_to = "type", values_to = "log_fund") %>%
-  count(log_fund, name = "appearances")
-
-log_stats_fund <- left_join(log_appearances_fund, log_wins_fund, by = c("log_fund" = "log_winner")) %>%
-  mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
-  rowwise() %>%
-  mutate(
-    ci = list(binom.test(wins, appearances)$conf.int),
-    ci_lower = ci[[1]], ci_upper = ci[[2]]
-  ) %>% ungroup() %>% select(-ci)
-
-# Plot
-pf2 <- ggplot(log_stats_fund, aes(x = log_fund, y = win_rate)) +
-  geom_line(group = 1, color = "forestgreen") +
-  geom_point(size = 2, color = "darkgreen") +
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  labs(title = "Win Rate by Log(1 + Research Funding)", x = "log(1 + Funding)", y = "Win Rate") +
-  theme_minimal()
-
-dceanalysis <- dceanalysis %>%
-  mutate(
-    log_fundA = log1p(fundA),
-    log_fundB = log1p(fundB),
-    log_diff_fund = log_fundA - log_fundB,
-    chose_A = ifelse(option_selected == 1, 1, 0)
-  )
-
-# Linear difference
-funddiff_stats <- dceanalysis %>%
-  group_by(funding_delta) %>%
-  summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
-  rowwise() %>%
-  mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
-  ungroup() %>% select(-ci)
-
-# Log difference
-logdiff_fund_stats <- dceanalysis %>%
-  group_by(log_diff_fund) %>%
-  summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
-  rowwise() %>%
-  mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
-  ungroup() %>% select(-ci)
-
-# Plot: Linear diff
-pf3 <- ggplot(funddiff_stats, aes(x = funding_delta, y = prob_choose_A)) +
-  geom_line(group = 1, color = "steelblue") +
-  geom_point(size = 2, color = "darkblue") +
-  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  labs(title = "P(Choose A) by Research Funding Difference", x = "Funding A - B", y = "P(Choose A)") +
-  theme_minimal()
-
-# Plot: Log diff
-pf4 <- ggplot(logdiff_fund_stats, aes(x = log_diff_fund, y = prob_choose_A)) +
-  geom_line(group = 1, color = "seagreen") +
-  geom_point(size = 2, color = "darkgreen") +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
-  labs(title = "P(Choose A) by Log(1 + A) - Log(1 + B)", x = "Log Funding Difference", y = "P(Choose A)") +
-  theme_minimal()
-
-(pf1 | pf2) 
-(pf3 | pf4)
-
-
-```
-
 ```{r To-do: Analyze three study experiment}
 
 # The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
@@ -1098,14 +837,13 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 ```{r To-do: Summary Statistics Table fixes}
 
 #      - [COMPLETE] Several variables are not categorized as factor variables when they should
-#      - The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
-#      - [Mira working on It] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
 #      - [COMPLETE] The compensation variables for A/B are not converted to numerical values in the fulldata dataset, this was instead done in the dceanalysis dataset in the [Analyze DCE data] sections. Let's get that moved over to data cleaning so it's correctly coded as numerical
 #      - Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
 
 ```
 
 ```{r To-do: Analyze the rank results methods 1-9 (What are the top method preferences?)}
+
 
 #renaming dataset so I don't lose anything
 rankings <- fulldata
@@ -1378,6 +1116,10 @@ stacked_rankings_2
 stacked_rankings
 heatmap
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> e8639afa054b1a76fc8e08d84ac28c90ad574c9d
 ```
 
 ```{r To-do: Summarize challenges participants identified}
@@ -1475,107 +1217,6 @@ ggcoefplot(logit_model,
 
 ```
 
-```{r To-Do: DCE Dominant Option Regression}
-# Excluding dummies
-dceanalysis <- dceanalysis %>%
-  select(respondentID, game_index, option_selected, participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, fundA, fundB, comp_delta, fund_delta, compset)
-
-
-dceanalysis <- dceanalysis %>%
-  mutate(
-    returnresults_participants = case_when(
-      #When A offers results and B does not, returnresults_participants == 1
-      (participantA == 2 | participantA == 3) & participantB == 1 ~ 1,
-      #when A offers results and B also does, or neither do, returnresults_participants == 0
-      ((participantA == 2 | participantA == 3) & (participantB == 2 | participantB == 3)) | (participantA == 1 & participantB == 1) ~ 0,
-      #when A does not offer results and B does, returnresults_participants == -1
-      (participantB == 2 | participantB == 3) & participantA == 1 ~ -1
-    ),
-    returnresults_community = case_when(
-      #When A offers results and B does not, returnresults_community == 1
-      (communityA == 2 | communityA == 3) & communityB == 1 ~ 1,
-      #when A offers results and B also does, or neither do, returnresults_community == 0
-      ((communityA == 2 | communityA == 3) & (communityB == 2 | communityB == 3)) | (communityA == 1 & communityB == 1) ~ 0,
-      #when A does not offer results and B does, returnresults_community == -1
-      (communityB == 2 | communityB == 3) & communityA == 1 ~ -1
-    ),
-    returnresults_policy = case_when(
-      #When A offers results and B does not, returnresults_policy == 1
-      (policyA == 2 | policyA == 3) & policyB == 1 ~ 1,
-      #when A offers results and B also does, or neither do, returnresults_policy == 0
-      ((policyA == 2 | policyA == 3) & (policyB == 2 | policyB == 3)) | (policyA == 1 & policyB == 1) ~ 0,
-      #when A does not offer results and B does, returnresults_policy == -1
-      (policyB == 2 | policyB == 3) & policyA == 1 ~ -1
-    ),
-    dominant_funding_option = case_when(
-      (fundA > fundB) ~ 1,
-      (fundB > fundA) ~ 0
-    ),
-    dominant_funding_compensation_delta = case_when(
-      dominant_funding_option == 1 ~ compA - compB,
-      dominant_funding_option == 0 ~ compB - compA
-    ),
-    chose_dominant_funding_option = case_when(
-      (option_selected == dominant_funding_option) ~ 1, 
-      (option_selected != dominant_funding_option) ~ 0
-    ),
-    # Returning results to participants in person > remote > none at all
-    dominant_rrp_option_version1 = case_when(
-      # 3 > 2 > 1
-      participantA > participantB ~ 1,
-      participantB > participantA ~ 0
-    ),
-    chose_dominant_rrp_opton_version1 = case_when(
-      (option_selected == dominant_rrp_option_version1) ~ 1, 
-      (option_selected != dominant_rrp_option_version1) ~ 0
-    ),
-    dominant_rrp_v1_compensation_delta = case_when(
-      dominant_rrp_option_version1 == 1 ~ compA - compB,
-      dominant_rrp_option_version1 == 0 ~ compB - compA
-    ),
-    # Returning results to participants remote > in person > none at all
-    dominant_rrp_option_version2 = case_when(
-      # 2 > 3 > 1
-      (participantA == 1 & participantB != 1) ~ 0,
-      (participantA == 2 & participantB == 1) ~ 1,
-      (participantA == 2 & participantB == 3) ~ 1,
-      (participantA == 3 & participantB == 1) ~ 1,
-      (participantA == 3 & participantB == 2) ~ 0
-      #else (only when equal) then NA
-    ),
-    chose_dominant_rrp_opton_version2 = case_when(
-      (option_selected == dominant_rrp_option_version2) ~ 1, 
-      (option_selected != dominant_rrp_option_version2) ~ 0
-    ),
-    dominant_rrp_v2_compensation_delta = case_when(
-      dominant_rrp_option_version2 == 1 ~ compA - compB,
-      dominant_rrp_option_version2 == 0 ~ compB - compA
-    )
-  )
-
-
-#Logit Model
-
-logit_model <- feglm(
-  option_selected ~ 
-    returnresults_participants +
-    returnresults_community +
-    returnresults_policy +
-    comp_delta +
-    fund_delta,
-  cluster = ~respondentID,     # Clustered standard errors
-  family = "binomial",         # Logit link
-  data = dceanalysis
-)
-
-# Summary of the model
-summary(logit_model)
-ggcoefplot(logit_model, 
-           type = "est", 
-           size = 3) + 
-  coord_flip()
-```
-
 ```{r DCE Dominant option graphs}
 
 # Dominant choice graphs
@@ -1622,8 +1263,8 @@ participantanalysisdataset <- subset(dceanalysis, participantA != participantB &
 summary_data_participantv1 <- participantanalysisdataset %>%
   group_by(dominant_rrp_v1_compensation_delta) %>%
   summarise(
-    mean_chose_dominant = mean(chose_dominant_rrp_opton_version1, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_rrp_opton_version1, na.rm = TRUE) / sqrt(n()),  # standard error
+    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )
 ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
@@ -1654,13 +1295,13 @@ ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_compensation_delta, y
 
 
 summary_data_participantv2 <- participantanalysisdataset %>%
-  group_by(dominant_rrp_v2_compensation_delta) %>%
+  group_by(dominant_rrp_v2_comp_delta) %>%
   summarise(
-    mean_chose_dominant = mean(chose_dominant_rrp_opton_version2, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_rrp_opton_version2, na.rm = TRUE) / sqrt(n()),  # standard error
+    mean_chose_dominant = mean(chose_dominant_rrp_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chose_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )
-ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_compensation_delta, y = mean_chose_dominant)) +
+ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -1696,8 +1337,8 @@ rrp_remote_inperson_subset <- subset(participantanalysisdataset, participantA !=
 summary_data_participant_rn <- rrp_remote_none_subset %>%
   group_by(dominant_rrp_v1_compensation_delta) %>%
   summarise(
-    mean_chose_dominant = mean(chose_dominant_rrp_opton_version1, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_rrp_opton_version1, na.rm = TRUE) / sqrt(n()),  # standard error
+    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )
 ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
@@ -1728,8 +1369,8 @@ ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_compensation_delta, 
 summary_data_participant_in <- rrp_inperson_none_subset %>%
   group_by(dominant_rrp_v1_compensation_delta) %>%
   summarise(
-    mean_chose_dominant = mean(chose_dominant_rrp_opton_version1, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_rrp_opton_version1, na.rm = TRUE) / sqrt(n()),  # standard error
+    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )
 ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
@@ -1759,8 +1400,8 @@ ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_compensation_delta, 
 summary_data_participant_ir <- rrp_remote_inperson_subset %>%
   group_by(dominant_rrp_v1_compensation_delta) %>%
   summarise(
-    mean_chose_dominant = mean(chose_dominant_rrp_opton_version1, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_rrp_opton_version1, na.rm = TRUE) / sqrt(n()),  # standard error
+    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )
 ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_compensation_delta, y = mean_chose_dominant)) +
@@ -1789,13 +1430,13 @@ ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_compensation_delta, 
 # Returns to Participants - Remote vs. In person (2 > 3, Helpful? Or shouldn't include?)
 
 summary_data_participant_ri <- rrp_remote_inperson_subset %>%
-  group_by(dominant_rrp_v2_compensation_delta) %>%
+  group_by(dominant_rrp_v2_comp_delta) %>%
   summarise(
-    mean_chose_dominant = mean(chose_dominant_rrp_opton_version2, na.rm = TRUE),
-    se_chose_dominant = sd(chose_dominant_rrp_opton_version2, na.rm = TRUE) / sqrt(n()),  # standard error
+    mean_chose_dominant = mean(chose_dominant_rrp_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chose_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
     n = n()
   )
-ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_compensation_delta, y = mean_chose_dominant)) +
+ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
@@ -1838,7 +1479,7 @@ dce_long <- dceanalysis %>%
   mutate(
     chosen = ifelse((option_selected == 0 & alt == "B") | (option_selected == 1 & alt == "A"), 1, 0)
   ) %>%
-  select(respondentID, game_index, chosen, alt, participant, community, policy, comp, fund)
+  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund)
 
 dce_long <- dce_long %>%
   distinct(respondentID, game_index) %>%             # Get unique combinations
@@ -1892,6 +1533,434 @@ ggplot(general_pref_logit_tidy, aes(x = estimate, y = reorder(term, estimate))) 
   ) +
   theme_minimal()
 
+#Want: returning results to participants chosen ~ community + policy + comp + fund, 
+     # returning results to community chosen ~ participants + policy + comp + fund,
+     # returning results to policymakers chosen ~ participants + community + comp + fund,
+
+dce_long <- dce_long %>%
+  group_by(game_id) %>%
+  mutate(
+    chosen_participant = participant[chosen == 1],
+    other_participant = participant[chosen == 0],
+    chosen_community = community[chosen == 1],
+    other_community = community[chosen == 0],
+    chosen_policy = policy[chosen == 1],
+    other_policy = policy[chosen == 0],
+    chosen_comp = comp[chosen == 1],
+    other_comp = comp[chosen == 0],
+    chosen_fund = fund[chosen == 1],
+    other_fund = fund[chosen == 0],
+    dominant_comp = case_when(
+      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "A"],
+      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "B"],
+      comp[alt == "A"] == comp[alt == "B"] ~ NA
+      ),
+    nondominant_comp = case_when(
+      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "B"],
+      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "A"],
+      comp[alt == "A"] == comp[alt == "B"] ~ NA
+    ),
+    dominant_fund = case_when(
+      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "A"],
+      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "B"],
+      fund[alt == "A"] == fund[alt == "B"] ~ NA
+      ),
+    nondominant_fund = case_when(
+      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "B"],
+      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "A"],
+      fund[alt == "A"] == fund[alt == "B"] ~ NA
+      ),
+    chosen_dominant_comp = case_when(
+      dominant_comp == NA ~ NA,
+      chosen == 1 & dominant_comp == comp ~ 1,
+      chosen == 0 & nondominant_comp == comp ~ 1,
+      TRUE ~ 0
+    ),
+    chosen_dominant_fund = case_when(
+      dominant_fund == NA ~ NA,
+      chosen == 1 & dominant_fund == fund ~ 1,
+      chosen == 0 & nondominant_fund == fund ~ 1,
+      TRUE ~ 0
+    ),
+    comp_delta = ifelse(!is.na(dominant_comp - nondominant_comp), dominant_comp - nondominant_comp, NA),
+    fund_delta = ifelse(!is.na(dominant_fund - nondominant_fund), dominant_fund - nondominant_fund, NA),
+    dominant_funding_comp_delta = case_when(
+      fund[alt == "A"] == fund[alt == "B"] ~ NA,
+      fund[alt == "A"] > fund[alt == "B"] ~ comp[alt == "A"] - comp[alt == "B"],
+      fund[alt == "B"] > fund[alt == "A"] ~ comp[alt == "B"] - comp[alt == "A"],
+    ),
+    return_results_participants = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] != "No results returned to participants" | participant[alt == "B"] != "No results returned to participants" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_participants_none = ifelse(participant == "No results returned to participants", 1, 0),
+    return_results_participants_remote = ifelse(participant == "Results returned to participants remotely", 1, 0),
+    return_results_participants_inperson = ifelse(participant == "Results returned to participants in person", 1, 0),
+    return_results_community = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] != "No results returned to community" | community[alt == "B"] != "No results returned to community" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_policy = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] != "No results returned to policymakers" | policy[alt == "B"] != "No results returned to policymakers" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_participants_chosen = case_when(
+      chosen == 1 &
+      chosen_participant %in% c("Results returned to participants remotely", "Results returned to participants in person") &
+      chosen_participant != other_participant ~ 1,
+      chosen_participant == other_participant ~ NA,
+      TRUE ~ 0
+    ),
+    return_results_community_chosen = case_when(
+      chosen == 1 &
+      chosen_community %in% c("Results returned to community leaders remotely", "Results returned to community in-person meeting") &
+      chosen_community != other_community ~ 1,
+      chosen_community == other_community ~ NA,
+      TRUE ~ 0
+    ),
+    return_results_policy_chosen = case_when(
+      chosen == 1 &
+      chosen_policy %in% c("Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers") &
+      chosen_policy != other_policy ~ 1,
+      chosen_policy == other_policy ~ NA,
+      TRUE ~ 0
+    )
+    
+  ) %>%
+  ungroup()
+
+
+# Added columns to make participant graphs
+dce_long <- dce_long %>%
+  group_by(game_id) %>%
+  mutate(
+    #Need an indicator for which has dominant participant option (v1 and v2)
+    #Need an indicator for if the dominant participant option was chosen
+    #Need an indicator for what the compensation difference is between the dominant participant option and the non dominant participant option
+    
+    dominant_rrp_v1 = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] == "Results returned to participants in person" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants in person" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & alt == "B" ~ 1,
+      participant[alt == "B"] == "Results returned to participants in person" & alt == "A" ~ 0,
+      
+      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "A" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "B" ~ 1,
+      
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrp_v1 = case_when(
+      is.na(dominant_rrp_v1) ~ NA,
+      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrp_v1_comp_delta = case_when(
+      is.na(dominant_rrp_v1) ~ NA,
+      TRUE ~ comp[dominant_rrp_v1 == 1] - comp[dominant_rrp_v1 == 0]
+    ),
+    
+    
+    dominant_rrp_v2 = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] == "Results returned to participants remotely" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants remotely" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & alt == "B" ~ 1,
+      participant[alt == "B"] == "Results returned to participants remotely" & alt == "A" ~ 0,
+      
+      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "A" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "B" ~ 1,
+      
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrp_v2 = case_when(
+      is.na(dominant_rrp_v2) ~ NA,
+      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrp_v2_comp_delta = case_when(
+      is.na(dominant_rrp_v2) ~ NA,
+      TRUE ~ comp[dominant_rrp_v2 == 1] - comp[dominant_rrp_v2 == 0]
+    )
+    
+  ) %>%
+  ungroup()
+
+
+write.csv(dce_long, file = "dcelongdataset.csv")
+
+```
+
+```{r ASK ALFREDO}
+
+participant_pref_logit <- clogit(
+  return_results_participants_chosen ~ return_results_participants_remote + return_results_participants_inperson + community + policy + comp + fund + strata(game_id),
+  data = subset(dce_long, !is.na(return_results_participants_chosen))
+)
+
+summary(participant_pref_logit)
+```
+
+```{r LOng Dataset Dominant Choice Graphs}
+# Dominant choice graphs
+
+# Research Funding vs. Compensation Differential
+fundinganalysisdataset <- subset(dce_long, comp_delta != 0 & fund_delta != 0)
+participantanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_participants_chosen))
+
+
+summary_data <- fundinganalysisdataset %>%
+  group_by(dominant_funding_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_fund, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_fund, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 0)
+
+ggplot(summary_data, aes(x = dominant_funding_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation (Dominant RF - Inferior RF)",
+    y = "Probability of Choosing Dominant Funding",
+    title = "Choice of Option with Dominant Funding vs Compensation Delta",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+# Returns to Participants - In person > Remote > None (3 > 2 > 1)
+
+summary_data_participantv1 <- participantanalysisdataset %>%
+  group_by(dominant_rrp_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 0)
+
+ggplot(summary_data_participantv1, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta  (In person > Remote > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+# Returns to Participants - Remote > In person > none (2 > 3 > 1)
+
+
+summary_data_participantv2 <- participantanalysisdataset %>%
+  group_by(dominant_rrp_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrp_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 0)
+
+ggplot(summary_data_participantv2, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Dominant Returning Method",
+    title = "Dominant Returning Method vs Compensation Delta  (Remote > In person > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+#_________________________
+
+#To-Do: Graphs for the following subsets
+
+rrp_remote_none_subset <- subset(participantanalysisdataset, participant != "Results returned to participants in person")
+rrp_inperson_none_subset <- subset(participantanalysisdataset, participant != "Results returned to participants remotely")
+rrp_remote_inperson_subset <- subset(participantanalysisdataset, participant != "No results returned to participants")
+
+# Returns to Participants - Remote vs. None (2 > 1)
+
+summary_data_participant_rn <- rrp_remote_none_subset %>%
+  group_by(dominant_rrp_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 0)
+
+ggplot(summary_data_participant_rn, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Returning Results Remotely (vs. None)",
+    title = "Choice of Option with Remote Returning Results vs Compensation Delta  (Remote > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+# Returns to Participants - In person vs. None (3 > 1)
+
+summary_data_participant_in <- rrp_inperson_none_subset %>%
+  group_by(dominant_rrp_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 0)
+
+ggplot(summary_data_participant_in, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results in Person (vs. None)",
+    title = "In-Person Returning Results vs Compensation Delta  (In Person > None)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+# Returns to Participants - In person vs. Remote (3 > 2)
+
+summary_data_participant_ir <- rrp_remote_inperson_subset %>%
+  group_by(dominant_rrp_v1_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrp_v1, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v1, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 0)
+
+ggplot(summary_data_participant_ir, aes(x = dominant_rrp_v1_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results In Person (vs. Remote)",
+    title = "In-Person Returning Results vs Compensation Delta  (In person > Remote)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
+
+
+# Returns to Participants - Remote vs. In person (2 > 3, Helpful? Or shouldn't include?)
+
+summary_data_participant_ri <- rrp_remote_inperson_subset %>%
+  group_by(dominant_rrp_v2_comp_delta) %>%
+  summarise(
+    mean_chose_dominant = mean(chosen_dominant_rrp_v2, na.rm = TRUE),
+    se_chose_dominant = sd(chosen_dominant_rrp_v2, na.rm = TRUE) / sqrt(n()),  # standard error
+    n = n()
+  )%>%
+  filter(n > 0)
+
+ggplot(summary_data_participant_ri, aes(x = dominant_rrp_v2_comp_delta, y = mean_chose_dominant)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_chose_dominant - se_chose_dominant, 
+                    ymax = mean_chose_dominant + se_chose_dominant),
+                width = 0.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 10)  # approximate number of breaks, integers
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)  # 0, 0.1, ..., 1.0
+  ) +
+  labs(
+    x = "Differential in Compensation",
+    y = "Probability of Choosing Returning Results Remotely (vs. In Person)",
+    title = "Remotely Returning Results vs Compensation Delta  (Remote > In person)",
+    subtitle = "With Error Bars and 50% Reference Line"
+  ) +
+  theme_minimal()
 
 ```
 
@@ -1907,80 +1976,441 @@ ggplot(general_pref_logit_tidy, aes(x = estimate, y = reorder(term, estimate))) 
 
 
 
-
-```{r DEPRECATED, ignore = TRUE}
-
-#r [DEPRECATED] Analyze DCE data: Linear Regression
-
-#- Regress likelihood of choosing A when each feature level is present in A, present in B. 
-## DCE Linear Regression Analysis
-
-# This regression analysis regressed the option selected (A = 1, B = 0) on the presence of the various features and levels therein. Results are presented with robust standard errors and clustered at the respondent level unless otherwise specified.
-
-
-na_summary <- colSums(is.na(dceanalysis))
-
-# Filter to show only columns with at least one NA
-na_summary[na_summary > 0]
-
-# Create a named vector for variable labels
-var_labels <- c(
-  "participants_image.A_participant1.jpeg" = "A - No results returned to participants",
-  "participants_image.A_participant2.jpeg" = "A - Results returned remotely to participants",
-  "participants_image.A_participant3.jpeg" = "A - Results returned in person to participants",
-  "community_image.A_community1.jpeg" = "A - No results returned to community",
-  "community_image.A_community2.jpeg" = "A - Results returned remotely to c. leader",
-  "community_image.A_community3.jpeg" = "A - Results returned in person to community",
-  "policymakers_image.A_policy1.jpeg" = "A - No results returned to policymakers",
-  "policymakers_image.A_policy2.jpeg" = "A - Report to policymakers",
-  "policymakers_image.A_policy3.jpeg" = "A - Half-day policymaker workshop",
-  "participants_image.B_participant1.jpeg" = "B - No results returned to participants",
-  "participants_image.B_participant2.jpeg" = "B - Results returned remotely to participants",
-  "participants_image.B_participant3.jpeg" = "B - Results returned in person to participants",
-  "community_image.B_community1.jpeg" = "B - No results returned to community",
-  "community_image.B_community2.jpeg" = "B - Results returned remotely to c. leader",
-  "community_image.B_community3.jpeg" = "B - Results returned in person to community",
-  "policymakers_image.B_policy1.jpeg" = "B - No results returned to policymakers",
-  "policymakers_image.B_policy2.jpeg" = "B - Report to policymakers",
-  "policymakers_image.B_policy3.jpeg" = "B - Half-day policymaker workshop",
-  "comp_delta" = "Compensation Difference",
-  "funding_delta" = "Funding Difference",
-  "game_index" = "Game Number (1st, 2nd, etc)",
-  "SET.OF.dce_game" = "Fixed Effect (Respondent)"
-)
-
-# Fit the model with fixed effects
-dce_model <- feols(
-  option_selected ~ 
-    participants_image.A_participant1.jpeg +
-    participants_image.A_participant2.jpeg +
-    participants_image.A_participant3.jpeg +
-    community_image.A_community1.jpeg +
-    community_image.A_community2.jpeg +
-    community_image.A_community3.jpeg +
-    policymakers_image.A_policy1.jpeg +
-    policymakers_image.A_policy2.jpeg +
-    policymakers_image.A_policy3.jpeg +
-    participants_image.B_participant1.jpeg +
-    participants_image.B_participant2.jpeg +
-    participants_image.B_participant3.jpeg +
-    community_image.B_community1.jpeg +
-    community_image.B_community2.jpeg +
-    community_image.B_community3.jpeg +
-    policymakers_image.B_policy1.jpeg +
-    policymakers_image.B_policy2.jpeg +
-    policymakers_image.B_policy3.jpeg +
-    comp_delta +
-    funding_delta +
-    game_index | 
-    SET.OF.dce_game,  # This is your fixed effect
-  data = dceanalysis,
-  cluster = ~SET.OF.dce_game  # Clustered standard errors (robust to within-respondent correlation)
-)
-
-# Display results nicely with custom labels
-modelsummary(dce_model, stars = TRUE, gof_omit = 'IC|Log|Adj|FE', 
-             coef_map = var_labels)
-
-```
-
+```{r DEPRECATED, include = FALSE}
+# 
+# #r [DEPRECATED] Analyze DCE data: Linear Regression
+# 
+# #- Regress likelihood of choosing A when each feature level is present in A, present in B. 
+# ## DCE Linear Regression Analysis
+# 
+# # This regression analysis regressed the option selected (A = 1, B = 0) on the presence of the various features and levels therein. Results are presented with robust standard errors and clustered at the respondent level unless otherwise specified.
+# 
+# 
+# na_summary <- colSums(is.na(dceanalysis))
+# 
+# # Filter to show only columns with at least one NA
+# na_summary[na_summary > 0]
+# 
+# # Create a named vector for variable labels
+# var_labels <- c(
+#   "participants_image.A_participant1.jpeg" = "A - No results returned to participants",
+#   "participants_image.A_participant2.jpeg" = "A - Results returned remotely to participants",
+#   "participants_image.A_participant3.jpeg" = "A - Results returned in person to participants",
+#   "community_image.A_community1.jpeg" = "A - No results returned to community",
+#   "community_image.A_community2.jpeg" = "A - Results returned remotely to c. leader",
+#   "community_image.A_community3.jpeg" = "A - Results returned in person to community",
+#   "policymakers_image.A_policy1.jpeg" = "A - No results returned to policymakers",
+#   "policymakers_image.A_policy2.jpeg" = "A - Report to policymakers",
+#   "policymakers_image.A_policy3.jpeg" = "A - Half-day policymaker workshop",
+#   "participants_image.B_participant1.jpeg" = "B - No results returned to participants",
+#   "participants_image.B_participant2.jpeg" = "B - Results returned remotely to participants",
+#   "participants_image.B_participant3.jpeg" = "B - Results returned in person to participants",
+#   "community_image.B_community1.jpeg" = "B - No results returned to community",
+#   "community_image.B_community2.jpeg" = "B - Results returned remotely to c. leader",
+#   "community_image.B_community3.jpeg" = "B - Results returned in person to community",
+#   "policymakers_image.B_policy1.jpeg" = "B - No results returned to policymakers",
+#   "policymakers_image.B_policy2.jpeg" = "B - Report to policymakers",
+#   "policymakers_image.B_policy3.jpeg" = "B - Half-day policymaker workshop",
+#   "comp_delta" = "Compensation Difference",
+#   "funding_delta" = "Funding Difference",
+#   "game_index" = "Game Number (1st, 2nd, etc)",
+#   "SET.OF.dce_game" = "Fixed Effect (Respondent)"
+# )
+# 
+# # Fit the model with fixed effects
+# dce_model <- feols(
+#   option_selected ~ 
+#     participants_image.A_participant1.jpeg +
+#     participants_image.A_participant2.jpeg +
+#     participants_image.A_participant3.jpeg +
+#     community_image.A_community1.jpeg +
+#     community_image.A_community2.jpeg +
+#     community_image.A_community3.jpeg +
+#     policymakers_image.A_policy1.jpeg +
+#     policymakers_image.A_policy2.jpeg +
+#     policymakers_image.A_policy3.jpeg +
+#     participants_image.B_participant1.jpeg +
+#     participants_image.B_participant2.jpeg +
+#     participants_image.B_participant3.jpeg +
+#     community_image.B_community1.jpeg +
+#     community_image.B_community2.jpeg +
+#     community_image.B_community3.jpeg +
+#     policymakers_image.B_policy1.jpeg +
+#     policymakers_image.B_policy2.jpeg +
+#     policymakers_image.B_policy3.jpeg +
+#     comp_delta +
+#     funding_delta +
+#     game_index | 
+#     SET.OF.dce_game,  # This is your fixed effect
+#   data = dceanalysis,
+#   cluster = ~SET.OF.dce_game  # Clustered standard errors (robust to within-respondent correlation)
+# )
+# 
+# # Display results nicely with custom labels
+# modelsummary(dce_model, stars = TRUE, gof_omit = 'IC|Log|Adj|FE', 
+#              coef_map = var_labels)
+# 
+# # [DEPRECATED] Analyze DCE data: DCE Graphs
+# dce_compensation_dataset <- select(dceanalysis, c("option_selected", "compA", "compB", "comp_delta")) %>%
+#   mutate(
+#     log_compA = log1p(compA),
+#     log_compB = log1p(compB)
+#   )
+# 
+# # -- Win Rate Plot by Raw Compensation Level --
+# filtered_data <- dce_compensation_dataset %>% filter(comp_delta != 0)
+# 
+# comp_wins <- filtered_data %>%
+#   mutate(winner_comp = case_when(option_selected == 1 ~ compA, option_selected == 0 ~ compB)) %>%
+#   count(winner_comp, name = "wins")
+# 
+# comp_appearances <- filtered_data %>%
+#   pivot_longer(cols = c(compA, compB), names_to = "type", values_to = "comp") %>%
+#   count(comp, name = "appearances")
+# 
+# comp_stats <- left_join(comp_appearances, comp_wins, by = c("comp" = "winner_comp")) %>%
+#   mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
+#   rowwise() %>%
+#   mutate(
+#     ci = list(binom.test(wins, appearances)$conf.int),
+#     ci_lower = ci[[1]], ci_upper = ci[[2]]
+#   ) %>% ungroup() %>% select(-ci)
+# 
+# # Plot: Win Rate by Raw Compensation
+# p1 <- ggplot(comp_stats, aes(x = comp, y = win_rate)) +
+#   geom_line(group = 1, color = "blue") +
+#   geom_point(size = 2, color = "darkblue") +
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   scale_x_continuous(breaks = 0:10, labels = function(x) paste0(x, " Tsh")) +
+#   scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
+#   labs(title = "Win Rate by Compensation Level", x = "Compensation (Tsh)", y = "Win Rate") +
+#   theme_minimal()
+# 
+# (p1)
+# 
+# # -- Log-transformed Win Rate --
+# log_filtered <- filtered_data %>%
+#   mutate(
+#     log_winner = case_when(option_selected == 1 ~ log_compA, option_selected == 0 ~ log_compB)
+#   )
+# 
+# log_wins <- log_filtered %>% count(log_winner, name = "wins")
+# log_appearances <- log_filtered %>%
+#   pivot_longer(cols = c(log_compA, log_compB), names_to = "type", values_to = "log_comp") %>%
+#   count(log_comp, name = "appearances")
+# 
+# log_stats <- left_join(log_appearances, log_wins, by = c("log_comp" = "log_winner")) %>%
+#   mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
+#   rowwise() %>%
+#   mutate(
+#     ci = list(binom.test(wins, appearances)$conf.int),
+#     ci_lower = ci[[1]], ci_upper = ci[[2]]
+#   ) %>% ungroup() %>% select(-ci)
+# 
+# # Plot: Win Rate by Log Compensation
+# p2 <- ggplot(log_stats, aes(x = log_comp, y = win_rate)) +
+#   geom_line(group = 1, color = "forestgreen") +
+#   geom_point(size = 2, color = "darkgreen") +
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   labs(title = "Win Rate by Log(1 + Compensation)", x = "log(1 + Compensation)", y = "Win Rate") +
+#   theme_minimal()
+# 
+# # -- Plot Probability of Choosing A by Compensation Difference (Linear and Log) --
+# filtered_data <- filtered_data %>%
+#   mutate(
+#     log_compA = log1p(compA),
+#     log_compB = log1p(compB),
+#     log_diff = log_compA - log_compB,
+#     chose_A = ifelse(option_selected == 1, 1, 0)
+#   )
+# 
+# # Linear diff
+# compdiff_stats <- filtered_data %>%
+#   group_by(comp_delta) %>%
+#   summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
+#   rowwise() %>%
+#   mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
+#   ungroup() %>% select(-ci)
+# 
+# # Log diff
+# logdiff_stats <- filtered_data  %>%
+#   group_by(log_diff) %>%
+#   summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
+#   rowwise() %>%
+#   mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
+#   ungroup() %>% select(-ci)
+# 
+# # Plot: Linear Diff with Choose A on Y axis
+# p3 <- ggplot(compdiff_stats, aes(x = comp_delta, y = prob_choose_A)) +
+#   geom_line(group = 1, color = "steelblue") +
+#   geom_point(size = 2, color = "darkblue") +
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   labs(title = "P(Choose A) by Compensation Difference", x = "Compensation A - B", y = "P(Choose A)") +
+#   theme_minimal()
+# 
+# # Plot: Log Diff
+# p4 <- ggplot(logdiff_stats, aes(x = log_diff, y = prob_choose_A)) +
+#   geom_line(group = 1, color = "seagreen") +
+#   geom_point(size = 2, color = "darkgreen") +
+#   #geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   labs(title = "P(Choose A) by Log(1 + Comp A) - Log(1 + Comp B)", x = "Log Compensation Difference", y = "P(Choose A)") +
+#   theme_minimal()
+# 
+# (p1)
+# 
+# (p3)
+# 
+# (p2)
+# 
+# # Plot: Linear Diff with Choose B on Y axis
+# 
+# # Linear diff
+# compdiff_statsB <- filtered_data %>%
+#   group_by(comp_delta) %>%
+#   summarise(
+#     n = n(),
+#     n_B = sum(1 - chose_A),  # number of people who chose B
+#     prob_choose_B = n_B / n,
+#     .groups = "drop"
+#   ) %>%
+#   rowwise() %>%
+#   mutate(
+#     ci = list(binom.test(n_B, n)$conf.int),
+#     ci_lower = ci[[1]],
+#     ci_upper = ci[[2]]
+#   ) %>%
+#   ungroup() %>%
+#   select(-ci)
+# 
+# p5 <- ggplot(compdiff_statsB, aes(x = comp_delta, y = prob_choose_B)) +
+#   geom_line(group = 1, color = "steelblue") +
+#   geom_point(size = 2, color = "darkblue") +
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   labs(title = "P(Choose B) by Compensation Difference", x = "Compensation A - B", y = "P(Choose B)") +
+#   theme_minimal()
+# 
+# p5
+# 
+# # This graph is not very helpful or informative, as the compensation diff graph does not need to be logged to be comprehensible...
+# # I turned off error bars to make it readable at all, but I wouldn't recommend trying to use this visual 
+# #(p4)
+# 
+# #------------------------------------------------------------------------------------------------------------------------------------------
+# 
+# # Research Funding Graphs
+# 
+# # Prepare research funding dataset
+# dce_funding_dataset <- select(dceanalysis, c("option_selected", "fundA", "fundB")) %>%
+#   mutate(
+#     log_fundA = log1p(fundA),
+#     log_fundB = log1p(fundB)
+#   )
+# 
+# 
+# # Filter for non-tie cases
+# dce_funding_dataset <- dce_funding_dataset %>% filter(fundA != fundB)
+# 
+# fund_wins <- dce_funding_dataset %>%
+#   mutate(winner_fund = case_when(option_selected == 1 ~ fundA, option_selected == 0 ~ fundB)) %>%
+#   count(winner_fund, name = "wins")
+# 
+# fund_appearances <- dce_funding_dataset %>%
+#   pivot_longer(cols = c(fundA, fundB), names_to = "type", values_to = "fund") %>%
+#   count(fund, name = "appearances")
+# 
+# fund_stats <- left_join(fund_appearances, fund_wins, by = c("fund" = "winner_fund")) %>%
+#   mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
+#   rowwise() %>%
+#   mutate(
+#     ci = list(binom.test(wins, appearances)$conf.int),
+#     ci_lower = ci[[1]], ci_upper = ci[[2]]
+#   ) %>% ungroup() %>% select(-ci)
+# 
+# # Plot
+# pf1 <- ggplot(fund_stats, aes(x = fund, y = win_rate)) +
+#   geom_line(group = 1, color = "blue") +
+#   geom_point(size = 2, color = "darkblue") +
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   labs(title = "Win Rate by Research Funding Level", x = "Research Funding (Tsh)", y = "Win Rate") +
+#   theme_minimal()
+# 
+# log_dce_funding_dataset <- dce_funding_dataset %>%
+#   mutate(
+#     log_winner = case_when(option_selected == 1 ~ log_fundA, option_selected == 0 ~ log_fundB)
+#   )
+# 
+# log_wins_fund <- log_dce_funding_dataset %>%
+#   count(log_winner, name = "wins")
+# 
+# log_appearances_fund <- log_dce_funding_dataset %>%
+#   pivot_longer(cols = c(log_fundA, log_fundB), names_to = "type", values_to = "log_fund") %>%
+#   count(log_fund, name = "appearances")
+# 
+# log_stats_fund <- left_join(log_appearances_fund, log_wins_fund, by = c("log_fund" = "log_winner")) %>%
+#   mutate(wins = replace_na(wins, 0), win_rate = wins / appearances) %>%
+#   rowwise() %>%
+#   mutate(
+#     ci = list(binom.test(wins, appearances)$conf.int),
+#     ci_lower = ci[[1]], ci_upper = ci[[2]]
+#   ) %>% ungroup() %>% select(-ci)
+# 
+# # Plot
+# pf2 <- ggplot(log_stats_fund, aes(x = log_fund, y = win_rate)) +
+#   geom_line(group = 1, color = "forestgreen") +
+#   geom_point(size = 2, color = "darkgreen") +
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.1, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   labs(title = "Win Rate by Log(1 + Research Funding)", x = "log(1 + Funding)", y = "Win Rate") +
+#   theme_minimal()
+# 
+# dceanalysis <- dceanalysis %>%
+#   mutate(
+#     log_fundA = log1p(fundA),
+#     log_fundB = log1p(fundB),
+#     log_diff_fund = log_fundA - log_fundB,
+#     chose_A = ifelse(option_selected == 1, 1, 0)
+#   )
+# 
+# # Linear difference
+# funddiff_stats <- dceanalysis %>%
+#   group_by(funding_delta) %>%
+#   summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
+#   rowwise() %>%
+#   mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
+#   ungroup() %>% select(-ci)
+# 
+# # Log difference
+# logdiff_fund_stats <- dceanalysis %>%
+#   group_by(log_diff_fund) %>%
+#   summarise(n = n(), n_A = sum(chose_A), prob_choose_A = n_A / n, .groups = "drop") %>%
+#   rowwise() %>%
+#   mutate(ci = list(binom.test(n_A, n)$conf.int), ci_lower = ci[[1]], ci_upper = ci[[2]]) %>%
+#   ungroup() %>% select(-ci)
+# 
+# # Plot: Linear diff
+# pf3 <- ggplot(funddiff_stats, aes(x = funding_delta, y = prob_choose_A)) +
+#   geom_line(group = 1, color = "steelblue") +
+#   geom_point(size = 2, color = "darkblue") +
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "gray40") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   labs(title = "P(Choose A) by Research Funding Difference", x = "Funding A - B", y = "P(Choose A)") +
+#   theme_minimal()
+# 
+# # Plot: Log diff
+# pf4 <- ggplot(logdiff_fund_stats, aes(x = log_diff_fund, y = prob_choose_A)) +
+#   geom_line(group = 1, color = "seagreen") +
+#   geom_point(size = 2, color = "darkgreen") +
+#   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+#   labs(title = "P(Choose A) by Log(1 + A) - Log(1 + B)", x = "Log Funding Difference", y = "P(Choose A)") +
+#   theme_minimal()
+# 
+# (pf1 | pf2) 
+# (pf3 | pf4)
+# 
+# #[DEPRECATED] DCE Dominant Option Regression
+# 
+# 
+# # Excluding dummies
+# dceanalysis <- dceanalysis %>%
+#   select(respondentID, game_index, option_selected, participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, fundA, fundB, comp_delta, fund_delta, compset)
+# 
+# 
+# dceanalysis <- dceanalysis %>%
+#   mutate(
+#     returnresults_participants = case_when(
+#       #When A offers results and B does not, returnresults_participants == 1
+#       (participantA == 2 | participantA == 3) & participantB == 1 ~ 1,
+#       #when A offers results and B also does, or neither do, returnresults_participants == 0
+#       ((participantA == 2 | participantA == 3) & (participantB == 2 | participantB == 3)) | (participantA == 1 & participantB == 1) ~ 0,
+#       #when A does not offer results and B does, returnresults_participants == -1
+#       (participantB == 2 | participantB == 3) & participantA == 1 ~ -1
+#     ),
+#     returnresults_community = case_when(
+#       #When A offers results and B does not, returnresults_community == 1
+#       (communityA == 2 | communityA == 3) & communityB == 1 ~ 1,
+#       #when A offers results and B also does, or neither do, returnresults_community == 0
+#       ((communityA == 2 | communityA == 3) & (communityB == 2 | communityB == 3)) | (communityA == 1 & communityB == 1) ~ 0,
+#       #when A does not offer results and B does, returnresults_community == -1
+#       (communityB == 2 | communityB == 3) & communityA == 1 ~ -1
+#     ),
+#     returnresults_policy = case_when(
+#       #When A offers results and B does not, returnresults_policy == 1
+#       (policyA == 2 | policyA == 3) & policyB == 1 ~ 1,
+#       #when A offers results and B also does, or neither do, returnresults_policy == 0
+#       ((policyA == 2 | policyA == 3) & (policyB == 2 | policyB == 3)) | (policyA == 1 & policyB == 1) ~ 0,
+#       #when A does not offer results and B does, returnresults_policy == -1
+#       (policyB == 2 | policyB == 3) & policyA == 1 ~ -1
+#     ),
+#     dominant_funding_option = case_when(
+#       (fundA > fundB) ~ 1,
+#       (fundB > fundA) ~ 0
+#     ),
+#     dominant_funding_compensation_delta = case_when(
+#       dominant_funding_option == 1 ~ compA - compB,
+#       dominant_funding_option == 0 ~ compB - compA
+#     ),
+#     chose_dominant_funding_option = case_when(
+#       (option_selected == dominant_funding_option) ~ 1, 
+#       (option_selected != dominant_funding_option) ~ 0
+#     ),
+#     # Returning results to participants in person > remote > none at all
+#     dominant_rrp_option_version1 = case_when(
+#       # 3 > 2 > 1
+#       participantA > participantB ~ 1,
+#       participantB > participantA ~ 0
+#     ),
+#     chose_dominant_rrp_opton_version1 = case_when(
+#       (option_selected == dominant_rrp_option_version1) ~ 1, 
+#       (option_selected != dominant_rrp_option_version1) ~ 0
+#     ),
+#     dominant_rrp_v1_compensation_delta = case_when(
+#       dominant_rrp_option_version1 == 1 ~ compA - compB,
+#       dominant_rrp_option_version1 == 0 ~ compB - compA
+#     ),
+#     # Returning results to participants remote > in person > none at all
+#     dominant_rrp_option_version2 = case_when(
+#       # 2 > 3 > 1
+#       (participantA == 1 & participantB != 1) ~ 0,
+#       (participantA == 2 & participantB == 1) ~ 1,
+#       (participantA == 2 & participantB == 3) ~ 1,
+#       (participantA == 3 & participantB == 1) ~ 1,
+#       (participantA == 3 & participantB == 2) ~ 0
+#       #else (only when equal) then NA
+#     ),
+#     chose_dominant_rrp_opton_version2 = case_when(
+#       (option_selected == dominant_rrp_option_version2) ~ 1, 
+#       (option_selected != dominant_rrp_option_version2) ~ 0
+#     ),
+#     dominant_rrp_v2_compensation_delta = case_when(
+#       dominant_rrp_option_version2 == 1 ~ compA - compB,
+#       dominant_rrp_option_version2 == 0 ~ compB - compA
+#     )
+#   )
+# 
+# 
+# #Logit Model
+# 
+# logit_model <- feglm(
+#   option_selected ~ 
+#     returnresults_participants +
+#     returnresults_community +
+#     returnresults_policy +
+#     comp_delta +
+#     fund_delta,
+#   cluster = ~respondentID,     # Clustered standard errors
+#   family = "binomial",         # Logit link
+#   data = dceanalysis
+# )
+# 
+# # Summary of the model
+# summary(logit_model)
+# ggcoefplot(logit_model, 
+#            type = "est", 
+#            size = 3) + 
+#   coord_flip()
