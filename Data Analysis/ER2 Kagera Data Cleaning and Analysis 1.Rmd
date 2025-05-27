@@ -1064,7 +1064,7 @@ sum_figs_filt <- sum_figs %>%
   select(
     # Respondent and Household Information
     location, districtID, district_name, wardID, ward_name, villageID, 
-    village_name, respondentID, control,
+    village_name, respondentID, control, resp_age, resp_gender, resp_marital,
     hh_adults, hh_children, hh_teen, resp_education, work_seven_days, work_three_month, resp_busy,
     
     # Study Enrollment and Understanding
@@ -1160,8 +1160,11 @@ skim(sum_figs_filt %>%
 # Choose your demographic variables
 demo_vars <- c("hh_adults", "hh_children", "hh_teen", "resp_education", 
                "work_seven_days", "work_three_month", "resp_busy",
-               "own_mobile_phone", "own_smartphone")
+               "own_mobile_phone", "own_smartphone", "resp_age", "resp_gender",
+               "resp_marital", "hear_study")
+
 # labels
+
 education_labels <- c(
   "1" = "No formal education",
   "2" = "Primary education",
@@ -1171,10 +1174,46 @@ education_labels <- c(
   "6" = "Other"
 )
 
+work_seven_labels <- c(
+  "0" = "No",
+  "1" = "Yes"
+)
+
+work_three_labels <- c(
+  "0" = "No",
+  "1" = "Yes"
+)
+
+marital_labels <- c(
+  "1" = "Single/Never Married",
+  "2" = "Married", 
+  "3" = "Separated",
+  "4" = "Divorced",
+  "5" = "Widowed"
+)
+
+hear_study_labels <- c(
+  "1" = "In-Person Communication with Research Team",
+  "2" = "Phone Call",
+  "3" = "Social Media",
+  "4" = "Online News",
+  "5" = "Television",
+  "6" = "Radio",
+  "7" = "Print Media",
+  "8" = "Word of Mouth",
+  "9" = "Community Leader",
+  "10" = "Religious Leader",
+  "11" = "Other"
+)
 
 # Apply relabeling just to resp_education
 sum_figs_labeled <- sum_figs_filt %>%
-  mutate(resp_education = recode(as.character(resp_education), !!!education_labels))
+  mutate(resp_education = recode(as.character(resp_education), !!!education_labels),
+         work_seven_days = recode(as.character(work_seven_days), !!!work_seven_labels),
+         work_three_month = recode(as.character(work_three_month), !!!work_three_labels),
+         resp_marital = recode(as.character(resp_marital), !!!marital_labels),
+         hear_study = recode(as.character(hear_study), !!!hear_study_labels)
+         )
 
 # Build summary
 pretty_demo <- sum_figs_labeled %>%
@@ -1202,39 +1241,6 @@ pretty_demo %>%
     position = "center"
   ) %>%
   collapse_rows(columns = 1, valign = "top")
-
-
-
-# Clean and format for pretty table
-pretty_demo <- sum_figs_filt %>%
-  select(all_of(demo_vars)) %>%
-  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
-  mutate(Value = ifelse(is.na(Value), "Missing", as.character(Value))) %>%
-  group_by(Variable, Value) %>%
-  summarise(N = n(), .groups = "drop") %>%
-  group_by(Variable) %>%
-  mutate(
-    Total = sum(N),
-    Percent = round(100 * N / Total, 1),
-    Row_Label = paste0(Value),
-    Count = paste0(N, " (", Percent, "%)"),
-    Variable = ifelse(row_number() == 1, Variable, "")  # Only label the first row of each group
-  ) %>%
-  select(Variable, Row_Label, Count)
-
-
-
-# Make the table pretty
-pretty_demo %>%
-  kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
-  kable_styling(
-    bootstrap_options = c("striped", "hover", "condensed"),
-    full_width = FALSE,
-    position = "center"
-  ) %>%
-  collapse_rows(columns = 1, valign = "top")  # groups the variable names
-
-
 
 
 ```
