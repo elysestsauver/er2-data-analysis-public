@@ -1065,13 +1065,14 @@ sum_figs_filt <- sum_figs %>%
     # Respondent and Household Information
     location, districtID, district_name, wardID, ward_name, villageID, 
     village_name, respondentID, control, resp_age, resp_gender, resp_marital,
-    hh_adults, hh_children, hh_teen, resp_education, work_seven_days, work_three_month, resp_busy,
+    hh_adults, hh_children, hh_teen, resp_education, work_seven_days, work_three_month, 
+    resp_busy,
     
     # Study Enrollment and Understanding
     hear_study, enrol_study, receive_result, explain_study, understand_study,
     study_documentation, keep_documentation, have_documentation,
     researchers_names, contact_research, informed_consent, informed_study_results, 
-    clear_plans, ask_results,
+    clear_plans,
     
     # Study Activities
     activity_1, activity_1b, activity_2, activity_2b, activity_3, activity_3b,
@@ -1080,7 +1081,8 @@ sum_figs_filt <- sum_figs %>%
     # Satisfaction
     satisfied_compensation, satisfied_time, satisfied_interaction, satisfied_information,
     info_received_during_study, info_received_end_study, clarity_timelines,
-    relevance_personal, relevance_community, lasting_impacts, future_participation_interest,
+    relevance_personal, relevance_community, lasting_impacts, 
+    future_participation_interest,
     
     # Challenges
     challenges_encountered, past_study_participation, num_past_studies,
@@ -1108,21 +1110,24 @@ sum_figs_filt <- sum_figs %>%
     posted_flyer_results_received, posted_flyer_read, posted_flyer_results_understandable,
 
     # Social Media
-    social_media_results_seen, social_media_interacted, social_media_results_understandable,
+    social_media_results_seen, social_media_interacted, 
+    social_media_results_understandable,
 
     # Video
     video_results_received, video_watched, video_results_understandable,
 
     # Meetings
     public_meeting_invited, public_meeting_attended, public_meeting_results_understandable,
-    private_meeting_invited, private_meeting_attended, private_meeting_results_understandable,
+    private_meeting_invited, private_meeting_attended, 
+    private_meeting_results_understandable,
 
     # Phone and Other
     phone_call_results_heard, phone_call_answered, phone_call_results_understandable,
     other_results_received, other_results_understandable,
 
     # Perceptions and Willingness
-    results_wait_time_perception, results_return_time_satisfaction, future_study_willingness,
+    results_wait_time_perception, results_return_time_satisfaction, 
+    future_study_willingness,
 
     # Opinions on Returning Results
     important_to_return_results_resources, returning_results_shows_respect,
@@ -1149,74 +1154,96 @@ sum_figs_filt <- sum_figs %>%
 sum_figs_filt <- sum_figs_filt %>%
   select(where(~ !all(is.na(.))))
 
-skim(sum_figs_filt)
+# binning into age groups for adults 
+sum_figs_filt <- sum_figs_filt %>%
+  mutate(resp_age_group = cut(resp_age,
+                              breaks = c(0, 24, 34, 44, 54, 64, Inf),
+                              labels = c("18–24", "25–34", "35–44", "45–54", "55–64", "65+"),
+                              right = TRUE))  # includes upper bound in the interval
+
 
 # data has been cleaned and filtered, starting tables and figs
 
-skim(sum_figs_filt %>%
-  select(control, hh_adults, hh_children, hh_teen, resp_education,
-         work_seven_days, own_mobile_phone, own_smartphone) )
 
-# Choose your demographic variables
+#separating variables
 demo_vars <- c("hh_adults", "hh_children", "hh_teen", "resp_education", 
                "work_seven_days", "work_three_month", "resp_busy",
-               "own_mobile_phone", "own_smartphone", "resp_age", "resp_gender",
+               "own_mobile_phone", "own_smartphone", "resp_age_group", "resp_gender",
                "resp_marital", "hear_study")
 
-# labels
+enrollment_vars <- c("hear_study", "enrol_study", "receive_result", "explain_study",
+                     "understand_study", "study_documentation", "keep_documentation",
+                     "have_documentation", "researchers_names", "contact_research", 
+                     "informed_consent", "informed_study_results", "clear_plans")
 
-education_labels <- c(
-  "1" = "No formal education",
-  "2" = "Primary education",
-  "3" = "Secondary education",
-  "4" = "University degree",
-  "5" = "Trade School",
-  "6" = "Other"
+label_maps <- list(
+  resp_education = c(
+    "1" = "No formal education",
+    "2" = "Primary education",
+    "3" = "Secondary education",
+    "4" = "University degree",
+    "5" = "Trade School",
+    "6" = "Other"
+  ),
+  work_seven_days = c("0" = "No", "1" = "Yes"),
+  work_three_month = c("0" = "No", "1" = "Yes"),
+  resp_marital = c(
+    "1" = "Single/Never Married",
+    "2" = "Married", 
+    "3" = "Separated",
+    "4" = "Divorced",
+    "5" = "Widowed"
+  ),
+  hear_study = c(
+    "1" = "In-Person Communication with Research Team",
+    "2" = "Phone Call",
+    "3" = "Social Media",
+    "4" = "Online News",
+    "5" = "Television",
+    "6" = "Radio",
+    "7" = "Print Media",
+    "8" = "Word of Mouth",
+    "9" = "Community Leader",
+    "10" = "Religious Leader",
+    "11" = "Other"
+  ),
+  resp_busy = c(
+    "1" = "1 - Not at All Busy",
+    "5" = "5 - Very Busy"
+  ),
+  resp_gender = c("1" = "Male", "2" = "Female"),
+  own_mobile_phone = c("0" = "No", "1" = "Yes"),
+  enrol_study = c(
+    "1" = "Community Influence or Encouragement",
+    "2" = "Curiosity About the Study's Results",
+    "3" = "Desire to Assist",
+    "4" = "Financial Compensation",
+    "5" = "Contacted by Interviewer",
+    "6" = "Forced to Participate",
+    "7" = "Afraid of Consequences for not Participating",
+    "8" = "Other"),
+  receive_result = c("0" = "No", "1" = "Yes"),
+  explain_study = c("0" = "No", "1" = "Yes"),
+  understand_study = c("0" = "No", "1" = "Yes"),
+  study_documentation = c("0" = "No", "1" = "Yes"),
+  keep_documentation = c("0" = "No", "1" = "Yes"),
+  have_documentation = c("0" = "No", "1" = "Yes")
+  
 )
 
-work_seven_labels <- c(
-  "0" = "No",
-  "1" = "Yes"
-)
 
-work_three_labels <- c(
-  "0" = "No",
-  "1" = "Yes"
-)
+sum_figs_labeled <- sum_figs_filt
 
-marital_labels <- c(
-  "1" = "Single/Never Married",
-  "2" = "Married", 
-  "3" = "Separated",
-  "4" = "Divorced",
-  "5" = "Widowed"
-)
+for (var in names(label_maps)) {
+  sum_figs_labeled[[var]] <- recode(
+    as.character(sum_figs_labeled[[var]]),
+    !!!label_maps[[var]]
+  )
+}
 
-hear_study_labels <- c(
-  "1" = "In-Person Communication with Research Team",
-  "2" = "Phone Call",
-  "3" = "Social Media",
-  "4" = "Online News",
-  "5" = "Television",
-  "6" = "Radio",
-  "7" = "Print Media",
-  "8" = "Word of Mouth",
-  "9" = "Community Leader",
-  "10" = "Religious Leader",
-  "11" = "Other"
-)
 
-# Apply relabeling just to resp_education
-sum_figs_labeled <- sum_figs_filt %>%
-  mutate(resp_education = recode(as.character(resp_education), !!!education_labels),
-         work_seven_days = recode(as.character(work_seven_days), !!!work_seven_labels),
-         work_three_month = recode(as.character(work_three_month), !!!work_three_labels),
-         resp_marital = recode(as.character(resp_marital), !!!marital_labels),
-         hear_study = recode(as.character(hear_study), !!!hear_study_labels)
-         )
-
-# Build summary
-pretty_demo <- sum_figs_labeled %>%
+# summary of demographics
+pretty_demographics <- sum_figs_labeled %>%
   select(all_of(demo_vars)) %>%
   mutate(across(everything(), as.character)) %>%
   pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>% 
@@ -1229,11 +1256,38 @@ pretty_demo <- sum_figs_labeled %>%
     Percent = round(100 * N / Total, 1),
     Row_Label = Value,
     Count = paste0(N, " (", Percent, "%)"),
-    Variable = ifelse(row_number() == 1, Variable, "")
-  ) %>%
+  Variable = ifelse(row_number() == 1, Variable, ""),
+  Variable = ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable)  ) %>%
   select(Variable, Row_Label, Count)
 
-pretty_demo %>%
+# summary of enrollment questions
+pretty_enrollment <- sum_figs_labeled %>%
+  select(all_of(enrollment_vars)) %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>% 
+  mutate(Value = ifelse(is.na(Value), "Missing", Value)) %>%
+  group_by(Variable, Value) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Total = sum(N),
+    Percent = round(100 * N / Total, 1),
+    Row_Label = Value,
+    Count = paste0(N, " (", Percent, "%)"),
+  Variable = ifelse(row_number() == 1, Variable, ""),
+  Variable = ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable)  ) %>%
+  select(Variable, Row_Label, Count)
+
+pretty_demographics %>%
+  kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  collapse_rows(columns = 1, valign = "top")
+
+pretty_enrollment %>%
   kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
   kable_styling(
     bootstrap_options = c("striped", "hover", "condensed"),
