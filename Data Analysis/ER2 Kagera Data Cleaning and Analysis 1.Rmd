@@ -1245,7 +1245,6 @@ pretty_demo %>%
 
 ```
 
-
 ```{r To-do. Analyze three study experiment}
 
 # The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
@@ -3888,6 +3887,51 @@ screenreg(
 )
 
 ```
+
+```{r Bin Scatter Plot Graphs}
+adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
+  x_var <- enquo(x_var)
+  y_var <- enquo(y_var)
+
+  # Sort data by x
+  data_sorted <- data %>%
+    arrange(!!x_var)
+
+  total_obs <- nrow(data_sorted)
+  n_bins <- floor(total_obs / threshold)
+
+  if (n_bins < 1) stop("Not enough data to form even one bin with the required threshold.")
+
+  # Assign bin index based on row number
+  data_binned <- data_sorted %>%
+    mutate(bin = cut_number(row_number(), n = n_bins)) %>%
+    group_by(bin) %>%
+    summarise(
+      x = mean(!!x_var, na.rm = TRUE),
+      y = mean(!!y_var, na.rm = TRUE),
+      se = sd(!!y_var, na.rm = TRUE) / sqrt(n()),
+      n = n(),
+      .groups = "drop"
+    )
+
+  # Plot mean x and y per bin with error bars
+  ggplot(data_binned, aes(x = x, y = y)) +
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = y - se, ymax = y + se), width = 0.1, alpha = 0.5) +
+    geom_line() +
+    labs(
+      x = as_label(x_var),
+      y = as_label(y_var),
+      title = paste("Binned scatter plot of", as_label(y_var), "vs", as_label(x_var)),
+      subtitle = paste("Each point averages ≥", threshold, "observations (±SE error bars)")
+    ) +
+    theme_minimal()
+
+}
+
+adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, chosen_dominant_fund, 20)
+```
+
 
 ```{r DEPRECATED, include = FALSE}
 # 
