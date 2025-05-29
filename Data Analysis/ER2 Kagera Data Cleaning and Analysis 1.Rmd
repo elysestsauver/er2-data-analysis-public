@@ -1065,14 +1065,13 @@ sum_figs_filt <- sum_figs %>%
     # Respondent and Household Information
     location, districtID, district_name, wardID, ward_name, villageID, 
     village_name, respondentID, control, resp_age, resp_gender, resp_marital,
-    hh_adults, hh_children, hh_teen, resp_education, work_seven_days, work_three_month, 
-    resp_busy,
+    hh_adults, hh_children, hh_teen, resp_education, work_seven_days, work_three_month, resp_busy,
     
     # Study Enrollment and Understanding
     hear_study, enrol_study, receive_result, explain_study, understand_study,
     study_documentation, keep_documentation, have_documentation,
     researchers_names, contact_research, informed_consent, informed_study_results, 
-    clear_plans,
+    clear_plans, ask_results,
     
     # Study Activities
     activity_1, activity_1b, activity_2, activity_2b, activity_3, activity_3b,
@@ -1082,13 +1081,13 @@ sum_figs_filt <- sum_figs %>%
     satisfied_compensation, satisfied_time, satisfied_interaction, satisfied_information,
     info_received_during_study, info_received_end_study, clarity_timelines,
     relevance_personal, relevance_community, lasting_impacts, 
-    future_participation_interest,
+    future_participation_interest, interviewer_interaction,
     
     # Challenges
     challenges_encountered, past_study_participation, num_past_studies,
     past_study_challenges_details, past_study_challenges_addressed_by,
     other_participant_challenges_heard, other_participant_challenges_details,
-    other_participant_challenges_addressed_by,
+    other_participant_challenges_addressed_by, challenges_resolution,
     
     # Activities List
     study_activities, study_activities_1, study_activities_2, study_activities_3,
@@ -1136,7 +1135,8 @@ sum_figs_filt <- sum_figs %>%
 
     # Who Should Receive Results
     study_participants, non_participants_research_communities, local_community_leaders,
-    local_government_officials, foreign_government_officials, religious_leaders, other_researchers,
+    local_government_officials, foreign_government_officials, religious_leaders, 
+    other_researchers,
 
     # Result Method Preferences
     first_study, first_method, second_study, second_method, third_study, third_method,
@@ -1144,10 +1144,12 @@ sum_figs_filt <- sum_figs %>%
     rank_formats_clarity_1, rank_formats_clarity_2, rank_formats_clarity_3,
 
     # Likelihood of Using Formats
-    likelihood_watch_video_results, likelihood_read_sms_results, likelihood_listen_audio_results,
+    likelihood_watch_video_results, likelihood_read_sms_results, 
+    likelihood_listen_audio_results,
 
     # Enumerator Observations and Technology
-    read_sms, own_mobile_phone, own_smartphone, received_messages_30days, interested_receive_result
+    read_sms, own_mobile_phone, own_smartphone, received_messages_30days, 
+    interested_receive_result
   )
 
 # removing columns with no responses in them (predominately questions where we left room for extra options)
@@ -1158,8 +1160,9 @@ sum_figs_filt <- sum_figs_filt %>%
 sum_figs_filt <- sum_figs_filt %>%
   mutate(resp_age_group = cut(resp_age,
                               breaks = c(0, 24, 34, 44, 54, 64, Inf),
-                              labels = c("18–24", "25–34", "35–44", "45–54", "55–64", "65+"),
-                              right = TRUE))  # includes upper bound in the interval
+                              labels = c("18–24", "25–34", "35–44", "45–54", "55–64", 
+                                         "65+"),
+                              right = TRUE))  
 
 
 # data has been cleaned and filtered, starting tables and figs
@@ -1222,19 +1225,157 @@ label_maps <- list(
     "6" = "Forced to Participate",
     "7" = "Afraid of Consequences for not Participating",
     "8" = "Other"),
-  receive_result = c("0" = "No", "1" = "Yes"),
-  explain_study = c("0" = "No", "1" = "Yes"),
-  understand_study = c("0" = "No", "1" = "Yes"),
-  study_documentation = c("0" = "No", "1" = "Yes"),
-  keep_documentation = c("0" = "No", "1" = "Yes"),
-  have_documentation = c("0" = "No", "1" = "Yes")
-  
+  receive_result = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  explain_study = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  understand_study = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  study_documentation = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  keep_documentation = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  have_documentation = c("0" = "No", "1" = "Yes"),
+  informed_study_results = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  researchers_names = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  contact_research = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  informed_consent = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  clear_plans = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  ask_results = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  interviewer_interaction = c(
+    "1" = "Positive", 
+    "2" = "Somewhat Positive", 
+    "3" = "Neutral",
+    "4" = "Somewhat Negative",
+    "5" = "Negative"),
+  activity_1 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_1b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_2 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_2b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_3 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_3b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_4 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_4b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_5 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_5b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_6 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_6b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  satisfied_compensation = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  satisfied_time = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  satisfied_interaction = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  satisfied_information = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  info_received_during_study = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  info_received_end_study = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  clarity_timelines = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  relevance_personal = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  relevance_community = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  lasting_impacts = c("0" = "No", "1" = "Yes"),
+  future_participation_interest = c("1" = "Least Interested", "5" = "Most 
+                                    Interested"),
+  challenges_encountered = c(
+    "1" = "Yes, Me or Someone in My Household", 
+    "2" = "Yes, A Community Member",
+    "3" = "No"),
+  challenges_resolution = c(
+    "1" = "Communication with Local Research Representative", 
+    "2" = "Communication with Community Leader",
+    "3" = "Withdrawl from the Study",
+    "4" = "It was Never Resolved"),
+  past_study_participation = c("0" = "No", "1" = "Yes"),
+  study_activities = c(
+    "1" = "Interviewed",
+    "2" = "Received a Voucher or Coupon",
+    "3" = "Had Blood Drawn",
+    "4" = "Participated in a Meeting or Focus Group",
+    "5" = "Received Training",
+    "6" = "Received a Document",
+    "7" = "Received a Cash Transfer",
+    "8" = "Played a Game (with Prizes",
+    "9" = "Took a Survey",
+    "10" = "Took a Pill",
+    "11" = "Provided a Bodily Sample (such as urine, cheek swab)",
+    "12" = "Received Product for Household Use",
+    "13" = "Other"),
+  audio_results_received = c("0" = "No", "1" = "Yes"),
+  audio_message_listened = c("0" = "No", "1" = "Yes"),
+  audio_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  sms_results_received = c("0" = "No", "1" = "Yes"),
+  sms_message_read = c("0" = "No", "1" = "Yes"),
+  sms_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  website_results_received = c("0" = "No", "1" = "Yes"),
+  website_link_clicked = c("0" = "No", "1" = "Yes"),
+  website_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  flyer_results_received = c("0" = "No", "1" = "Yes"),
+  flyer_read = c("0" = "No", "1" = "Yes"),
+  flyer_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  posted_flyer_results_received = c("0" = "No", "1" = "Yes"),
+  posted_flyer_read = c("0" = "No", "1" = "Yes"),
+  posted_flyer_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  social_media_results_seen = c("0" = "No", "1" = "Yes"),
+  social_media_interacted = c("0" = "No", "1" = "Yes"),
+  social_media_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  video_results_received = c("0" = "No", "1" = "Yes"),
+  video_watched = c("0" = "No", "1" = "Yes"),
+  video_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  public_meeting_invited = c("0" = "No", "1" = "Yes"),
+  public_meeting_attended = c("0" = "No", "1" = "Yes"),
+  public_meeting_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  private_meeting_invited = c("0" = "No", "1" = "Yes"),
+  private_meeting_attended = c("0" = "No", "1" = "Yes"),
+  private_meeting_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  phone_call_results_heard = c("0" = "No", "1" = "Yes"),
+  phone_call_answered = c("0" = "No", "1" = "Yes"),
+  phone_call_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  other_results_received = c("0" = "No", "1" = "Yes"),
+  other_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  results_wait_time_perception = c(
+    "1" = "Shorter than Expected", 
+    "2" = "As Expected",
+    "3" = "Longer than Expected"),
+  results_return_time_satisfaction = c(
+    "1" = "Not Satisfied", 
+    "2" = "Somewhat Satisfied",
+    "3" = "Satisfied"),
+  future_study_willingness = c(
+    "1" = "More Willing", 
+    "2" = "No Change",
+    "3" = "Less Willing"),
+  past_study_challenges_details = c("0" = "No", "1" = "Yes"),
+  past_study_challenges_addressed_by = c()
 )
 
 
 sum_figs_labeled <- sum_figs_filt
 
-for (var in names(label_maps)) {
+for (var in intersect(names(label_maps), names(sum_figs_labeled))) {
   sum_figs_labeled[[var]] <- recode(
     as.character(sum_figs_labeled[[var]]),
     !!!label_maps[[var]]
