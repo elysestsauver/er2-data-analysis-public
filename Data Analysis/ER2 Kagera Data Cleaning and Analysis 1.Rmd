@@ -1051,7 +1051,7 @@ num_summary %>%
 
 ```
 
-```{r To-Do Mira. Summary Statistics Figures}
+```{r To-Do Mira. Summary Statistics Figures Cleaning}
 
 # making separate dataset so I do not mess up future code. collapsed down by respondant ID to remove duplicates.
 sum_figs <- fulldata
@@ -1285,7 +1285,7 @@ label_maps <- list(
     "5" = "Received Training",
     "6" = "Received a Document",
     "7" = "Received a Cash Transfer",
-    "8" = "Played a Game (with Prizes",
+    "8" = "Played a Game (with Prizes)",
     "9" = "Took a Survey",
     "10" = "Took a Pill",
     "11" = "Provided a Bodily Sample (such as urine, cheek swab)",
@@ -1368,8 +1368,92 @@ label_maps <- list(
     "1" = "More Willing", 
     "2" = "No Change",
     "3" = "Less Willing"),
+  #past_study_challenges_experienced = c("0" = "No", "1" = "Yes"),
+  #past_study_challenges_details = c(
+    # "1" = "Compensation",
+    # "2" = "Confidentiality Breach",
+    # "3" = "Unable to Contact Team",
+    # "4" = "Upset About Not Recieving Intervention",
+    # "5" = "Religious Leader",
+    # "6" = "Other Community Participantst",
+    # "7" = "Elders",
+    # "8" = "Head Teacher/ Schoolmaster",
+    # "9" = "No One Addressed These Concerns",
+    # "10" = "Other"),
   past_study_challenges_details = c("0" = "No", "1" = "Yes"),
-  past_study_challenges_addressed_by = c()
+  # past_study_challenges_addressed_by = c(
+  #   "1" = "Research Staff Members",
+  #   "2" = "Police",
+  #   "3" = "Local Implementer (NGOs, etc)",
+  #   "4" = "Community Political Leader",
+  #   "5" = "Religious Leader",
+  #   "6" = "Other Community Participantst",
+  #   "7" = "Elders",
+  #   "8" = "Head Teacher/ Schoolmaster",
+  #   "9" = "No One Addressed These Concerns",
+  #   "10" = "Other")
+  # other_participant_challenges_heard = c("0" = "No", "1" = "Yes"),
+  # other_participant_challenges_details
+  # other_participant_challenges_addressed_by
+  # who_involved
+  important_to_return_results_resources = c("1" = "Agree", "2" = "Disagree"),
+  returning_results_shows_respect = c("1" = "Agree", "2" = "Disagree"),
+  participants_right_to_results = c("1" = "Agree", "2" = "Disagree"),
+  importance_of_results_returned = c("1" = "Very Important", "2" = "Not Important"),
+  preferred_results_return_method = c(
+    "1" = "Receive Results One Time at the Conclusion of the Project", 
+    "2" = "Receive Updates in the Middle and Results at the End of the Project",
+    "3" = "Receive Multiple Updates Throughout Project and Results at the End",
+    "4" = "Do Not Receive Any Updates or Results"),
+  study_participants = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  non_participants_research_communities = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  local_community_leaders = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  local_government_officials = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  foreign_government_officials = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  religious_leaders = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  other_researchers = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  result_timeline = c(
+    "1" = "A Few Weeks", 
+    "2" = "1-6 Months", 
+    "3" = "6 Months - a Year",
+    "4" = "1-3 Years",
+    "5" = "3-6 Years",
+    "6" = "6+ Years"),
+  rank_results_preference_1 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_results_preference_2 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_results_preference_3 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_preference_1 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_preference_2 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_preference_3 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_clarity_1 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_clarity_2 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_clarity_3 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  likelihood_watch_video_results = c(
+    "1" = "Very Likely", 
+    "2" = "Likely", 
+    "3" = "Not Likely"),
+  likelihood_read_sms_results = c(
+    "1" = "Very Likely", 
+    "2" = "Likely", 
+    "3" = "Not Likely"),
+  likelihood_listen_audio_results = c(
+    "1" = "Very Likely", 
+    "2" = "Likely", 
+    "3" = "Not Likely"),
+  read_sms = c(
+    "1" = "1 - Participant Read Entirely Independently", 
+    "3" = "2 - Enumerator Read Out Loud"),
+  own_mobile_phone = c("0" = "No", "1" = "Yes"),
+  own_smartphone = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  used_mobile_data_30days = c(
+    "1" = "Yes, Frequently", 
+    "2" = "Yes, Occasionally", 
+    "3" = "No",
+    "4" = "I Don't Know"),
+  received_videos_30days = c("0" = "No", "1" = "Yes"),
+  received_messages_30days = c("0" = "No", "1" = "Yes"),
+  interested_receive_result = c("0" = "No", "1" = "Yes")
+  
 )
 
 
@@ -1382,12 +1466,34 @@ for (var in intersect(names(label_maps), names(sum_figs_labeled))) {
   )
 }
 
+# combined Table
+pretty_summary <- sum_figs_labeled %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
+  filter(!is.na(Value)) %>%
+  mutate(Value = ifelse(is.na(Value), "Missing", Value)) %>%  # optional: keeps code structure if reused
+  group_by(Variable, Value) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Total = sum(N),
+    Percent = round(100 * N / Total, 1),
+    Row_Label = Value,
+    Count = paste0(N, " (", Percent, "%)"),
+    Variable = ifelse(row_number() == 1,
+                      paste0(ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable),
+                             " (n = ", Total, ")"),
+                      "")
+  ) %>%
+  select(Variable, Row_Label, Count)
+
+
 
 # summary of demographics
 pretty_demographics <- sum_figs_labeled %>%
   select(all_of(demo_vars)) %>%
   mutate(across(everything(), as.character)) %>%
-  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>% 
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
   mutate(Value = ifelse(is.na(Value), "Missing", Value)) %>%
   group_by(Variable, Value) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -1397,15 +1503,19 @@ pretty_demographics <- sum_figs_labeled %>%
     Percent = round(100 * N / Total, 1),
     Row_Label = Value,
     Count = paste0(N, " (", Percent, "%)"),
-  Variable = ifelse(row_number() == 1, Variable, ""),
-  Variable = ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable)  ) %>%
+    Variable = ifelse(row_number() == 1,
+                      paste0(ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable),
+                             " (n = ", Total, ")"),
+                      "")
+  ) %>%
   select(Variable, Row_Label, Count)
+
 
 # summary of enrollment questions
 pretty_enrollment <- sum_figs_labeled %>%
   select(all_of(enrollment_vars)) %>%
   mutate(across(everything(), as.character)) %>%
-  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>% 
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
   mutate(Value = ifelse(is.na(Value), "Missing", Value)) %>%
   group_by(Variable, Value) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -1415,9 +1525,22 @@ pretty_enrollment <- sum_figs_labeled %>%
     Percent = round(100 * N / Total, 1),
     Row_Label = Value,
     Count = paste0(N, " (", Percent, "%)"),
-  Variable = ifelse(row_number() == 1, Variable, ""),
-  Variable = ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable)  ) %>%
+    Variable = ifelse(row_number() == 1,
+                      paste0(ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable),
+                             " (n = ", Total, ")"),
+                      "")
+  ) %>%
   select(Variable, Row_Label, Count)
+
+
+pretty_summary %>%
+  kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  collapse_rows(columns = 1, valign = "top")
 
 pretty_demographics %>%
   kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
@@ -1439,6 +1562,143 @@ pretty_enrollment %>%
 
 
 ```
+
+```{r Mira Summary Stats Figures}
+# selecting the variables for the presentation tables
+
+present_vars <- c("enrol_study", "receive_result","past_study_participation", 
+                  "num_past_studies", "studies_returned_info",
+                  "important_to_return_results_resources",
+                  "returning_results_shows_respect",
+                  "participants_right_to_results",
+                  "importance_of_results_returned",
+                  "preferred_results_return_method",
+                  "study_participants", "non_participants_research_communities",
+                  "local_community_leaders", "local_government_officials", 
+                  "foreign_government_officials", "religious_leaders",
+                  "other_researchers")
+
+pretty_present <- sum_figs_labeled %>%
+  select(all_of(present_vars)) %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
+  filter(!is.na(Value)) %>%
+  group_by(Variable, Value) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Total = sum(N),
+    Percent = round(100 * N / Total, 1),
+    Row_Label = Value,
+    Count = paste0(N, " (", Percent, "%)")
+  ) %>%
+  ungroup() %>%
+  mutate(
+    # store original name for matching order
+    Variable_raw = Variable,
+    # apply pretty names to a new column
+    Variable = ifelse(Variable_raw %in% names(pretty_names), pretty_names[Variable_raw], Variable_raw)
+  ) %>%
+  group_by(Variable) %>%
+  mutate(
+    Variable = ifelse(row_number() == 1,
+                      paste0(Variable, " (n = ", Total, ")"),
+                      "")
+  ) %>%
+  ungroup() %>%
+  # reorder by original variable order using Variable_raw
+  mutate(Variable_raw = factor(Variable_raw, levels = present_vars)) %>%
+  arrange(Variable_raw) %>%
+  select(Variable, Row_Label, Count)
+
+
+
+pretty_present %>%
+  kable(col.names = c("Question", "Response", "Count (%)"), align = "llr", format = "html") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  collapse_rows(columns = 1, valign = "top")
+
+
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# List of variables you want to plot
+bar_vars <- c("study_participants", "non_participants_research_communities",
+              "local_community_leaders", "local_government_officials", 
+              "foreign_government_officials", "religious_leaders",
+              "other_researchers")
+
+custom_labels <- c(
+  study_participants = "Study Participants",
+  non_participants_research_communities = "Non-Participant Community Members",
+  local_community_leaders = "Local Community Leaders",
+  local_government_officials = "Local Government Officials",
+  foreign_government_officials = "Foreign Government Officials",
+  religious_leaders = "Religious Leaders",
+  other_researchers = "Other Researchers"
+)
+
+bar_data_grouped <- sum_figs_labeled %>%
+  select(all_of(names(custom_labels))) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Response") %>%
+  filter(!is.na(Response)) %>%
+  group_by(Variable, Response) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  mutate(
+    Variable = factor(Variable, levels = names(custom_labels)),
+    Label = custom_labels[as.character(Variable)]
+  )
+
+ggplot(bar_data_grouped, aes(x = Label, y = N, fill = Response)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  geom_text(
+    aes(label = paste0("n = ", N)),
+    position = position_dodge(width = 0.8),
+    vjust = -0.5,
+    size = 3.5
+  ) +
+  labs(
+    title = "Should Study Results Be Shared? Responses by Group",
+    x = "Stakeholder Group",
+    y = "Number of Respondents",
+    fill = "Response"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    #plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+
+
+ggplot(bar_data_grouped, aes(x = Response, y = N, fill = Label)) +
+  geom_col(position = "dodge") +
+  geom_text(
+    aes(label = paste0("n = ", N)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5,
+    size = 3.2
+  ) +
+  labs(
+    title = "Responses by Group: Who Should Receive Study Results?",
+    x = "Response Category",
+    y = "Number of Respondents",
+    fill = "Stakeholder Group"
+  ) +
+  theme_minimal(base_size = 14)
+  )
+
+
+
+
+
+```
+
 
 ```{r To-do. Analyze three study experiment}
 
