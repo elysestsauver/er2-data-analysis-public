@@ -1578,8 +1578,15 @@ present_vars <- c("enrol_study", "receive_result","past_study_participation",
                   "foreign_government_officials", "religious_leaders",
                   "other_researchers")
 
+present_vars2 <- c("enrol_study", "receive_result",
+                  "important_to_return_results_resources",
+                  "returning_results_shows_respect",
+                  "participants_right_to_results",
+                  "importance_of_results_returned",
+                  "preferred_results_return_method")
+
 pretty_present <- sum_figs_labeled %>%
-  select(all_of(present_vars)) %>%
+  select(all_of(present_vars2)) %>%
   mutate(across(everything(), as.character)) %>%
   pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
   filter(!is.na(Value)) %>%
@@ -1621,6 +1628,7 @@ pretty_present %>%
     position = "center"
   ) %>%
   collapse_rows(columns = 1, valign = "top")
+
 
 
 
@@ -1669,11 +1677,47 @@ ggplot(bar_data_grouped, aes(x = Label, y = N, fill = Response)) +
     y = "Number of Respondents",
     fill = "Response"
   ) +
+  scale_fill_manual(
+    values = c(
+      "Yes" = "#2eab67",
+      "No" = "#cc3366",
+      "Unsure" = "#afcefc"
+    )
+  ) +
   theme_minimal(base_size = 14) +
   theme(
-    axis.text.x = element_text(angle = 30, hjust = 1),
-    #plot.title = element_text(face = "bold", hjust = 0.5)
+    axis.text.x = element_text(angle = 30, hjust = 1)
   )
+
+ggplot(bar_data_grouped, aes(x = N, y = Label, fill = Response)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  geom_text(
+    aes(label = paste0("n = ", N)),
+    position = position_dodge(width = 0.8),
+    hjust = -0.1,
+    size = 2.5
+  ) +
+  labs(
+    title = "Study Results Should be Shared With:",
+    y = "Stakeholder Group",
+    x = "Number of Respondents",
+    fill = "Response"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Yes" = "#2eab67",
+      "No" = "#cc3366",
+      "Unsure" = "#afcefc"
+    )
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 1.4),
+    axis.text.y = element_text(size = 10)
+  ) +
+  xlim(0, max(bar_data_grouped$N) * 1.1)  # adds space for text labels
+
+
 
 
 ggplot(bar_data_grouped, aes(x = Response, y = N, fill = Label)) +
@@ -1691,7 +1735,28 @@ ggplot(bar_data_grouped, aes(x = Response, y = N, fill = Label)) +
     fill = "Stakeholder Group"
   ) +
   theme_minimal(base_size = 14)
-  )
+
+
+# Summarize enrol_study responses
+enrol_data <- sum_figs_labeled %>%
+  filter(!is.na(enrol_study)) %>%
+  group_by(Reason = enrol_study) %>%
+  summarise(N = n(), .groups = "drop")
+
+# Horizontal bar chart with custom color
+ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
+  geom_col(fill = "#2eab67") +
+  geom_text(aes(label = paste0("n = ", N)), hjust = -0.1, size = 3) +
+  labs(
+    title = "Reasons for Enrolling in the Study",
+    x = "Number of Respondents",
+    y = "Reason for Enrolling"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 3)
+  ) +
+  xlim(0, max(enrol_data$N) * 1.1)  # spacing for text labels
 
 
 
