@@ -3776,11 +3776,6 @@ extract.logitr <- function(model, odds = FALSE, ...) {
   se <- s[["coefTable"]][["Std. Error"]]
   pvals <- s[["coefTable"]][["Pr(>|z|)"]]
 
-  if (odds) {
-    estimates <- (exp(s[["coefTable"]][["Estimate"]]) -1) * 100
-    se <- NA  # Standard errors for odds ratios are not directly available
-  }
-
   texreg::createTexreg(
     coef.names = rownames(coef(s)),
     coef = s[["coefTable"]][["Estimate"]],
@@ -3813,6 +3808,7 @@ tr_mixed_logit_all@model.name <- "Mixed Logit (All Varying)"
 # Define custom labels
 custom_labels <- list(
   "(Intercept)" = "Intercept",
+  "(Intercept):B" = "Intercept",
   "participantResults returned to participants remotely" = "Participants: Remotely",
   "participantResults returned to participants in person" = "Participants: In person",
   "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
@@ -3832,12 +3828,12 @@ custom_labels <- list(
   "as.factor(game_index)10" = "Game Index - 10",
   "game_index" = "Game Index",
   "respondentID" = "Respondent Fixed Effects",
-  "sd_participantResults returned to participants remotely" = "SD: Participants (2)",
-  "sd_participantResults returned to participants in person" = "SD: Participants (3)",
-  "sd_communityResults returned to community leaders remotely" = "SD: Community (2)",
-  "sd_communityResults returned to community in-person meeting" = "SD: Community (3)",
-  "sd_policyReport of results submitted to policymakers" = "SD: Policy (2)",
-  "sd_policyResults presented in half-day workshop to policymakers" = "SD: Policy (3)",
+  "sd_participantResults returned to participants remotely" = "SD: Participants (Remotely)",
+  "sd_participantResults returned to participants in person" = "SD: Participants (In person)",
+  "sd_communityResults returned to community leaders remotely" = "SD: Community (Remotely to leaders)",
+  "sd_communityResults returned to community in-person meeting" = "SD: Community (In-person meeting)",
+  "sd_policyReport of results submitted to policymakers" = "SD: Policy (Report)",
+  "sd_policyResults presented in half-day workshop to policymakers" = "SD: Policy (Workshop)",
   "sd_comp" = "SD: Compensation",
   "sd_fund" = "SD: Research Funding"
 )
@@ -3861,23 +3857,16 @@ custom_labels <- list(
 #   single.row = TRUE
 # )
 
+# Conditional Logit Regression
+
+
 #Mixed Logit Regressions
 screenreg(
   list(
-    tr_mixed_logit,
-    tr_mixed_logit_p,
-    tr_mixed_logit_pc,
-    tr_mixed_logit_pcp,
-    tr_mixed_logit_allbutcomp,
-    tr_mixed_logit_all
+    tr_mixed_logit_allbutcomp
   ),
   custom.model.names = c(
-    "Mixed Logit (None Vary)",
-    "Mixed Logit (Part.)",
-    "Mixed Logit (Part, Com)",
-    "Mixed Logit (Part, Com, Pol)",
-    "Mixed Logit (All But Comp)",
-    "Mixed Logit (All Vary)"
+    "Mixed Logit (All But Comp)"
   ),
   custom.coef.map = custom_labels,
   custom.note = "Standard errors in parentheses. OR: Odds Ratios. * p<0.1; ** p<0.05; *** p<0.01",
@@ -3885,6 +3874,119 @@ screenreg(
   stars = c(0.01, 0.05, 0.1),
   single.row = TRUE
 )
+
+```
+
+```{r Presentation Table (Conditional and Mixed Logit Models)}
+library(mlogit)
+
+mlogit_dcedata <- dfidx(dce_long, idx = c("game_id", "alt"))
+
+mlogit_compol <- mlogit(chosen ~ participant + community + policy + comp + fund, 
+                            data = mlogit_dcedata,
+                            rpar = c(# include dummies for each factor level (except reference levels)
+                                     setNames(rep('n', length(levels(dce_long$community)) - 1), 
+                                              paste0("community", levels(dce_long$community)[-1])),
+                                     setNames(rep('n', length(levels(dce_long$policy)) - 1), 
+                                              paste0("policy", levels(dce_long$policy)[-1]))
+                            ),
+                            halton = NA, 
+                            R = 1000)
+summary(mlogit_compol)
+
+mlogit_allbutcomp <- mlogit(chosen ~ participant + community + policy + comp + fund, 
+                            data = mlogit_dcedata,
+                            rpar = c(fund = 'n',
+                                     # include dummies for each factor level (except reference levels)
+                                     setNames(rep('n', length(levels(dce_long$participant)) - 1), 
+                                              paste0("participant", levels(dce_long$participant)[-1])),
+                                     setNames(rep('n', length(levels(dce_long$community)) - 1), 
+                                              paste0("community", levels(dce_long$community)[-1])),
+                                     setNames(rep('n', length(levels(dce_long$policy)) - 1), 
+                                              paste0("policy", levels(dce_long$policy)[-1]))
+                            ),
+                            halton = NA, 
+                            R = 1000)
+
+clogit_dce <- mlogit(chosen ~ participant + community + policy + comp + fund, 
+                            data = mlogit_dcedata)
+
+summary(mlogit_allbutcomp)
+
+# Required libraries
+library(mlogit)
+library(broom)
+library(dplyr)
+library(tidyr)
+library(kableExtra)  # for nice table output
+
+# 1. Tidy mixed logit model
+tidy_mixed <- tidy(mlogit_allbutcomp) %>%
+  mutate(
+    term_type = if_else(grepl("^sd\\.", term), "sd", "mean"),
+    term_clean = gsub("^sd\\.", "", term),
+    signif = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  ) %>%
+  select(term_clean, term_type, estimate, std.error, signif)
+
+# 2. Pivot mixed logit to wide
+mixed_wide <- tidy_mixed %>%
+  pivot_wider(
+    names_from = term_type,
+    values_from = c(estimate, std.error, signif),
+    names_glue = "{.value}_{term_type}"
+  )
+
+# 3. Tidy conditional logit model
+tidy_clogit <- tidy(clogit_dce) %>%
+  mutate(
+    signif = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  ) %>%
+  select(term, estimate, std.error, signif) %>%
+  rename(
+    term_clean = term,
+    clogit_estimate = estimate,
+    clogit_se = std.error,
+    clogit_signif = signif
+  )
+
+final_table <- mixed_wide %>%
+  full_join(tidy_clogit, by = "term_clean") %>%
+  mutate(
+    Term = custom_labels[term_clean],
+    Term = ifelse(is.na(Term) & term_clean == "(Intercept)", "Intercept", Term),
+    Term = ifelse(is.na(Term), term_clean, Term),
+    `Mixed Logit Estimate` = ifelse(is.na(estimate_mean), "", paste0(round(estimate_mean, 3), signif_mean)),
+    `Mixed Logit SE`       = ifelse(is.na(std.error_mean), "", round(std.error_mean, 3)),
+    `Mixed Logit Std Dev`       = ifelse(is.na(estimate_sd) | is.nan(estimate_sd), "", paste0(round(estimate_sd, 3), signif_sd)),
+    `Mixed Logit Std Dev SE`    = ifelse(is.na(std.error_sd) | is.nan(std.error_sd), "", round(std.error_sd, 3)),
+    `Conditional Logit Estimate`      = ifelse(is.na(clogit_estimate), "", paste0(round(clogit_estimate, 3), clogit_signif)),
+    `Conditional Logit SE`            = ifelse(is.na(clogit_se), "", round(clogit_se, 3))
+  ) %>%
+  select(
+    Term,
+    `Conditional Logit Estimate`, `Conditional Logit SE`,
+    `Mixed Logit Estimate`, `Mixed Logit SE`,
+    `Mixed Logit Std Dev`, `Mixed Logit Std Dev SE`
+
+  )
+
+# 5. Render with kableExtra
+
+final_table %>%
+  kable("html", escape = FALSE, align = "lcccccc", caption = "Mixed Logit and Conditional Logit Results") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+
 
 ```
 
@@ -3930,6 +4032,116 @@ adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
 }
 
 adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, chosen_dominant_fund, 20)
+```
+
+```{r Willingness to Pay Plots}
+
+mlogit_allbutcomp <- mlogit(chosen ~ participant + community + policy + comp + fund, 
+                            data = mlogit_dcedata,
+                            rpar = c(fund = 'n',
+                                     # include dummies for each factor level (except reference levels)
+                                     setNames(rep('n', length(levels(dce_long$participant)) - 1), 
+                                              paste0("participant", levels(dce_long$participant)[-1])),
+                                     setNames(rep('n', length(levels(dce_long$community)) - 1), 
+                                              paste0("community", levels(dce_long$community)[-1])),
+                                     setNames(rep('n', length(levels(dce_long$policy)) - 1), 
+                                              paste0("policy", levels(dce_long$policy)[-1]))
+                            ),
+                            halton = NA, 
+                            R = 1000)
+
+a <- summary(mlogit_allbutcomp)
+b <- a$CoefTable
+
+
+# Extract fixed effect estimates from mixed logit model
+coefs <- b
+comp_coef <- coefs["comp"]  # or "comp_scaled" if scaled in the model
+
+# Get a data frame of non-monetary attributes
+wtp_df <- a %>%
+  mutate(
+    wtp = estimate / comp_coef,
+    wtp_low = conf.low / comp_coef,
+    wtp_high = conf.high / comp_coef
+  )
+
+ggplot(wtp_df, aes(x = wtp, y = reorder(term, wtp))) +
+  geom_point(color = "darkgreen", size = 3) +
+  geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    title = "Willingness to Pay (Mixed Logit Model)",
+    x = "Willingness to Pay (relative to Compensation)",
+    y = "Attribute"
+  ) +
+  theme_minimal()
+
+```
+```{r}
+library(mlogit)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+
+# Fit mixed logit model excluding compensation as a random parameter
+mlogit_allbutcomp <- mlogit(
+  chosen ~ participant + community + policy + comp + fund,
+  data = mlogit_dcedata,
+  rpar = c(
+    fund = 'n',
+    # dummies for factor levels (excluding reference)
+    setNames(rep('n', length(levels(dce_long$participant)) - 1), 
+             paste0("participant", levels(dce_long$participant)[-1])),
+    setNames(rep('n', length(levels(dce_long$community)) - 1), 
+             paste0("community", levels(dce_long$community)[-1])),
+    setNames(rep('n', length(levels(dce_long$policy)) - 1), 
+             paste0("policy", levels(dce_long$policy)[-1]))
+  ),
+  halton = NA,
+  R = 1000
+)
+
+# Extract coefficient table
+coef_table <- summary(mlogit_allbutcomp)$CoefTable %>% as.data.frame()
+coef_table$term <- rownames(coef_table)
+
+# Rename columns for clarity
+colnames(coef_table)[1:2] <- c("estimate", "std.error")
+
+# Calculate confidence intervals (approximate 95%)
+coef_table <- coef_table %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  )
+
+# Get compensation coefficient
+comp_coef <- coef_table %>%
+  filter(term == "comp") %>%
+  pull(estimate)
+
+# Create WTP data frame (excluding monetary attributes)
+wtp_df <- coef_table %>%
+  filter(term != "comp" & term != "fund") %>%
+  mutate(
+    wtp = estimate / comp_coef,
+    wtp_low = conf.low / comp_coef,
+    wtp_high = conf.high / comp_coef
+  )
+
+# Plot WTP
+ggplot(wtp_df, aes(x = wtp, y = reorder(term, wtp))) +
+  geom_point(color = "darkgreen", size = 3) +
+  geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    title = "Willingness to Pay (Mixed Logit Model)",
+    x = "Willingness to Pay (relative to Compensation)",
+    y = "Attribute"
+  ) +
+  theme_minimal()
+
 ```
 
 
