@@ -1051,7 +1051,7 @@ num_summary %>%
 
 ```
 
-```{r To-Do Mira. Summary Statistics Figures}
+```{r To-Do Mira. Summary Statistics Figures Cleaning}
 
 # making separate dataset so I do not mess up future code. collapsed down by respondant ID to remove duplicates.
 sum_figs <- fulldata
@@ -1080,13 +1080,14 @@ sum_figs_filt <- sum_figs %>%
     # Satisfaction
     satisfied_compensation, satisfied_time, satisfied_interaction, satisfied_information,
     info_received_during_study, info_received_end_study, clarity_timelines,
-    relevance_personal, relevance_community, lasting_impacts, future_participation_interest,
+    relevance_personal, relevance_community, lasting_impacts, 
+    future_participation_interest, interviewer_interaction,
     
     # Challenges
     challenges_encountered, past_study_participation, num_past_studies,
     past_study_challenges_details, past_study_challenges_addressed_by,
     other_participant_challenges_heard, other_participant_challenges_details,
-    other_participant_challenges_addressed_by,
+    other_participant_challenges_addressed_by, challenges_resolution,
     
     # Activities List
     study_activities, study_activities_1, study_activities_2, study_activities_3,
@@ -1108,21 +1109,24 @@ sum_figs_filt <- sum_figs %>%
     posted_flyer_results_received, posted_flyer_read, posted_flyer_results_understandable,
 
     # Social Media
-    social_media_results_seen, social_media_interacted, social_media_results_understandable,
+    social_media_results_seen, social_media_interacted, 
+    social_media_results_understandable,
 
     # Video
     video_results_received, video_watched, video_results_understandable,
 
     # Meetings
     public_meeting_invited, public_meeting_attended, public_meeting_results_understandable,
-    private_meeting_invited, private_meeting_attended, private_meeting_results_understandable,
+    private_meeting_invited, private_meeting_attended, 
+    private_meeting_results_understandable,
 
     # Phone and Other
     phone_call_results_heard, phone_call_answered, phone_call_results_understandable,
     other_results_received, other_results_understandable,
 
     # Perceptions and Willingness
-    results_wait_time_perception, results_return_time_satisfaction, future_study_willingness,
+    results_wait_time_perception, results_return_time_satisfaction, 
+    future_study_willingness,
 
     # Opinions on Returning Results
     important_to_return_results_resources, returning_results_shows_respect,
@@ -1131,7 +1135,8 @@ sum_figs_filt <- sum_figs %>%
 
     # Who Should Receive Results
     study_participants, non_participants_research_communities, local_community_leaders,
-    local_government_officials, foreign_government_officials, religious_leaders, other_researchers,
+    local_government_officials, foreign_government_officials, religious_leaders, 
+    other_researchers,
 
     # Result Method Preferences
     first_study, first_method, second_study, second_method, third_study, third_method,
@@ -1139,87 +1144,356 @@ sum_figs_filt <- sum_figs %>%
     rank_formats_clarity_1, rank_formats_clarity_2, rank_formats_clarity_3,
 
     # Likelihood of Using Formats
-    likelihood_watch_video_results, likelihood_read_sms_results, likelihood_listen_audio_results,
+    likelihood_watch_video_results, likelihood_read_sms_results, 
+    likelihood_listen_audio_results,
 
     # Enumerator Observations and Technology
-    read_sms, own_mobile_phone, own_smartphone, received_messages_30days, interested_receive_result
+    read_sms, own_mobile_phone, own_smartphone, received_messages_30days, 
+    interested_receive_result
   )
 
 # removing columns with no responses in them (predominately questions where we left room for extra options)
 sum_figs_filt <- sum_figs_filt %>%
   select(where(~ !all(is.na(.))))
 
-skim(sum_figs_filt)
+# binning into age groups for adults 
+sum_figs_filt <- sum_figs_filt %>%
+  mutate(resp_age_group = cut(resp_age,
+                              breaks = c(0, 24, 34, 44, 54, 64, Inf),
+                              labels = c("18–24", "25–34", "35–44", "45–54", "55–64", 
+                                         "65+"),
+                              right = TRUE))  
+
 
 # data has been cleaned and filtered, starting tables and figs
 
-skim(sum_figs_filt %>%
-  select(control, hh_adults, hh_children, hh_teen, resp_education,
-         work_seven_days, own_mobile_phone, own_smartphone) )
 
-# Choose your demographic variables
+#separating variables
 demo_vars <- c("hh_adults", "hh_children", "hh_teen", "resp_education", 
                "work_seven_days", "work_three_month", "resp_busy",
-               "own_mobile_phone", "own_smartphone", "resp_age", "resp_gender",
+               "own_mobile_phone", "own_smartphone", "resp_age_group", "resp_gender",
                "resp_marital", "hear_study")
 
-# labels
+enrollment_vars <- c("hear_study", "enrol_study", "receive_result", "explain_study",
+                     "understand_study", "study_documentation", "keep_documentation",
+                     "have_documentation", "researchers_names", "contact_research", 
+                     "informed_consent", "informed_study_results", "clear_plans")
 
-education_labels <- c(
-  "1" = "No formal education",
-  "2" = "Primary education",
-  "3" = "Secondary education",
-  "4" = "University degree",
-  "5" = "Trade School",
-  "6" = "Other"
+label_maps <- list(
+  resp_education = c(
+    "1" = "No formal education",
+    "2" = "Primary education",
+    "3" = "Secondary education",
+    "4" = "University degree",
+    "5" = "Trade School",
+    "6" = "Other"
+  ),
+  work_seven_days = c("0" = "No", "1" = "Yes"),
+  work_three_month = c("0" = "No", "1" = "Yes"),
+  resp_marital = c(
+    "1" = "Single/Never Married",
+    "2" = "Married", 
+    "3" = "Separated",
+    "4" = "Divorced",
+    "5" = "Widowed"
+  ),
+  hear_study = c(
+    "1" = "In-Person Communication with Research Team",
+    "2" = "Phone Call",
+    "3" = "Social Media",
+    "4" = "Online News",
+    "5" = "Television",
+    "6" = "Radio",
+    "7" = "Print Media",
+    "8" = "Word of Mouth",
+    "9" = "Community Leader",
+    "10" = "Religious Leader",
+    "11" = "Other"
+  ),
+  resp_busy = c(
+    "1" = "1 - Not at All Busy",
+    "5" = "5 - Very Busy"
+  ),
+  resp_gender = c("1" = "Male", "2" = "Female"),
+  own_mobile_phone = c("0" = "No", "1" = "Yes"),
+  enrol_study = c(
+    "1" = "Community Influence or Encouragement",
+    "2" = "Curiosity About the Study's Results",
+    "3" = "Desire to Assist",
+    "4" = "Financial Compensation",
+    "5" = "Contacted by Interviewer",
+    "6" = "Forced to Participate",
+    "7" = "Afraid of Consequences for not Participating",
+    "8" = "Other"),
+  receive_result = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  explain_study = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  understand_study = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  study_documentation = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  keep_documentation = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  have_documentation = c("0" = "No", "1" = "Yes"),
+  informed_study_results = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  researchers_names = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  contact_research = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  informed_consent = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  clear_plans = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  ask_results = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
+  interviewer_interaction = c(
+    "1" = "Positive", 
+    "2" = "Somewhat Positive", 
+    "3" = "Neutral",
+    "4" = "Somewhat Negative",
+    "5" = "Negative"),
+  activity_1 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_1b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_2 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_2b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_3 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_3b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_4 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_4b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_5 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_5b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_6 = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  activity_6b = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  satisfied_compensation = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  satisfied_time = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  satisfied_interaction = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  satisfied_information = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  info_received_during_study = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  info_received_end_study = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  clarity_timelines = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  relevance_personal = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  relevance_community = c("1" = "Not Satisfied", "5" = "Very Satisfied"),
+  lasting_impacts = c("0" = "No", "1" = "Yes"),
+  future_participation_interest = c("1" = "Least Interested", "5" = "Most 
+                                    Interested"),
+  challenges_encountered = c(
+    "1" = "Yes, Me or Someone in My Household", 
+    "2" = "Yes, A Community Member",
+    "3" = "No"),
+  challenges_resolution = c(
+    "1" = "Communication with Local Research Representative", 
+    "2" = "Communication with Community Leader",
+    "3" = "Withdrawl from the Study",
+    "4" = "It was Never Resolved"),
+  past_study_participation = c("0" = "No", "1" = "Yes"),
+  study_activities = c(
+    "1" = "Interviewed",
+    "2" = "Received a Voucher or Coupon",
+    "3" = "Had Blood Drawn",
+    "4" = "Participated in a Meeting or Focus Group",
+    "5" = "Received Training",
+    "6" = "Received a Document",
+    "7" = "Received a Cash Transfer",
+    "8" = "Played a Game (with Prizes)",
+    "9" = "Took a Survey",
+    "10" = "Took a Pill",
+    "11" = "Provided a Bodily Sample (such as urine, cheek swab)",
+    "12" = "Received Product for Household Use",
+    "13" = "Other"),
+  audio_results_received = c("0" = "No", "1" = "Yes"),
+  audio_message_listened = c("0" = "No", "1" = "Yes"),
+  audio_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  sms_results_received = c("0" = "No", "1" = "Yes"),
+  sms_message_read = c("0" = "No", "1" = "Yes"),
+  sms_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  website_results_received = c("0" = "No", "1" = "Yes"),
+  website_link_clicked = c("0" = "No", "1" = "Yes"),
+  website_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  flyer_results_received = c("0" = "No", "1" = "Yes"),
+  flyer_read = c("0" = "No", "1" = "Yes"),
+  flyer_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  posted_flyer_results_received = c("0" = "No", "1" = "Yes"),
+  posted_flyer_read = c("0" = "No", "1" = "Yes"),
+  posted_flyer_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  social_media_results_seen = c("0" = "No", "1" = "Yes"),
+  social_media_interacted = c("0" = "No", "1" = "Yes"),
+  social_media_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  video_results_received = c("0" = "No", "1" = "Yes"),
+  video_watched = c("0" = "No", "1" = "Yes"),
+  video_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  public_meeting_invited = c("0" = "No", "1" = "Yes"),
+  public_meeting_attended = c("0" = "No", "1" = "Yes"),
+  public_meeting_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  private_meeting_invited = c("0" = "No", "1" = "Yes"),
+  private_meeting_attended = c("0" = "No", "1" = "Yes"),
+  private_meeting_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  phone_call_results_heard = c("0" = "No", "1" = "Yes"),
+  phone_call_answered = c("0" = "No", "1" = "Yes"),
+  phone_call_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  other_results_received = c("0" = "No", "1" = "Yes"),
+  other_results_understandable = c(
+    "1" = "Very Understandable", 
+    "2" = "Somewhat Understandable",
+    "3" = "Not Understandable"),
+  results_wait_time_perception = c(
+    "1" = "Shorter than Expected", 
+    "2" = "As Expected",
+    "3" = "Longer than Expected"),
+  results_return_time_satisfaction = c(
+    "1" = "Not Satisfied", 
+    "2" = "Somewhat Satisfied",
+    "3" = "Satisfied"),
+  future_study_willingness = c(
+    "1" = "More Willing", 
+    "2" = "No Change",
+    "3" = "Less Willing"),
+  #past_study_challenges_experienced = c("0" = "No", "1" = "Yes"),
+  #past_study_challenges_details = c(
+    # "1" = "Compensation",
+    # "2" = "Confidentiality Breach",
+    # "3" = "Unable to Contact Team",
+    # "4" = "Upset About Not Recieving Intervention",
+    # "5" = "Religious Leader",
+    # "6" = "Other Community Participantst",
+    # "7" = "Elders",
+    # "8" = "Head Teacher/ Schoolmaster",
+    # "9" = "No One Addressed These Concerns",
+    # "10" = "Other"),
+  past_study_challenges_details = c("0" = "No", "1" = "Yes"),
+  # past_study_challenges_addressed_by = c(
+  #   "1" = "Research Staff Members",
+  #   "2" = "Police",
+  #   "3" = "Local Implementer (NGOs, etc)",
+  #   "4" = "Community Political Leader",
+  #   "5" = "Religious Leader",
+  #   "6" = "Other Community Participantst",
+  #   "7" = "Elders",
+  #   "8" = "Head Teacher/ Schoolmaster",
+  #   "9" = "No One Addressed These Concerns",
+  #   "10" = "Other")
+  # other_participant_challenges_heard = c("0" = "No", "1" = "Yes"),
+  # other_participant_challenges_details
+  # other_participant_challenges_addressed_by
+  # who_involved
+  important_to_return_results_resources = c("1" = "Agree", "2" = "Disagree"),
+  returning_results_shows_respect = c("1" = "Agree", "2" = "Disagree"),
+  participants_right_to_results = c("1" = "Agree", "2" = "Disagree"),
+  importance_of_results_returned = c("1" = "Very Important", "2" = "Not Important"),
+  preferred_results_return_method = c(
+    "1" = "Receive Results One Time at the Conclusion of the Project", 
+    "2" = "Receive Updates in the Middle and Results at the End of the Project",
+    "3" = "Receive Multiple Updates Throughout Project and Results at the End",
+    "4" = "Do Not Receive Any Updates or Results"),
+  study_participants = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  non_participants_research_communities = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  local_community_leaders = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  local_government_officials = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  foreign_government_officials = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  religious_leaders = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  other_researchers = c("1" = "Yes", "2" = "No", "3" = "Unsure"),
+  result_timeline = c(
+    "1" = "A Few Weeks", 
+    "2" = "1-6 Months", 
+    "3" = "6 Months - a Year",
+    "4" = "1-3 Years",
+    "5" = "3-6 Years",
+    "6" = "6+ Years"),
+  rank_results_preference_1 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_results_preference_2 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_results_preference_3 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_preference_1 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_preference_2 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_preference_3 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_clarity_1 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_clarity_2 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  rank_formats_clarity_3 = c("1" = "Video", "2" = "SMS Message", "3" = "Audio"),
+  likelihood_watch_video_results = c(
+    "1" = "Very Likely", 
+    "2" = "Likely", 
+    "3" = "Not Likely"),
+  likelihood_read_sms_results = c(
+    "1" = "Very Likely", 
+    "2" = "Likely", 
+    "3" = "Not Likely"),
+  likelihood_listen_audio_results = c(
+    "1" = "Very Likely", 
+    "2" = "Likely", 
+    "3" = "Not Likely"),
+  read_sms = c(
+    "1" = "1 - Participant Read Entirely Independently", 
+    "3" = "2 - Enumerator Read Out Loud"),
+  own_mobile_phone = c("0" = "No", "1" = "Yes"),
+  own_smartphone = c("1" = "Yes", "2" = "No", "3" = "I Don't Know"),
+  used_mobile_data_30days = c(
+    "1" = "Yes, Frequently", 
+    "2" = "Yes, Occasionally", 
+    "3" = "No",
+    "4" = "I Don't Know"),
+  received_videos_30days = c("0" = "No", "1" = "Yes"),
+  received_messages_30days = c("0" = "No", "1" = "Yes"),
+  interested_receive_result = c("0" = "No", "1" = "Yes")
+  
 )
 
-work_seven_labels <- c(
-  "0" = "No",
-  "1" = "Yes"
-)
 
-work_three_labels <- c(
-  "0" = "No",
-  "1" = "Yes"
-)
+sum_figs_labeled <- sum_figs_filt
 
-marital_labels <- c(
-  "1" = "Single/Never Married",
-  "2" = "Married", 
-  "3" = "Separated",
-  "4" = "Divorced",
-  "5" = "Widowed"
-)
+for (var in intersect(names(label_maps), names(sum_figs_labeled))) {
+  sum_figs_labeled[[var]] <- recode(
+    as.character(sum_figs_labeled[[var]]),
+    !!!label_maps[[var]]
+  )
+}
 
-hear_study_labels <- c(
-  "1" = "In-Person Communication with Research Team",
-  "2" = "Phone Call",
-  "3" = "Social Media",
-  "4" = "Online News",
-  "5" = "Television",
-  "6" = "Radio",
-  "7" = "Print Media",
-  "8" = "Word of Mouth",
-  "9" = "Community Leader",
-  "10" = "Religious Leader",
-  "11" = "Other"
-)
+# combined Table
+pretty_summary <- sum_figs_labeled %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
+  filter(!is.na(Value)) %>%
+  mutate(Value = ifelse(is.na(Value), "Missing", Value)) %>%  # optional: keeps code structure if reused
+  group_by(Variable, Value) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Total = sum(N),
+    Percent = round(100 * N / Total, 1),
+    Row_Label = Value,
+    Count = paste0(N, " (", Percent, "%)"),
+    Variable = ifelse(row_number() == 1,
+                      paste0(ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable),
+                             " (n = ", Total, ")"),
+                      "")
+  ) %>%
+  select(Variable, Row_Label, Count)
 
-# Apply relabeling just to resp_education
-sum_figs_labeled <- sum_figs_filt %>%
-  mutate(resp_education = recode(as.character(resp_education), !!!education_labels),
-         work_seven_days = recode(as.character(work_seven_days), !!!work_seven_labels),
-         work_three_month = recode(as.character(work_three_month), !!!work_three_labels),
-         resp_marital = recode(as.character(resp_marital), !!!marital_labels),
-         hear_study = recode(as.character(hear_study), !!!hear_study_labels)
-         )
 
-# Build summary
-pretty_demo <- sum_figs_labeled %>%
+
+# summary of demographics
+pretty_demographics <- sum_figs_labeled %>%
   select(all_of(demo_vars)) %>%
   mutate(across(everything(), as.character)) %>%
-  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>% 
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
   mutate(Value = ifelse(is.na(Value), "Missing", Value)) %>%
   group_by(Variable, Value) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -1229,11 +1503,55 @@ pretty_demo <- sum_figs_labeled %>%
     Percent = round(100 * N / Total, 1),
     Row_Label = Value,
     Count = paste0(N, " (", Percent, "%)"),
-    Variable = ifelse(row_number() == 1, Variable, "")
+    Variable = ifelse(row_number() == 1,
+                      paste0(ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable),
+                             " (n = ", Total, ")"),
+                      "")
   ) %>%
   select(Variable, Row_Label, Count)
 
-pretty_demo %>%
+
+# summary of enrollment questions
+pretty_enrollment <- sum_figs_labeled %>%
+  select(all_of(enrollment_vars)) %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
+  mutate(Value = ifelse(is.na(Value), "Missing", Value)) %>%
+  group_by(Variable, Value) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Total = sum(N),
+    Percent = round(100 * N / Total, 1),
+    Row_Label = Value,
+    Count = paste0(N, " (", Percent, "%)"),
+    Variable = ifelse(row_number() == 1,
+                      paste0(ifelse(Variable %in% names(pretty_names), pretty_names[Variable], Variable),
+                             " (n = ", Total, ")"),
+                      "")
+  ) %>%
+  select(Variable, Row_Label, Count)
+
+
+pretty_summary %>%
+  kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  collapse_rows(columns = 1, valign = "top")
+
+pretty_demographics %>%
+  kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  collapse_rows(columns = 1, valign = "top")
+
+pretty_enrollment %>%
   kable(col.names = c("Variable", "Response", "Count (%)"), align = "llr", format = "html") %>%
   kable_styling(
     bootstrap_options = c("striped", "hover", "condensed"),
@@ -1244,6 +1562,208 @@ pretty_demo %>%
 
 
 ```
+
+```{r Mira Summary Stats Figures}
+# selecting the variables for the presentation tables
+
+present_vars <- c("enrol_study", "receive_result","past_study_participation", 
+                  "num_past_studies", "studies_returned_info",
+                  "important_to_return_results_resources",
+                  "returning_results_shows_respect",
+                  "participants_right_to_results",
+                  "importance_of_results_returned",
+                  "preferred_results_return_method",
+                  "study_participants", "non_participants_research_communities",
+                  "local_community_leaders", "local_government_officials", 
+                  "foreign_government_officials", "religious_leaders",
+                  "other_researchers")
+
+present_vars2 <- c("enrol_study", "receive_result",
+                  "important_to_return_results_resources",
+                  "returning_results_shows_respect",
+                  "participants_right_to_results",
+                  "importance_of_results_returned",
+                  "preferred_results_return_method")
+
+pretty_present <- sum_figs_labeled %>%
+  select(all_of(present_vars2)) %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
+  filter(!is.na(Value)) %>%
+  group_by(Variable, Value) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Total = sum(N),
+    Percent = round(100 * N / Total, 1),
+    Row_Label = Value,
+    Count = paste0(N, " (", Percent, "%)")
+  ) %>%
+  ungroup() %>%
+  mutate(
+    # store original name for matching order
+    Variable_raw = Variable,
+    # apply pretty names to a new column
+    Variable = ifelse(Variable_raw %in% names(pretty_names), pretty_names[Variable_raw], Variable_raw)
+  ) %>%
+  group_by(Variable) %>%
+  mutate(
+    Variable = ifelse(row_number() == 1,
+                      paste0(Variable, " (n = ", Total, ")"),
+                      "")
+  ) %>%
+  ungroup() %>%
+  # reorder by original variable order using Variable_raw
+  mutate(Variable_raw = factor(Variable_raw, levels = present_vars)) %>%
+  arrange(Variable_raw) %>%
+  select(Variable, Row_Label, Count)
+
+
+
+pretty_present %>%
+  kable(col.names = c("Question", "Response", "Count (%)"), align = "llr", format = "html") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  collapse_rows(columns = 1, valign = "top")
+
+
+
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# List of variables you want to plot
+bar_vars <- c("study_participants", "non_participants_research_communities",
+              "local_community_leaders", "local_government_officials", 
+              "foreign_government_officials", "religious_leaders",
+              "other_researchers")
+
+custom_labels <- c(
+  study_participants = "Study Participants",
+  non_participants_research_communities = "Non-Participant Community Members",
+  local_community_leaders = "Local Community Leaders",
+  local_government_officials = "Local Government Officials",
+  foreign_government_officials = "Foreign Government Officials",
+  religious_leaders = "Religious Leaders",
+  other_researchers = "Other Researchers"
+)
+
+bar_data_grouped <- sum_figs_labeled %>%
+  select(all_of(names(custom_labels))) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Response") %>%
+  filter(!is.na(Response)) %>%
+  group_by(Variable, Response) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  mutate(
+    Variable = factor(Variable, levels = names(custom_labels)),
+    Label = custom_labels[as.character(Variable)]
+  )
+
+ggplot(bar_data_grouped, aes(x = Label, y = N, fill = Response)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  geom_text(
+    aes(label = paste0("n = ", N)),
+    position = position_dodge(width = 0.8),
+    vjust = -0.5,
+    size = 3.5
+  ) +
+  labs(
+    title = "Should Study Results Be Shared? Responses by Group",
+    x = "Stakeholder Group",
+    y = "Number of Respondents",
+    fill = "Response"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Yes" = "#2eab67",
+      "No" = "#cc3366",
+      "Unsure" = "#afcefc"
+    )
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1)
+  )
+
+ggplot(bar_data_grouped, aes(x = N, y = Label, fill = Response)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  geom_text(
+    aes(label = paste0("n = ", N)),
+    position = position_dodge(width = 0.8),
+    hjust = -0.1,
+    size = 2.5
+  ) +
+  labs(
+    title = "Study Results Should be Shared With:",
+    y = "Stakeholder Group",
+    x = "Number of Respondents",
+    fill = "Response"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Yes" = "#2eab67",
+      "No" = "#cc3366",
+      "Unsure" = "#afcefc"
+    )
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 1.4),
+    axis.text.y = element_text(size = 10)
+  ) +
+  xlim(0, max(bar_data_grouped$N) * 1.1)  # adds space for text labels
+
+
+
+
+ggplot(bar_data_grouped, aes(x = Response, y = N, fill = Label)) +
+  geom_col(position = "dodge") +
+  geom_text(
+    aes(label = paste0("n = ", N)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5,
+    size = 3.2
+  ) +
+  labs(
+    title = "Responses by Group: Who Should Receive Study Results?",
+    x = "Response Category",
+    y = "Number of Respondents",
+    fill = "Stakeholder Group"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+# Summarize enrol_study responses
+enrol_data <- sum_figs_labeled %>%
+  filter(!is.na(enrol_study)) %>%
+  group_by(Reason = enrol_study) %>%
+  summarise(N = n(), .groups = "drop")
+
+# Horizontal bar chart with custom color
+ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
+  geom_col(fill = "#2eab67") +
+  geom_text(aes(label = paste0("n = ", N)), hjust = -0.1, size = 3) +
+  labs(
+    title = "Reasons for Enrolling in the Study",
+    x = "Number of Respondents",
+    y = "Reason for Enrolling"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 3)
+  ) +
+  xlim(0, max(enrol_data$N) * 1.1)  # spacing for text labels
+
+
+
+
+
+```
+
 
 ```{r To-do. Analyze three study experiment}
 
