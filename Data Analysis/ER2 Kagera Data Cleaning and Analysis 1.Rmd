@@ -4355,7 +4355,15 @@ custom_labels <- list(
   "sd_policyReport of results submitted to policymakers" = "SD: Policy (Report)",
   "sd_policyResults presented in half-day workshop to policymakers" = "SD: Policy (Workshop)",
   "sd_comp" = "SD: Compensation",
-  "sd_fund" = "SD: Research Funding"
+  "sd_fund" = "SD: Research Funding",
+  "sd.participantResults returned to participants remotely" = "SD: Participants (Remotely)",
+  "sd.participantResults returned to participants in person" = "SD: Participants (In person)",
+  "sd.communityResults returned to community leaders remotely" = "SD: Community (Remotely to leaders)",
+  "sd.communityResults returned to community in-person meeting" = "SD: Community (In-person meeting)",
+  "sd.policyReport of results submitted to policymakers" = "SD: Policy (Report)",
+  "sd.policyResults presented in half-day workshop to policymakers" = "SD: Policy (Workshop)",
+  "sd.comp" = "SD: Compensation",
+  "sd.fund" = "SD: Research Funding"
 )
 
 # Display the regression results
@@ -4400,7 +4408,7 @@ screenreg(
 ```{r Presentation Table (Conditional and Mixed Logit Models)}
 library(mlogit)
 
-mlogit_dcedata <- dfidx(dce_long, idx = c("game_id", "alt"))
+mlogit_dcedata <- dfidx(dce_long, idx = c("game_id", "alt"), panel = TRUE, id.var = "respondentID")
 
 mlogit_compol <- mlogit(chosen ~ participant + community + policy + comp + fund, 
                             data = mlogit_dcedata,
@@ -4555,49 +4563,169 @@ adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, cho
 ```
 
 ```{r Willingness to Pay Plots}
+mlogit_dcedata <- dfidx(dce_long, idx = c("game_id", "alt"), panel = TRUE, id.var = "respondentID")
+
+basic_model <- mlogit(chosen ~ participant + community + policy + comp + fund,
+                      data = mlogit_dcedata)
+names(basic_model$coefficients)
+wtp_df <- 1
 
 mlogit_allbutcomp <- mlogit(chosen ~ participant + community + policy + comp + fund, 
                             data = mlogit_dcedata,
-                            rpar = c(fund = 'n',
+                            rpar = c(fund = 't',
                                      # include dummies for each factor level (except reference levels)
-                                     setNames(rep('n', length(levels(dce_long$participant)) - 1), 
-                                              paste0("participant", levels(dce_long$participant)[-1])),
-                                     setNames(rep('n', length(levels(dce_long$community)) - 1), 
-                                              paste0("community", levels(dce_long$community)[-1])),
-                                     setNames(rep('n', length(levels(dce_long$policy)) - 1), 
-                                              paste0("policy", levels(dce_long$policy)[-1]))
+                                     "participantResults returned to participants remotely" = 't',
+                                     "participantResults returned to participants in person" = 't',
+                                     "communityResults returned to community leaders remotely" = 't',
+                                     "communityResults returned to community in-person meeting" = 't',
+                                     "policyReport of results submitted to policymakers" = 't',
+                                     "policyResults presented in half-day workshop to policymakers" = 't'
+                                     # setNames(rep('n', length(levels(dce_long$participant)) - 1), 
+                                     #          paste0("participant", levels(dce_long$participant)[-1])),
+                                     # setNames(rep('n', length(levels(dce_long$community)) - 1), 
+                                     #          paste0("community", levels(dce_long$community)[-1])),
+                                     # setNames(rep('n', length(levels(dce_long$policy)) - 1), 
+                                     #          paste0("policy", levels(dce_long$policy)[-1]))
                             ),
                             halton = NA, 
                             R = 1000)
 
-a <- summary(mlogit_allbutcomp)
-b <- a$CoefTable
+mixed_logit_summary <- summary(mlogit_allbutcomp)
+mixed_logit_coefficientsdf <- as.data.frame(a$CoefTable)
+mldf <- mixed_logit_coefficientsdf %>% 
+  rename(se = "Std. Error",
+         estimate = "Estimate")
 
+comp_coef <- unname(coef(mlogit_allbutcomp)["comp"])
 
-# Extract fixed effect estimates from mixed logit model
-coefs <- b
-comp_coef <- coefs["comp"]  # or "comp_scaled" if scaled in the model
 
 # Get a data frame of non-monetary attributes
-wtp_df <- a %>%
+wtp_df <- mldf %>%
   mutate(
     wtp = estimate / comp_coef,
-    wtp_low = conf.low / comp_coef,
-    wtp_high = conf.high / comp_coef
+    wtp_low = (estimate - 1.96*se) / comp_coef,
+    wtp_high = (estimate + 1.96*se) / comp_coef
   )
+wtp_df$attribute <- rownames(wtp_df)
+wtp_df$attribute_label <- as.character(custom_labels[wtp_df$attribute])
 
-ggplot(wtp_df, aes(x = wtp, y = reorder(term, wtp))) +
+rev_order = c(
+  "SD: Research Funding",
+  "SD: Compensation",
+  "SD: Policy (Workshop)",
+  "SD: Policy (Report)",
+  "SD: Community (In-person meeting)",
+  "SD: Community (Remotely to leaders)",
+  "SD: Participants (In person)",
+  "SD: Participants (Remotely)",
+  "Research Funding",
+  "Compensation",
+  "Policy: Workshop",
+  "Policy: Report",
+  "Community: In-person meeting",
+  "Community: Remotely to leaders",
+  "Participants: In person",
+  "Participants: Remotely",
+  "Intercept"
+)
+
+wtp_df$attribute_label <- factor(wtp_df$attribute_label, levels = rev_order)
+
+ggplot(wtp_df, aes(x = wtp, y = attribute_label)) +
   geom_point(color = "darkgreen", size = 3) +
   geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "blue") +
+  #scale_x_continuous(limits = c(-5, 12)) + 
   labs(
-    title = "Willingness to Pay (Mixed Logit Model)",
+    title = "Willingness to Pay",
     x = "Willingness to Pay (relative to Compensation)",
     y = "Attribute"
   ) +
   theme_minimal()
 
+wtp_df_dropsd <- head(wtp_df, 9)
+
+ggplot(wtp_df_dropsd, aes(x = wtp, y = attribute_label)) +
+  geom_point(color = "darkgreen", size = 3) +
+  geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "blue") +
+  scale_x_continuous(limits = c(-5, 12)) + 
+  labs(
+    title = "Willingness to Pay",
+    x = "Willingness to Pay (relative to Compensation)",
+    y = "Attribute"
+  ) + theme(plot.title = element_text(hjust = 0.5))
+  #+ theme_minimal()
+
+
+
+
+
+# CONDITIONAL LOGIT 
+
+condlogit <- clogit(
+  chosen ~ participant + community + policy + comp + fund + strata(game_id),
+  data = dce_long
+)
+
+summary(condlogit)
+
+# Extract model summary in tidy format
+condlogit_tidy <- broom::tidy(condlogit, conf.int = TRUE)
+
+condlogit_tidy$term <- recode(condlogit_tidy$term,
+  "participantResults returned to participants remotely" = "Participants: Remotely", 
+  "participantResults returned to participants in person" = "Participants: In person",
+  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
+  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
+  "policyReport of results submitted to policymakers" = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding"
+)
+
+condlogit_tidy <- condlogit_tidy %>% rename(se = "std.error")
+cond_comp_coef <- as.numeric(condlogit_tidy[7, "estimate"])
+
+cond_wtp_df <- condlogit_tidy %>%
+  mutate(
+    wtp = estimate / cond_comp_coef,
+    wtp_low = (estimate - 1.96*se) / cond_comp_coef,
+    wtp_high = (estimate + 1.96*se) / cond_comp_coef
+  )
+
+cond_rev_order = c(
+  "Research Funding",
+  "Compensation",
+  "Policy: Workshop",
+  "Policy: Report",
+  "Community: In-person meeting",
+  "Community: Remotely to leaders",
+  "Participants: In person",
+  "Participants: Remotely"
+)
+
+cond_wtp_df$term <- factor(cond_wtp_df$term, levels = cond_rev_order)
+
+ggplot(cond_wtp_df, aes(x = wtp, y = term)) +
+  geom_point(color = "darkgreen", size = 3) +
+  geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "blue") +
+  #scale_x_continuous(limits = c(-5, 12)) + 
+  labs(
+    title = "Willingness to Pay",
+    x = "Willingness to Pay (relative to Compensation)",
+    y = "Attribute"
+  ) + theme(plot.title = element_text(hjust = 0.5))
+  #+ theme_minimal()
+
+
 ```
+
+
 ```{r}
 library(mlogit)
 library(dplyr)
