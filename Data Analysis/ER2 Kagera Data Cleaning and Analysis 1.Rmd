@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, readr)
 ```
 
 Key Notes: 
@@ -1760,6 +1760,66 @@ ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
 
 
 
+
+
+```
+
+```{r}
+irb_guide <- read_csv("irb_guide.csv")
+View(irb_guide)
+
+irb_summary_nested <- irb_guide %>%
+  filter(type == "Professional") %>%
+  group_by(type, field) %>%
+  summarise(
+    n_organizations = n(),
+    with_ethics_doc = sum(ethics_doc, na.rm = TRUE),
+    with_return_results = sum(return_results, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+library(dplyr)
+library(kableExtra)
+
+# Total summary (including Professional as one row)
+total_summary <- irb_guide %>%
+  group_by(type) %>%
+  summarise(
+    n_organizations = n(),
+    with_ethics_doc = sum(ethics_doc, na.rm = TRUE),
+    with_return_results = sum(return_results, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(field = NA_character_)
+
+# Sub-summary for Professional
+professional_subsummary <- irb_guide %>%
+  filter(type == "Professional") %>%
+  group_by(field) %>%
+  summarise(
+    n_organizations = n(),
+    with_ethics_doc = sum(ethics_doc, na.rm = TRUE),
+    with_return_results = sum(return_results, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    type = "",  # blank to avoid repetition
+    field = paste0("  ", field)  # indent field names
+  ) %>%
+  select(type, field, everything())
+
+# Combine total and sub rows
+final_table <- bind_rows(
+  total_summary %>% filter(type != "Professional"),
+  total_summary %>% filter(type == "Professional"),
+  professional_subsummary
+)
+
+# Create pretty table
+final_table %>%
+  select(type, field, everything()) %>%
+  kable(format = "html", caption = "Summary of IRB Guidelines by Type and Subfield") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE, position = "center")
 
 
 ```
