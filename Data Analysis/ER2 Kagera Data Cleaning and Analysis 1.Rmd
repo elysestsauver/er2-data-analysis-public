@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, janitor)
 ```
 
 Key Notes: 
@@ -129,10 +129,6 @@ scenarios <- read.csv("scenario_dataset.csv")
 # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
 fulldata <- subset(fulldata, respo_confirm == 1)
 
-fulldata <- subset(fulldata, exercise_comment < 3)
-
-fulldata <- subset(fulldata, interviewer != 1)
-
 # Rank varaiables --> columns for radio, sms, etc. and cell values are the rank designated by participant
   # Some of the columns have collections of data that should be distributed into individual columns. These are resolved here. 
   # rank_results_methods
@@ -181,8 +177,6 @@ fulldata <- fulldata %>%
       fundB = as.numeric(gsub("^research|\\.jpeg$", "", researchfunding_image.B)),
       funding_delta = fundA - fundB
     )
-
-
 
 # Clean code for the three study experiment analysis. Generate dummy var for study, position, method
 threestudy_analysis <- select(fulldata, c("respondentID", 245:259))
@@ -288,7 +282,16 @@ for (i in seq_len(nrow(codebook))) {
   # num_past_studies has NAs that should be 0 when past_study_participation is 0
 fulldata$num_past_studies[is.na(fulldata$num_past_studies) & fulldata$past_study_participation == 0] <- 0
 
-dceanalysis <- select(fulldata, c("respondentID", "game_index", 9:19, "option_selected", "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "understood_exercise", "exercise_comment", "exercise_comment_oth"))
+#Save the full dataset after processing but before dropping inattentive set
+fulldatapredrop <- fulldata
+
+# Drop the inattentive participants 
+fulldata <- subset(fulldata, as.numeric(exercise_comment) < 3)
+fulldata <- subset(fulldata, as.numeric(interviewer) != 1)
+
+write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
+
+dceanalysis <- select(fulldatapredrop, c("respondentID", "game_index", 9:19, "option_selected", "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "understood_exercise", "exercise_comment", "exercise_comment_oth", "control", "exercise_comment", "interviewer"))
 
 #Renaming columns for ease of reference
 dceanalysis <- dceanalysis %>%
@@ -310,10 +313,187 @@ for (col in columns_to_process) {
   dceanalysis[[col]] <- as.numeric(gsub("\\D+", "", dceanalysis[[col]]))
 }
 
-write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
+#Will drop the inattentives after initializing dce_long
 ```
 
-```{r DCE Initialization Long Datset}
+```{r Summary Balance Table}
+library(dplyr)
+library(tidyr)
+library(janitor)
+library(scales)
+
+# Create group labels
+fulldatapredrop <- fulldatapredrop %>%
+  mutate(group = case_when(
+    is.na(control) ~ "Full Sample",  # In case any missing
+    control == 0 ~ "Treatment",
+    control == 1 ~ "Control"
+  ))
+
+# Expand to include all three groups
+full_data <- bind_rows(
+  fulldatapredrop %>% mutate(group = "Full Sample"),
+  fulldatapredrop %>% filter(control == 0) %>% mutate(group = "Treatment"),
+  fulldatapredrop %>% filter(control == 1) %>% mutate(group = "Control")
+)
+
+# ========================
+# Summarize numeric/binary vars
+# ========================
+numeric_summary <- full_data %>%
+  group_by(group) %>%
+  summarise(
+    `Average Age` = mean(resp_age, na.rm = TRUE),
+    `Employed (%)` = mean(work_seven_days == 1, na.rm = TRUE),
+    `Past Study Participation (%)` = mean(past_study_participation == 1, na.rm = TRUE),
+    `Average # of Past Studies` = mean(replace_na(num_past_studies, 0)),
+    .groups = "drop"
+  ) %>%
+  pivot_longer(-group, names_to = "variable", values_to = "value")
+
+# ========================
+# Gender %
+# ========================
+gender_props <- full_data %>%
+  count(group, resp_gender) %>%
+  group_by(group) %>%
+  mutate(pct = n / sum(n)) %>%
+  ungroup() %>%
+  transmute(
+    group,
+    variable = paste0("Gender: ", as.character(resp_gender)),
+    value = pct
+  )
+
+# ========================
+# Education %
+# ========================
+education_props <- full_data %>%
+  count(group, resp_education) %>%
+  group_by(group) %>%
+  mutate(pct = n / sum(n)) %>%
+  ungroup() %>%
+  transmute(
+    group,
+    variable = paste0("Education: ", as.character(resp_education)),
+    value = pct
+  )
+
+# ========================
+# Combine and clean
+# ========================
+combined_long <- bind_rows(numeric_summary, gender_props, education_props)
+
+# Remove any duplicates by averaging (safe fallback)
+combined_long <- combined_long %>%
+  group_by(variable, group) %>%
+  summarise(value = mean(value, na.rm = TRUE), .groups = "drop")
+
+# Pivot wider to transpose
+balance_table_transposed <- combined_long %>%
+  pivot_wider(names_from = group, values_from = value)
+
+# Format values (round or percent)
+balance_table_transposed <- balance_table_transposed %>%
+  mutate(across(where(is.numeric), ~ ifelse(
+    grepl("^Average", variable),
+    round(., 2),
+    percent(., accuracy = 1)
+  )))
+
+# Clean column names and display
+balance_table_transposed <- balance_table_transposed %>%
+  janitor::clean_names() %>%
+  rename(Variable = variable)
+
+# Relabel education and gender levels
+balance_table_transposed <- balance_table_transposed %>%
+  mutate(Variable = case_when(
+    Variable == "Education: 1" ~ "Education: No formal education",
+    Variable == "Education: 2" ~ "Education: Primary education",
+    Variable == "Education: 3" ~ "Education: Secondary education",
+    Variable == "Education: 4" ~ "Education: Certificate",
+    Variable == "Gender: 1" ~ "Gender: Male",
+    Variable == "Gender: 2" ~ "Gender: Female",
+    TRUE ~ Variable
+  ))
+
+balance_table_transposed <- balance_table_transposed %>%
+  select(Variable, full_sample, control, treatment)
+
+# Define the desired row order
+row_order <- c(
+  "Gender: Male",
+  "Gender: Female",
+  "Average Age",
+  "Education: No formal education",
+  "Education: Primary education",
+  "Education: Secondary education",
+  "Education: Certificate",
+  "Employed (%)",
+  "Past Study Participation (%)",
+  "Average # of Past Studies"
+)
+
+# Apply the custom order using a factor
+balance_table_transposed <- balance_table_transposed %>%
+  mutate(Variable = factor(Variable, levels = row_order)) %>%
+  arrange(Variable)
+
+# View result
+print(balance_table_transposed)
+
+library(gt)
+
+formatted_table <- tribble(
+  ~Variable, ~full_sample, ~control, ~treatment,
+  "Gender", "", "", "",
+  "Male", "53%", "50%", "56%",
+  "  Female", "47%", "50%", "44%",
+  "Age", "", "", "",
+  "  Average Age", "55.73", "53.31", "57.35",
+  "Education", "", "", "",
+  "  No formal education", "9%", "6%", "11%",
+  "  Primary education", "83%", "86%", "81%",
+  "  Secondary education", "7%", "8%", "6%",
+  "  Certificate", "1%", "NA", "2%",
+  "Employment", "", "", "",
+  "  Employed (%)", "77%", "81%", "74%",
+  "Past Study Participation", "", "", "",
+  "  Past Study Participation (%)", "27%", "33%", "22%",
+  "  Average # of Past Studies", "0.4", "0.39", "0.41"
+)
+
+formatted_table %>%
+  gt() %>%
+  # Rename the column headers to desired labels
+  cols_label(
+    full_sample = "Full Sample",
+    control = "Control",
+    treatment = "Treatment"
+  ) %>%
+  # Bold the section headers and variable labels (if needed)
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = Variable,
+      rows = Variable %in% c("Gender", "Age", "Education", "Employment", "Past Study Participation")
+    )
+  ) %>%
+  # Bold the column labels
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(
+      columns = c(Variable, full_sample, control, treatment)
+    )
+  ) %>%
+  cols_align(align = "left", columns = "Variable") %>%
+  cols_align(align = "right", columns = c("full_sample", "control", "treatment"))
+
+
+```
+
+```{r DCE Initialization Long Dataset}
 
 # A binary logit regression that regresses whether an option won against its feature levels.  Ex. chosen ~ has_return_results_participants_1 + has_return_results_2 + etc. 
 
@@ -331,7 +511,7 @@ dce_long <- dceanalysis %>%
   mutate(
     chosen = ifelse((option_selected == 0 & alt == "B") | (option_selected == 1 & alt == "A"), 1, 0)
   ) %>%
-  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund)
+  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund, control, exercise_comment, interviewer)
 
 dce_long <- dce_long %>%
   distinct(respondentID, game_index) %>%             # Get unique combinations
@@ -614,6 +794,12 @@ dce_long <- dce_long %>%
   mutate(
     respondentID = as.numeric(respondentID)
   )
+
+dce_long_predrop <- dce_long
+
+# Drop the inattentive participants 
+dce_long <- subset(dce_long, as.numeric(exercise_comment) < 3)
+dce_long <- subset(dce_long, as.numeric(interviewer) != 1)
 
 write.csv(dce_long, file = "dcelongdataset.csv")
 ```
@@ -1051,7 +1237,7 @@ num_summary %>%
 
 ```
 
-```{r To-Do Mira. Summary Statistics Figures Cleaning}
+```{r To-Do Mira. Summary Statistics Figures Cleaning, eval = FALSE}
 
 # making separate dataset so I do not mess up future code. collapsed down by respondant ID to remove duplicates.
 sum_figs <- fulldata
@@ -1563,7 +1749,7 @@ pretty_enrollment %>%
 
 ```
 
-```{r Mira Summary Stats Figures}
+```{r Mira Summary Stats Figures, eval = FALSE}
 # selecting the variables for the presentation tables
 
 present_vars <- c("enrol_study", "receive_result","past_study_participation", 
@@ -1764,7 +1950,6 @@ ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
 
 ```
 
-
 ```{r To-do. Analyze three study experiment}
 
 # The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
@@ -1812,7 +1997,7 @@ coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0
 
 ```
 
-```{r To-do. Summary Statistics Table fixes}
+```{r To-do. Summary Statistics Table fixes, eval = FALSE}
 
 #      - [COMPLETE] Several variables are not categorized as factor variables when they should
 
@@ -2418,7 +2603,7 @@ heatmap
 
 ```
 
-```{r To-do. Analyze the rank results methods 1-9 (What are the top method preferences?)}
+```{r To-do. Analyze the rank results methods 1-9 (What are the top method preferences?), eval = FALSE}
 
 
 #renaming dataset so I don't lose anything
@@ -2693,10 +2878,10 @@ heatmap
 
 ```
 
-```{r To-do. Summarize challenges participants identified}
+```{r To-do. Summarize challenges participants identified, eval = FALSE}
 ```
 
-```{r DCE Logit Regression}
+```{r DCE Logit Regression, eval = FALSE}
 
 set.seed(3141592653)
 dce_long$comp_scaled <- (dce_long$comp - min(dce_long$comp, na.rm = TRUE)) / 
@@ -2706,7 +2891,7 @@ dce_long$fund_scaled <- (dce_long$fund - min(dce_long$fund, na.rm = TRUE)) /
                     (max(dce_long$fund, na.rm = TRUE) - min(dce_long$fund, na.rm = TRUE))
 
 general_pref_logit <- clogit(
-  chosen ~ participant + community + policy + comp + fund + strata(game_id),
+  chosen ~ participant + community + policy + comp + fund + strata(game_index),
   data = dce_long
 )
 
@@ -2786,7 +2971,7 @@ ggplot(general_pref_mixed_logit_tidy, aes(x = estimate, y = reorder(term, estima
   theme_minimal()
 ```
 
-```{r DCE Dominant Choice Graphs}
+```{r DCE Dominant Choice Graphs, eval = FALSE}
 # Research Funding vs. Compensation Differential
 fundinganalysisdataset <- subset(dce_long, comp_delta != 0 & fund_delta != 0)
 participantanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_participants_chosen))
@@ -3455,7 +3640,7 @@ plot19 <- ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta
 
 ```
 
-```{r Interactive Dominant Choice Graph Display}
+```{r Interactive Dominant Choice Graph Display, eval = FALSE}
 
 ui <- fluidPage(
   tags$head(
@@ -4181,344 +4366,190 @@ shinyApp(ui, server)
 
 ```
 
-```{r Pretty Regression Results Table}
-
-# Want a table that displays 
-# - OLS results (Coef, std error, p value, significant stars)
-# - Mixed logit results (Coef, std error, p value, significant stars, log-odds change) with alternate versions for mixed logit vars given normal distribution or not
-# - Rows will be 5 feature levels, plus fixed effects, game index factor and game index continuous
-
-# Ensure game_index is numeric
-dce_long$game_index <- as.numeric(dce_long$game_index)
-
-# Fit OLS models
-ols_long <- glm(chosen ~ participant + community + policy + comp + fund + respondentID + game_index, data = dce_long)
-ols_long_indexfactor <- glm(chosen ~ participant + community + policy + comp + fund + respondentID + as.factor(game_index), data = dce_long)
-
-# Fit mixed logit models
-set.seed(31415926)
-mixed_logit <- logitr(
-  data = dce_long,
-  outcome = 'chosen',
-  obsID = 'game_id',
-  panelID = 'respondentID',
-  pars = c('participant', 'community', 'policy', 'comp', 'fund', 'game_index'),
-  drawType = 'sobol',
-  numDraws = 1000
-)
-
-mixed_logit_p <- logitr(
-  data = dce_long,
-  outcome = 'chosen',
-  obsID = 'game_id',
-  panelID = 'respondentID',
-  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
-  randPars = c(participant = 'n'
-               #, 
-               #community = 'n', 
-               #policy = 'n', 
-               #comp = 'cn', 
-               #fund = 'n'
-               ),
-  drawType = 'sobol',
-  numDraws = 1000
-)
-
-mixed_logit_pc <- logitr(
-  data = dce_long,
-  outcome = 'chosen',
-  obsID = 'game_id',
-  panelID = 'respondentID',
-  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
-  randPars = c(participant = 'n', 
-               community = 'n'
-               #, 
-               #policy = 'n', 
-               #comp = 'cn', 
-               #fund = 'n'
-               ),
-  drawType = 'sobol',
-  numDraws = 1000
-)
-
-mixed_logit_pcp <- logitr(
-  data = dce_long,
-  outcome = 'chosen',
-  obsID = 'game_id',
-  panelID = 'respondentID',
-  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
-  randPars = c(participant = 'n', 
-               community = 'n', 
-               policy = 'n'
-               #, 
-               #comp = 'cn', 
-               #fund = 'n'
-               ),
-  drawType = 'sobol',
-  numDraws = 1000
-)
-
-mixed_logit_allbutcomp <- logitr(
-  data = dce_long,
-  outcome = 'chosen',
-  obsID = 'game_id',
-  panelID = 'respondentID',
-  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
-  randPars = c(participant = 'n', 
-               community = 'n', 
-               policy = 'n', 
-               #comp = 'cn', 
-               fund = 'n'),
-  drawType = 'sobol',
-  numDraws = 1000
-)
-
-mixed_logit_all <- logitr(
-  data = dce_long,
-  outcome = 'chosen',
-  obsID = 'game_id',
-  panelID = 'respondentID',
-  pars = c('participant', 'community', 'policy', 'comp', 'fund'),
-  randPars = c(participant = 'n', 
-               community = 'n', 
-               policy = 'n', 
-               comp = 'cn', 
-               fund = 'n'),
-  drawType = 'sobol',
-  numDraws = 1000
-)
-
-# Define extract function for logitr models
-extract.logitr <- function(model, odds = FALSE, ...) {
-  s <- summary(model)
-  coefs <- coef(s)
-  estimates <- s[["coefTable"]][["Estimate"]]
-  se <- s[["coefTable"]][["Std. Error"]]
-  pvals <- s[["coefTable"]][["Pr(>|z|)"]]
-
-  texreg::createTexreg(
-    coef.names = rownames(coef(s)),
-    coef = s[["coefTable"]][["Estimate"]],
-    se = s[["coefTable"]][["Std. Error"]],
-    pvalues = s[["coefTable"]][["Pr(>|z|)"]],
-    gof.names = c("Log-Likelihood", "AIC", "BIC"),
-    gof = c(logLik(model), AIC(model), BIC(model))
-  )
-}
-
-# Create texreg objects
-tr_mixed_logit <- extract.logitr(mixed_logit)
-tr_mixed_logit@model.name <- "Mixed Logit (No Varying Pars)"
-
-tr_mixed_logit_p <- extract.logitr(mixed_logit_p)
-tr_mixed_logit_p@model.name <- "Mixed Logit (Part. Vary)"
-
-tr_mixed_logit_pc <- extract.logitr(mixed_logit_pc)
-tr_mixed_logit_pc@model.name <- "Mixed Logit (Part, Com Vary)"
-
-tr_mixed_logit_pcp <- extract.logitr(mixed_logit_pcp)
-tr_mixed_logit_pcp@model.name <- "Mixed Logit (Part, Com, Pol Vary)"
-
-tr_mixed_logit_allbutcomp <- extract.logitr(mixed_logit_allbutcomp)
-tr_mixed_logit_allbutcomp@model.name <- "Mixed Logit (All Varying But Comp)"
-
-tr_mixed_logit_all <- extract.logitr(mixed_logit_all)
-tr_mixed_logit_all@model.name <- "Mixed Logit (All Varying)"
-
-# Define custom labels
-custom_labels <- list(
-  "(Intercept)" = "Intercept",
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants remotely" = "Participants: Remotely",
-  "participantResults returned to participants in person" = "Participants: In person",
-  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
-  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
-  "policyReport of results submitted to policymakers" = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding",
-  "as.factor(game_index)2" = "Game Index - 2",
-  "as.factor(game_index)3" = "Game Index - 3",
-  "as.factor(game_index)4" = "Game Index - 4",
-  "as.factor(game_index)5" = "Game Index - 5",
-  "as.factor(game_index)6" = "Game Index - 6",
-  "as.factor(game_index)7" = "Game Index - 7",
-  "as.factor(game_index)8" = "Game Index - 8",
-  "as.factor(game_index)9" = "Game Index - 9",
-  "as.factor(game_index)10" = "Game Index - 10",
-  "game_index" = "Game Index",
-  "respondentID" = "Respondent Fixed Effects",
-  "sd_participantResults returned to participants remotely" = "SD: Participants (Remotely)",
-  "sd_participantResults returned to participants in person" = "SD: Participants (In person)",
-  "sd_communityResults returned to community leaders remotely" = "SD: Community (Remotely to leaders)",
-  "sd_communityResults returned to community in-person meeting" = "SD: Community (In-person meeting)",
-  "sd_policyReport of results submitted to policymakers" = "SD: Policy (Report)",
-  "sd_policyResults presented in half-day workshop to policymakers" = "SD: Policy (Workshop)",
-  "sd_comp" = "SD: Compensation",
-  "sd_fund" = "SD: Research Funding",
-  "sd.participantResults returned to participants remotely" = "SD: Participants (Remotely)",
-  "sd.participantResults returned to participants in person" = "SD: Participants (In person)",
-  "sd.communityResults returned to community leaders remotely" = "SD: Community (Remotely to leaders)",
-  "sd.communityResults returned to community in-person meeting" = "SD: Community (In-person meeting)",
-  "sd.policyReport of results submitted to policymakers" = "SD: Policy (Report)",
-  "sd.policyResults presented in half-day workshop to policymakers" = "SD: Policy (Workshop)",
-  "sd.comp" = "SD: Compensation",
-  "sd.fund" = "SD: Research Funding"
-)
-
-# Display the regression results
-
-# #Linear Regressions
-# screenreg(
-#   list(
-#     ols_long,
-#     ols_long_indexfactor
-#   ),
-#   custom.model.names = c(
-#     "OLS (Numeric Game Index)",
-#     "OLS (Factor Game Index)"
-#   ),
-#   custom.coef.map = custom_labels,
-#   custom.note = "Standard errors in parentheses. OR: Odds Ratios. * p<0.1; ** p<0.05; *** p<0.01",
-#   digits = 3,
-#   stars = c(0.01, 0.05, 0.1),
-#   single.row = TRUE
-# )
-
-# Conditional Logit Regression
-
-
-#Mixed Logit Regressions
-screenreg(
-  list(
-    tr_mixed_logit_allbutcomp
-  ),
-  custom.model.names = c(
-    "Mixed Logit (All But Comp)"
-  ),
-  custom.coef.map = custom_labels,
-  custom.note = "Standard errors in parentheses. OR: Odds Ratios. * p<0.1; ** p<0.05; *** p<0.01",
-  digits = 3,
-  stars = c(0.01, 0.05, 0.1),
-  single.row = TRUE
-)
-
-```
-
-```{r Presentation Table (Conditional and Mixed Logit Models)}
-library(mlogit)
-
-mlogit_dcedata <- dfidx(dce_long, idx = c("game_id", "alt"), panel = TRUE, id.var = "respondentID")
-
-mlogit_compol <- mlogit(chosen ~ participant + community + policy + comp + fund, 
-                            data = mlogit_dcedata,
-                            rpar = c(# include dummies for each factor level (except reference levels)
-                                     setNames(rep('n', length(levels(dce_long$community)) - 1), 
-                                              paste0("community", levels(dce_long$community)[-1])),
-                                     setNames(rep('n', length(levels(dce_long$policy)) - 1), 
-                                              paste0("policy", levels(dce_long$policy)[-1]))
-                            ),
-                            halton = NA, 
-                            R = 1000)
-summary(mlogit_compol)
-
-mlogit_allbutcomp <- mlogit(chosen ~ participant + community + policy + comp + fund, 
-                            data = mlogit_dcedata,
-                            rpar = c(fund = 'n',
-                                     # include dummies for each factor level (except reference levels)
-                                     setNames(rep('n', length(levels(dce_long$participant)) - 1), 
-                                              paste0("participant", levels(dce_long$participant)[-1])),
-                                     setNames(rep('n', length(levels(dce_long$community)) - 1), 
-                                              paste0("community", levels(dce_long$community)[-1])),
-                                     setNames(rep('n', length(levels(dce_long$policy)) - 1), 
-                                              paste0("policy", levels(dce_long$policy)[-1]))
-                            ),
-                            halton = NA, 
-                            R = 1000)
-
-clogit_dce <- mlogit(chosen ~ participant + community + policy + comp + fund, 
-                            data = mlogit_dcedata)
-
-summary(mlogit_allbutcomp)
-
-# Required libraries
+```{r Better Presentation Table (Conditional and Mixed Logit Models)}
+## ─────────────────────────────────────────────────────────────
+##  0.  Libraries  ─────────────────────────────────────────────
 library(mlogit)
 library(broom)
 library(dplyr)
 library(tidyr)
-library(kableExtra)  # for nice table output
+library(kableExtra)
+library(purrr)
 
-# 1. Tidy mixed logit model
-tidy_mixed <- tidy(mlogit_allbutcomp) %>%
-  mutate(
-    term_type = if_else(grepl("^sd\\.", term), "sd", "mean"),
-    term_clean = gsub("^sd\\.", "", term),
-    signif = case_when(
-      p.value < 0.001 ~ "***",
-      p.value < 0.01 ~ "**",
-      p.value < 0.05 ~ "*",
-      TRUE ~ ""
-    )
-  ) %>%
-  select(term_clean, term_type, estimate, std.error, signif)
+## ─────────────────────────────────────────────────────────────
+##  1.  Pretty labels  ─────────────────────────────────────────
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "participantResults returned to participants in person"   = "Participants: In person",
+  "participantResults returned to participants remotely"    = "Participants: Remotely",
+  "communityResults returned to community in-person meeting"= "Community: In-person meeting",
+  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
+  "policyReport of results submitted to policymakers"       = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding",
+  "as.factor(game_index).L:B" = "Game Index - 2",
+  "as.factor(game_index).Q:B" = "Game Index - 3",
+  "as.factor(game_index).C:B" = "Game Index - 4",
+  "as.factor(game_index)^4:B" = "Game Index - 5",
+  "as.factor(game_index)^5:B" = "Game Index - 6",
+  "as.factor(game_index)^6:B" = "Game Index - 7",
+  "as.factor(game_index)^7:B" = "Game Index - 8",
+  "as.factor(game_index)^8:B" = "Game Index - 9",
+  "as.factor(game_index)^9:B" = "Game Index - 10"
+)
 
-# 2. Pivot mixed logit to wide
-mixed_wide <- tidy_mixed %>%
-  pivot_wider(
-    names_from = term_type,
-    values_from = c(estimate, std.error, signif),
-    names_glue = "{.value}_{term_type}"
+## ─────────────────────────────────────────────────────────────
+##  2.  Helper functions  ─────────────────────────────────────
+run_models <- function(data) {
+  mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
+                       panel = TRUE, id.var = "respondentID")
+  
+  mixed_model <- mlogit(
+    chosen ~ participant + community + policy + comp + fund 
+    #| as.factor(game_index)
+    ,
+    data   = mlogit_data,
+    rpar   = c(
+      fund = "n",
+      setNames(rep("n", length(levels(data$participant)) - 1),
+               paste0("participant", levels(data$participant)[-1])),
+      setNames(rep("n", length(levels(data$community)) - 1),
+               paste0("community",  levels(data$community)[-1])),
+      setNames(rep("n", length(levels(data$policy)) - 1),
+               paste0("policy",     levels(data$policy)[-1]))
+    ),
+    halton = NA, R = 1000
   )
+  
+  conditional_model <- mlogit(
+    chosen ~ participant + community + policy + comp + fund #| as.factor(game_index)
+    ,
+    data   = mlogit_data
+  )
+  
+  list(mixed = mixed_model, conditional = conditional_model)
+}
 
-# 3. Tidy conditional logit model
-tidy_clogit <- tidy(clogit_dce) %>%
+extract_estimates <- function(mixed, conditional, grp) {
+  tidy_mixed <- tidy(mixed) |>
+    filter(!grepl("^sd\\.", term)) |>
+    mutate(
+      term_clean = term,
+      mixed_str  = sprintf("%0.3f (%0.3f)%s",
+                           estimate, std.error,
+                           case_when(
+                             p.value < 0.001 ~ "***",
+                             p.value < 0.01  ~ "**",
+                             p.value < 0.05  ~ "*",
+                             TRUE            ~ ""
+                           ))
+    ) |>
+    select(term_clean, mixed_str)
+  
+  tidy_cond <- tidy(conditional) |>
+    mutate(
+      term_clean = term,
+      cond_str   = sprintf("%0.3f (%0.3f)%s",
+                           estimate, std.error,
+                           case_when(
+                             p.value < 0.001 ~ "***",
+                             p.value < 0.01  ~ "**",
+                             p.value < 0.05  ~ "*",
+                             TRUE            ~ ""
+                           ))
+    ) |>
+    select(term_clean, cond_str)
+  
+  full_join(tidy_mixed, tidy_cond, by = "term_clean") |>
+    rename(!!paste0("Mixed_", grp) := mixed_str,
+           !!paste0("Cond_",  grp) := cond_str)
+}
+
+## ─────────────────────────────────────────────────────────────
+##  3.  Fit the models  ───────────────────────────────────────
+models_full   <- run_models(dce_long)
+models_treat  <- run_models(filter(dce_long, control == 0))
+models_ctrl   <- run_models(filter(dce_long, control == 1))
+
+## ─────────────────────────────────────────────────────────────
+##  4.  Pull out coefficients  ────────────────────────────────
+est_full  <- extract_estimates(models_full$mixed,  models_full$conditional,  "Full")
+est_treat <- extract_estimates(models_treat$mixed, models_treat$conditional, "Treat")
+est_ctrl  <- extract_estimates(models_ctrl$mixed,  models_ctrl$conditional,  "Control")
+
+all_combined <- reduce(list(est_full, est_treat, est_ctrl), full_join, by = "term_clean") |>
   mutate(
-    signif = case_when(
-      p.value < 0.001 ~ "***",
-      p.value < 0.01 ~ "**",
-      p.value < 0.05 ~ "*",
-      TRUE ~ ""
-    )
-  ) %>%
-  select(term, estimate, std.error, signif) %>%
+    Term = coalesce(custom_labels[term_clean], term_clean),
+    Term = if_else(term_clean == "(Intercept)", "Intercept", Term)
+  ) |>
+  # desired column order
+  select(Term,
+         Mixed_Full,  Mixed_Treat,  Mixed_Control,
+         Cond_Full,   Cond_Treat,   Cond_Control) |>
+  # nicer labels
   rename(
-    term_clean = term,
-    clogit_estimate = estimate,
-    clogit_se = std.error,
-    clogit_signif = signif
+    `Mixed Logit (Full Sample)`       = Mixed_Full,
+    `Mixed Logit (Treatment)`         = Mixed_Treat,
+    `Mixed Logit (Control)`           = Mixed_Control,
+    `Conditional Logit (Full Sample)` = Cond_Full,
+    `Conditional Logit (Treatment)`   = Cond_Treat,
+    `Conditional Logit (Control)`     = Cond_Control
   )
 
-final_table <- mixed_wide %>%
-  full_join(tidy_clogit, by = "term_clean") %>%
+## ─────────────────────────────────────────────────────────────
+##  5.  Re-order rows & flag sections  ─────────────────────────
+row_order <- c(
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Report", "Policy: Workshop",
+  "Compensation", "Research Funding"
+)
+
+all_combined <- all_combined |>
   mutate(
-    Term = custom_labels[term_clean],
-    Term = ifelse(is.na(Term) & term_clean == "(Intercept)", "Intercept", Term),
-    Term = ifelse(is.na(Term), term_clean, Term),
-    `Mixed Logit Estimate` = ifelse(is.na(estimate_mean), "", paste0(round(estimate_mean, 3), signif_mean)),
-    `Mixed Logit SE`       = ifelse(is.na(std.error_mean), "", round(std.error_mean, 3)),
-    `Mixed Logit Std Dev`       = ifelse(is.na(estimate_sd) | is.nan(estimate_sd), "", paste0(round(estimate_sd, 3), signif_sd)),
-    `Mixed Logit Std Dev SE`    = ifelse(is.na(std.error_sd) | is.nan(std.error_sd), "", round(std.error_sd, 3)),
-    `Conditional Logit Estimate`      = ifelse(is.na(clogit_estimate), "", paste0(round(clogit_estimate, 3), clogit_signif)),
-    `Conditional Logit SE`            = ifelse(is.na(clogit_se), "", round(clogit_se, 3))
-  ) %>%
-  select(
-    Term,
-    `Conditional Logit Estimate`, `Conditional Logit SE`,
-    `Mixed Logit Estimate`, `Mixed Logit SE`,
-    `Mixed Logit Std Dev`, `Mixed Logit Std Dev SE`
+    order   = match(Term, row_order),
+    Section = case_when(
+      grepl("^Participants", Term) ~ "Participants",
+      grepl("^Community",    Term) ~ "Community",
+      grepl("^Policy",       Term) ~ "Policymakers",
+      TRUE                         ~ NA_character_
+    )
+  ) |>
+  arrange(order) |>
+  select(-order)
 
-  )
+## ─────────────────────────────────────────────────────────────
+##  6.  Build the kable table  ────────────────────────────────
+# start/end rows for each section
+sec_pos <- all_combined |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
 
-# 5. Render with kableExtra
+# create the base table
+table_out <- all_combined |>
+  select(-Section) |>
+  kable("html", escape = FALSE,
+        align = "lcccccc",
+        caption = "Mixed and Conditional Logit Estimates by Group") |>
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
 
-final_table %>%
-  kable("html", escape = FALSE, align = "lcccccc", caption = "Mixed Logit and Conditional Logit Results") %>%
-  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+# add the block headings
+for (i in seq_len(nrow(sec_pos))) {
+  table_out <- pack_rows(table_out,
+                         group_label = sec_pos$Section[i],
+                         start_row   = sec_pos$start[i],
+                         end_row     = sec_pos$end[i])
+}
 
-
+table_out   # renders the nicely formatted table
 ```
 
-```{r Bin Scatter Plot Graphs}
+```{r Bin Scatter Plot Graphs, eval = FALSE}
 adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
   x_var <- enquo(x_var)
   y_var <- enquo(y_var)
@@ -4562,7 +4593,7 @@ adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
 adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, chosen_dominant_fund, 20)
 ```
 
-```{r Willingness to Pay Plots}
+```{r Willingness to Pay Plots, eval = FALSE}
 mlogit_dcedata <- dfidx(dce_long, idx = c("game_id", "alt"), panel = TRUE, id.var = "respondentID")
 
 basic_model <- mlogit(chosen ~ participant + community + policy + comp + fund,
@@ -4725,75 +4756,126 @@ ggplot(cond_wtp_df, aes(x = wtp, y = term)) +
 
 ```
 
-
-```{r}
+```{r Willingness to Pay Plots 2}
+## ─────────────────────────────────────────────────────────────
+##  Libraries & label vector  ──────────────────────────────────
 library(mlogit)
+library(broom)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
-library(tibble)
+library(purrr)
 
-# Fit mixed logit model excluding compensation as a random parameter
-mlogit_allbutcomp <- mlogit(
-  chosen ~ participant + community + policy + comp + fund,
-  data = mlogit_dcedata,
-  rpar = c(
-    fund = 'n',
-    # dummies for factor levels (excluding reference)
-    setNames(rep('n', length(levels(dce_long$participant)) - 1), 
-             paste0("participant", levels(dce_long$participant)[-1])),
-    setNames(rep('n', length(levels(dce_long$community)) - 1), 
-             paste0("community", levels(dce_long$community)[-1])),
-    setNames(rep('n', length(levels(dce_long$policy)) - 1), 
-             paste0("policy", levels(dce_long$policy)[-1]))
-  ),
-  halton = NA,
-  R = 1000
+# install.packages("patchwork")   # uncomment once
+library(patchwork)                # for side-by-side display
+
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "participantResults returned to participants remotely"     = "Participants: Remotely",
+  "participantResults returned to participants in person"    = "Participants: In person",
+  "communityResults returned to community leaders remotely"  = "Community: Remotely to leaders",
+  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
+  "policyReport of results submitted to policymakers"        = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding"
 )
 
-# Extract coefficient table
-coef_table <- summary(mlogit_allbutcomp)$CoefTable %>% as.data.frame()
-coef_table$term <- rownames(coef_table)
+## ─────────────────────────────────────────────────────────────
+##  Helper: run model + return WTP tibble  ─────────────────────
+get_wtp <- function(data) {
+  ml_data <- dfidx(data,
+                   idx   = c("game_id", "alt"),
+                   panel = TRUE,
+                   id.var = "respondentID")
 
-# Rename columns for clarity
-colnames(coef_table)[1:2] <- c("estimate", "std.error")
-
-# Calculate confidence intervals (approximate 95%)
-coef_table <- coef_table %>%
-  mutate(
-    conf.low = estimate - 1.96 * std.error,
-    conf.high = estimate + 1.96 * std.error
+  m_fit <- mlogit(
+    chosen ~ participant + community + policy + comp + fund 
+    #|  as.factor(game_index)
+    ,
+    data   = ml_data,
+    rpar   = c(
+      fund = "n",
+      "participantResults returned to participants remotely"     = "n",
+      "participantResults returned to participants in person"    = "n",
+      "communityResults returned to community leaders remotely"  = "n",
+      "communityResults returned to community in-person meeting" = "n",
+      "policyReport of results submitted to policymakers"        = "n",
+      "policyResults presented in half-day workshop to policymakers" = "n"
+    ),
+    halton = NA, R = 1000
   )
 
-# Get compensation coefficient
-comp_coef <- coef_table %>%
-  filter(term == "comp") %>%
-  pull(estimate)
+  tidy_est <- tidy(m_fit) %>%
+  filter(!grepl("^sd\\.", term)) %>%                           # keep mean coefs only
+  filter(!grepl("^(as\\.factor\\(game_index\\)|game_index)",   # <-- drop the controls
+                term)) %>%
+  rename(se = std.error, estimate = estimate)
 
-# Create WTP data frame (excluding monetary attributes)
-wtp_df <- coef_table %>%
-  filter(term != "comp" & term != "fund") %>%
-  mutate(
-    wtp = estimate / comp_coef,
-    wtp_low = conf.low / comp_coef,
-    wtp_high = conf.high / comp_coef
+  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)
+
+  tidy_est |>
+    mutate(
+      wtp      = (estimate / comp_coef) * (1000 / 890.58),
+      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / 890.58),
+      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / 890.58),
+      attribute = custom_labels[term]
+    ) |>
+    select(attribute, wtp, wtp_low, wtp_high)
+}
+
+## ─────────────────────────────────────────────────────────────
+##  Build the three WTP data frames  ──────────────────────────
+wtp_full  <- get_wtp(dce_long)
+wtp_treat <- get_wtp(filter(dce_long, control == 0))
+wtp_ctrl  <- get_wtp(filter(dce_long, control == 1))
+
+## ─────────────────────────────────────────────────────────────
+##  Plot helper (same look & order for all)  ──────────────────
+plot_wtp <- function(df, title) {
+  ord <- c(
+    "Intercept",
+    "Participants: In person", "Participants: Remotely",
+    "Community: In-person meeting", "Community: Remotely to leaders",
+    "Policy: Workshop", "Policy: Report",
+    "Compensation",
+    "Research Funding" 
   )
+  df$attribute <- factor(df$attribute, levels = rev(ord))
+  
+  ggplot(df, aes(x = wtp, y = attribute)) +
+    geom_point(color = "darkgreen", size = 2.7) +
+    geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high),
+                   height = .18, color = "darkgreen") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "steelblue") +
+    labs(title = title,
+         #caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
+         x = NULL,
+           #"WTP (In USD, Relative to Compensation)",
+         y = "Attribute") +
+    #theme_minimal(base_size = 12) +
+    theme(plot.title = element_text(hjust = .5, face = "bold")) #+ 
+    #scale_x_continuous(limits = c(-20, 28))
+}
 
-# Plot WTP
-ggplot(wtp_df, aes(x = wtp, y = reorder(term, wtp))) +
-  geom_point(color = "darkgreen", size = 3) +
-  geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
-  labs(
-    title = "Willingness to Pay (Mixed Logit Model)",
-    x = "Willingness to Pay (relative to Compensation)",
-    y = "Attribute"
-  ) +
-  theme_minimal()
+p_full  <- plot_wtp(wtp_full,  "Willingness to Pay – Full Sample")
+p_treat <- plot_wtp(wtp_treat, "Willingness to Pay – Treatment")
+p_ctrl  <- plot_wtp(wtp_ctrl,  "Willingness to Pay – Control")
+
+## ─────────────────────────────────────────────────────────────
+##  Show the three plots  ─────────────────────────────────────
+# Print separately (knit/console will show one after the other)
+p_full
+p_treat
+p_ctrl
+
+# OR side-by-side (requires {patchwork})
+# (p_full | p_treat | p_ctrl) + plot_layout(guides = "collect")
 
 ```
 
-
-```{r DEPRECATED, include = FALSE}
+```{r DEPRECATED, include = FALSE, eval = FALSE}
 # 
 # #r [DEPRECATED] Analyze DCE data: Linear Regression
 # 
