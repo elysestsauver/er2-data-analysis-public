@@ -9,11 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
-<<<<<<< HEAD
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, janitor)
-=======
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, readr)
->>>>>>> a74a520290755c5861eeb47664e3bff1255a6eee
+
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, readr, janitor, haven)
 ```
 
 Key Notes: 
@@ -104,6 +101,150 @@ scenarios <- read.csv("scenario_dataset.csv")
 
 
 # Join Datasets
+# Concatenate the multiple longform and dce datasets. 
+dta <- read_dta("RR-RCT.dta")
+write.csv(dta, file = "RR-RCT.csv")
+dcedta <- read_dta("RR-RCT-DCE.dta")
+write.csv(dcedta, file = "RR-RCT-DCE.csv")
+dta_controlinfo <- read_dta("dta_controlinfo.dta")
+write.csv(dta_contrlinfo, file = "dta_controlinfo.csv")
+
+dta <- dta %>%
+  rename(
+    respo_confirm_initial = respo_confirm,
+    respondentID = respondentid,
+    gps.Latitude = gpslatitude,
+    gps.Longitude = gpslongitude,
+    gps.Altitude = gpsaltitude,
+    gps.Accuracy = gpsaccuracy,
+    gps2.Latitude = gps2latitude,
+    gps2.Longitude = gps2longitude,
+    gps2.Altitude = gps2altitude,
+    gps2.Accuracy = gps2accuracy,
+    SubmissionDate = submissiondate,
+    study_activities_1 = study_activities1,
+    study_activities_3 = study_activities3,
+    study_activities_5 = study_activities5,
+    study_activities_7 = study_activities7,
+    study_activities_9 = study_activities9,
+    study_activities_11 = study_activities11,
+    rank_results_methods_1 = rank_results_methods1,
+    rank_results_methods_2 = rank_results_methods2,
+    rank_results_methods_3 = rank_results_methods3,
+    rank_results_methods_4 = rank_results_methods4,
+    rank_results_methods_5 = rank_results_methods5,
+    rank_results_methods_6 = rank_results_methods6,
+    rank_results_methods_7 = rank_results_methods7,
+    rank_results_methods_8 = rank_results_methods8,    
+    rank_results_methods_9 = rank_results_methods9,
+    rank_results_preference_1 = rank_results_preference1,
+    rank_results_preference_2 = rank_results_preference2,
+    rank_results_preference_3 = rank_results_preference3,
+    rank_formats_preference_1 = rank_formats_preference1,                   
+    rank_formats_preference_2 = rank_formats_preference2,                  
+    rank_formats_preference_3 = rank_formats_preference3,                   
+    rank_formats_clarity_1 = rank_formats_clarity1,                      
+    rank_formats_clarity_2 = rank_formats_clarity2,                       
+    rank_formats_clarity_3 = rank_formats_clarity3,
+    posted_flyer_results_understandable = posted_flyer_results_understanda,
+    social_media_results_understandable = social_media_results_understanda,         
+    public_meeting_results_understandable = public_meeting_results_understan,
+    private_meeting_results_understandable = private_meeting_results_understa,  
+    phone_call_results_understandable = phone_call_results_understandabl,
+    important_to_return_results_resources = important_to_return_results_reso, 
+    non_participants_research_communities = non_participants_research_commun,
+    past_study_challenges_addressed_by = past_study_challenges_addressed_,
+    past_study_challenges_addressed_by_1 = v178,
+    past_study_challenges_addressed_by_2 = v179,
+    past_study_challenges_addressed_by_3 = v180,
+    past_study_challenges_addressed_by_4 = v181,
+    past_study_challenges_addressed_by_5 = v182,
+    past_study_challenges_addressed_by_6 = v183,
+    past_study_challenges_addressed_by_7 = v184,
+    past_study_challenges_addressed_by_8 = v185,
+    past_study_challenges_addressed_by_9 = v186,
+    past_study_challenges_addressed_by_10 = v187,
+    past_study_challenges_addressed_by_oth = v188,
+    other_participant_challenges_heard = other_participant_challenges_hea,
+    other_participant_challenges_heard_1 = v190,
+    other_participant_challenges_heard_2 = v191,
+    other_participant_challenges_heard_3 = v192,
+    other_participant_challenges_heard_4 = v193,
+    other_participant_challenges_heard_5 = v194,
+    other_participant_challenges_heard_6 = v195,
+    other_participant_challenges_heard_7 = v196,
+    other_participant_challenges_heard_8 = v197,
+    other_participant_challenges_heard_9 = v198,
+    other_participant_challenges_heard_10 = v199,
+    other_participant_challenges_heard_oth = v200,
+    other_participant_challenges_details = other_participant_challenges_det,
+    other_participant_challenges_addressed_by = other_participant_challenges_add,
+    other_participant_challenges_addressed_by_1 = v203,
+    other_participant_challenges_addressed_by_2 = v204,
+    other_participant_challenges_addressed_by_3 = v205,
+    other_participant_challenges_addressed_by_4 = v206,
+    other_participant_challenges_addressed_by_5 = v207,
+    other_participant_challenges_addressed_by_6 = v208,
+    other_participant_challenges_addressed_by_7 = v209,
+    other_participant_challenges_addressed_by_8 = v210,
+    other_participant_challenges_addressed_by_9 = v211,
+    other_participant_challenges_addressed_by_10 = v212,
+    SET.OF.dce_game  = setofdce_game,
+    instanceName = instancename,
+    replacement_name = replacement_respondent, # This doesn't catch the replacement_respodnent2 names, but it's good enough for now
+    KEY = key
+  )
+
+dta_controlinfo$SEL_name_pull = toupper(dta_controlinfo$SEL_name_pull)
+dta$final_respondent = toupper(dta$final_respondent)
+
+dta_controlinfo <- dta_controlinfo %>%
+  mutate(
+    control = ifelse(treatment == 0, 1, 0)
+  )
+
+dta <- left_join(dta, dta_controlinfo, by = join_by("final_respondent" == "SEL_name_pull"))
+kageradata$SubmissionDate <- as.POSIXct(kageradata$SubmissionDate, format = "%m-%d-%y %H:%M")
+kageradata$starttime <- as.POSIXct(kageradata$starttime, format = "%m-%d-%y %H:%M")
+kageradata$start_time <- as.POSIXct(kageradata$start_time, format = "%m-%d-%y %H:%M:$S")
+kageradata$endtime <- as.POSIXct(kageradata$endtime , format = "%m-%d-%y %H:%M")
+kageradata$end_time <- as.POSIXct(kageradata$end_time, format = "%m-%d-%y %H:%M:$S")
+# Fix all the start_sec1, start_sec2, etc
+  sec_cols <- grep("^start_sec", names(kageradata), value = TRUE)
+  kageradata[sec_cols] <- lapply(kageradata[sec_cols], function(col) {
+    as.POSIXct(col, format = "%m-%d-%y %H:%M:%S")
+  })
+dta$control <- as.integer(dta$control.y)
+dta$past_study_challenges_addressed_by <- as.integer(dta$past_study_challenges_addressed_by)
+dta$other_participant_challenges_heard <- as.integer(dta$other_participant_challenges_heard)
+dta$game_size <- as.integer(dta$game_size)
+dta$dce_game_count <- as.integer(dta$dce_game_count)
+
+# Finally, add both datasets
+kageradata <- bind_rows(kageradata, dta)
+
+# Now add the DCE data. A little bit simpler
+dcedta <- dcedta %>%
+  rename(
+    KEY = key,
+    PARENT_KEY = parent_key,
+    SET.OF.dce_game = setofdce_game
+  )
+
+dcedta <- dcedta %>%
+  mutate(
+    location = NA
+  )
+dcedata <- dcedata %>%
+  mutate(
+    districtID = NA,
+    wardID = NA,
+    villageID = NA,
+    respondentid = NA
+  )
+
+dcedata <- bind_rows(dcedata, dcedta)
+
 # Augment the DCE dataset with the scenarios set
   # Check for respondent index and image label presence, then join on those variables
 
@@ -131,7 +272,7 @@ scenarios <- read.csv("scenario_dataset.csv")
 # Data Cleaning
 
 # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
-fulldata <- subset(fulldata, respo_confirm == 1)
+# fulldata <- subset(fulldata, respo_confirm == 1)
 
 # Rank varaiables --> columns for radio, sms, etc. and cell values are the rank designated by participant
   # Some of the columns have collections of data that should be distributed into individual columns. These are resolved here. 
@@ -183,7 +324,7 @@ fulldata <- fulldata %>%
     )
 
 # Clean code for the three study experiment analysis. Generate dummy var for study, position, method
-threestudy_analysis <- select(fulldata, c("respondentID", 245:259))
+threestudy_analysis <- select(fulldata, c("respondentID", 245:263))
 
 threestudy_analysis <- threestudy_analysis %>%
   pivot_longer(cols = c("first_study", "first_method", "second_study", "second_method", "third_study", "third_method"),
@@ -291,11 +432,11 @@ fulldatapredrop <- fulldata
 
 # Drop the inattentive participants 
 fulldata <- subset(fulldata, as.numeric(exercise_comment) < 3)
-fulldata <- subset(fulldata, as.numeric(interviewer) != 1)
+! fullddata <- subset(fulldata, as.numeric(interviewer) != 1)
 
 write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
 
-dceanalysis <- select(fulldatapredrop, c("respondentID", "game_index", 9:19, "option_selected", "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "understood_exercise", "exercise_comment", "exercise_comment_oth", "control", "exercise_comment", "interviewer"))
+dceanalysis <- select(fulldatapredrop, c("respondentID", "game_index", 13:23, "option_selected", "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "understood_exercise", "exercise_comment", "exercise_comment_oth", "control", "exercise_comment", "interviewer"))
 
 #Renaming columns for ease of reference
 dceanalysis <- dceanalysis %>%
@@ -316,6 +457,9 @@ columns_to_process = c("participantA", "participantB", "communityA", "communityB
 for (col in columns_to_process) {
   dceanalysis[[col]] <- as.numeric(gsub("\\D+", "", dceanalysis[[col]]))
 }
+
+dceanalysis <- dceanalysis %>%
+  distinct(respondentID, game_index, .keep_all = TRUE)
 
 #Will drop the inattentives after initializing dce_long
 ```
@@ -1954,8 +2098,6 @@ ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
 
 ```
 
-<<<<<<< HEAD
-=======
 ```{r}
 irb_guide <- read_csv("irb_guide.csv")
 View(irb_guide)
@@ -2016,8 +2158,6 @@ final_table %>%
 
 ```
 
-
->>>>>>> a74a520290755c5861eeb47664e3bff1255a6eee
 ```{r To-do. Analyze three study experiment}
 
 # The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
