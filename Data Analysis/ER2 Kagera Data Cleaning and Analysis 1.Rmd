@@ -107,7 +107,7 @@ write.csv(dta, file = "RR-RCT.csv")
 dcedta <- read_dta("RR-RCT-DCE.dta")
 write.csv(dcedta, file = "RR-RCT-DCE.csv")
 dta_controlinfo <- read_dta("dta_controlinfo.dta")
-write.csv(dta_contrlinfo, file = "dta_controlinfo.csv")
+write.csv(dta_controlinfo, file = "dta_controlinfo.csv")
 
 dta <- dta %>%
   rename(
@@ -432,7 +432,7 @@ fulldatapredrop <- fulldata
 
 # Drop the inattentive participants 
 fulldata <- subset(fulldata, as.numeric(exercise_comment) < 3)
-! fullddata <- subset(fulldata, as.numeric(interviewer) != 1)
+fulldata <- subset(fulldata, as.numeric(interviewer) != 1)
 
 write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
 
@@ -462,6 +462,7 @@ dceanalysis <- dceanalysis %>%
   distinct(respondentID, game_index, .keep_all = TRUE)
 
 #Will drop the inattentives after initializing dce_long
+
 ```
 
 ```{r Summary Balance Table}
@@ -1397,7 +1398,9 @@ sum_figs <- sum_figs %>%
 sum_figs_filt <- sum_figs %>% 
   select(
     # Respondent and Household Information
-    location, districtID, district_name, wardID, ward_name, villageID, 
+    location, #districtID, 
+    district_name, #wardID, 
+    ward_name, #villageID, 
     village_name, respondentID, control, resp_age, resp_gender, resp_marital,
     hh_adults, hh_children, hh_teen, resp_education, work_seven_days, work_three_month, resp_busy,
     
@@ -1558,7 +1561,8 @@ label_maps <- list(
     "5" = "Contacted by Interviewer",
     "6" = "Forced to Participate",
     "7" = "Afraid of Consequences for not Participating",
-    "8" = "Other"),
+    "8" = "Other",
+    "-96" = "Other"),
   receive_result = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
   explain_study = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
   understand_study = c("1" = "Yes", "2" = "No", "3" = "I Don't Recall"),
@@ -2051,7 +2055,21 @@ ggplot(bar_data_grouped, aes(x = N, y = Label, fill = Response)) +
   ) +
   xlim(0, max(bar_data_grouped$N) * 1.1)  # adds space for text labels
 
-
+share_with_yes <- ggplot(bar_data_grouped %>% filter(Response == "Yes"), 
+       aes(x = N, y = reorder(Label, N))) +
+  geom_col(fill = "#1f86c7") +
+  geom_text(aes(label = paste0("n = ", N)), hjust = -0.1, size = 5) +  # match enrol_horiz
+  labs(
+    title = "Study Results Should be Shared With:",
+    x = "Number of Respondents (n = 197)",
+    y = "Stakeholder Group"
+  ) +
+  theme_minimal(base_size = 22) +
+  theme(
+    plot.title.position = "plot",  # match enrol_horiz
+    plot.title = element_text(face = "bold", hjust = 0.5)  # match enrol_horiz
+  ) +
+  xlim(0, max(bar_data_grouped$N) * 1.1)  # match enrol_horiz
 
 
 ggplot(bar_data_grouped, aes(x = Response, y = N, fill = Label)) +
@@ -2065,7 +2083,7 @@ ggplot(bar_data_grouped, aes(x = Response, y = N, fill = Label)) +
   labs(
     title = "Responses by Group: Who Should Receive Study Results?",
     x = "Response Category",
-    y = "Number of Respondents",
+    y = "Number of Respondents (n=197)",
     fill = "Stakeholder Group"
   ) +
   theme_minimal(base_size = 14)
@@ -2077,28 +2095,33 @@ enrol_data <- sum_figs_labeled %>%
   group_by(Reason = enrol_study) %>%
   summarise(N = n(), .groups = "drop")
 
-# Horizontal bar chart with custom color
-ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
-  geom_col(fill = "#2eab67") +
-  geom_text(aes(label = paste0("n = ", N)), hjust = -0.1, size = 3) +
+enrol_horiz <- ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
+  geom_col(fill = "#1f86c7") +
+  geom_text(aes(label = paste0("n = ", N)), hjust = -0.1, size = 5) +
   labs(
-    title = "Reasons for Enrolling in the Study",
-    x = "Number of Respondents",
+    title = "Reasons for Enrolling in the Study:",
+    x = "Number of Respondents (n = 197)",
     y = "Reason for Enrolling"
   ) +
-  theme_minimal(base_size = 14) +
+  theme_minimal(base_size = 22) +
   theme(
-    plot.title = element_text(face = "bold", hjust = 3)
+    plot.title.position = "plot",  # <- add this line!
+    plot.title = element_text(face = "bold", hjust = 0.5)
   ) +
   xlim(0, max(enrol_data$N) * 1.1)  # spacing for text labels
 
+enrol_horiz
+share_with_yes
+
+ggsave("enrol_horiz.png", plot = enrol_horiz, width = 34, height = 21, units = "cm", dpi = 600)
+ggsave("share_with_yes.png", plot = share_with_yes, width = 34, height = 21, units = "cm", dpi = 600)
 
 
 
 
 ```
 
-```{r}
+```{r IRB Guidelines Etc}
 irb_guide <- read_csv("irb_guide.csv")
 View(irb_guide)
 
