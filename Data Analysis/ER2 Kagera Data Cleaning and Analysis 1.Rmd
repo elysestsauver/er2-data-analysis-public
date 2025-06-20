@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
 
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, readr, janitor, haven)
+p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, readr, janitor, haven, mlogit, purrr)
 ```
 
 Key Notes: 
@@ -35,7 +35,7 @@ Key Notes:
       - [COMPLETE][Analyze DCE Data: DCE Graph...] Create graph of likelihood of choosing A/B given compensation level of A/B. 
   - [COMPLETE][Summary Statistics Table] Create a table of summary statistics for each variable 
   - [COMPLETE][Summary Statistics Table] Make variables categorical/numerical as appropriate
-  - [Complete][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log compensation
+  - [COMPLETE][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log compensation
   - [Cancelled][Analyze DCE Data: DCE Graph...] Add another graph, this time the difference in log research funding. Also non diff/non log?
       - No longer necessary
   - [Cancelled][Initial OLS and Logit DCE Regression Analysis] Regression of feature level differences. OLS, logit and mixed logit. 
@@ -107,7 +107,7 @@ write.csv(dta, file = "RR-RCT.csv")
 dcedta <- read_dta("RR-RCT-DCE.dta")
 write.csv(dcedta, file = "RR-RCT-DCE.csv")
 dta_controlinfo <- read_dta("dta_controlinfo.dta")
-write.csv(dta_contrlinfo, file = "dta_controlinfo.csv")
+write.csv(dta_controlinfo, file = "dta_controlinfo.csv")
 
 dta <- dta %>%
   rename(
@@ -203,7 +203,18 @@ dta_controlinfo <- dta_controlinfo %>%
     control = ifelse(treatment == 0, 1, 0)
   )
 
+dta_controlinfo$control <- as.integer(dta_controlinfo$control)
+dta$past_study_challenges_addressed_by <- as.integer(dta$past_study_challenges_addressed_by)
+dta$other_participant_challenges_heard <- as.integer(dta$other_participant_challenges_heard)
+dta$game_size <- as.integer(dta$game_size)
+dta$dce_game_count <- as.integer(dta$dce_game_count)
+
 dta <- left_join(dta, dta_controlinfo, by = join_by("final_respondent" == "SEL_name_pull"))
+dta$control.x <- as.integer(dta$control.x)
+dta <- dta %>%
+  mutate(
+    control = coalesce(control.x, control.y))
+
 kageradata$SubmissionDate <- as.POSIXct(kageradata$SubmissionDate, format = "%m-%d-%y %H:%M")
 kageradata$starttime <- as.POSIXct(kageradata$starttime, format = "%m-%d-%y %H:%M")
 kageradata$start_time <- as.POSIXct(kageradata$start_time, format = "%m-%d-%y %H:%M:$S")
@@ -214,11 +225,7 @@ kageradata$end_time <- as.POSIXct(kageradata$end_time, format = "%m-%d-%y %H:%M:
   kageradata[sec_cols] <- lapply(kageradata[sec_cols], function(col) {
     as.POSIXct(col, format = "%m-%d-%y %H:%M:%S")
   })
-dta$control <- as.integer(dta$control.y)
-dta$past_study_challenges_addressed_by <- as.integer(dta$past_study_challenges_addressed_by)
-dta$other_participant_challenges_heard <- as.integer(dta$other_participant_challenges_heard)
-dta$game_size <- as.integer(dta$game_size)
-dta$dce_game_count <- as.integer(dta$dce_game_count)
+
 
 # Finally, add both datasets
 kageradata <- bind_rows(kageradata, dta)
@@ -269,6 +276,16 @@ dcedata <- bind_rows(dcedata, dcedta)
 
   # Join the augmented DCE dataset to the Kagera data
   fulldata <- left_join(dcedata_aug, kageradata, by = c("SET.OF.dce_game"))
+  
+  fulldata <- fulldata %>%
+  mutate(
+    respondentID = coalesce(respondentid, respondentID),
+    KEY = coalesce(KEY.x, KEY.y),
+    districtID = coalesce(districtID.x, districtID.y),
+    wardID = coalesce(wardID.x, wardID.y),
+    villageID = coalesce(villageID.x, villageID.y)
+  ) %>%
+  select(-ends_with(".x"), -ends_with(".y"), -respondentid)
 # Data Cleaning
 
 # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
@@ -324,7 +341,10 @@ fulldata <- fulldata %>%
     )
 
 # Clean code for the three study experiment analysis. Generate dummy var for study, position, method
-threestudy_analysis <- select(fulldata, c("respondentID", 245:263))
+threestudy_analysis <- select(fulldata, c("respondentID", "first_study", "first_method", "second_study", "second_method", 
+"third_study", "third_method", "rank_results_preference_1", "rank_results_preference_2", 
+"rank_results_preference_3", "rank_formats_preference_1", "rank_formats_preference_2", 
+"rank_formats_preference_3", "rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3"))
 
 threestudy_analysis <- threestudy_analysis %>%
   pivot_longer(cols = c("first_study", "first_method", "second_study", "second_method", "third_study", "third_method"),
@@ -404,15 +424,15 @@ for (i in seq_len(nrow(codebook))) {
     # Recode based on expected type and print action
     if (expected_type == "factor" && !is.factor(current_var)) {
       fulldata[[var_name]] <- as.factor(current_var)
-      print(paste("Converted", var_name, "to factor."))
+      #print(paste("Converted", var_name, "to factor."))
       
     } else if (expected_type == "ordinal" && !is.ordered(current_var)) {
       fulldata[[var_name]] <- factor(current_var, ordered = TRUE)
-      print(paste("Converted", var_name, "to ordered factor (ordinal)."))
+      #print(paste("Converted", var_name, "to ordered factor (ordinal)."))
       
     } else if (expected_type == "numerical" && !is.numeric(current_var)) {
       fulldata[[var_name]] <- as.numeric(as.character(current_var))
-      print(paste("Converted", var_name, "to numeric."))
+      #print(paste("Converted", var_name, "to numeric."))
       
     } 
     # You can also optionally report if the variable already matched
@@ -430,13 +450,19 @@ fulldata$num_past_studies[is.na(fulldata$num_past_studies) & fulldata$past_study
 #Save the full dataset after processing but before dropping inattentive set
 fulldatapredrop <- fulldata
 
+fulldata <- subset(fulldata, respondentID != 111 | respondentID != 215 | respondentID != 234 | respondentID != 238)
+
 # Drop the inattentive participants 
 fulldata <- subset(fulldata, as.numeric(exercise_comment) < 3)
-! fullddata <- subset(fulldata, as.numeric(interviewer) != 1)
+fulldata <- subset(fulldata, as.numeric(interviewer) != 1)
 
 write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
 
-dceanalysis <- select(fulldatapredrop, c("respondentID", "game_index", 13:23, "option_selected", "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "understood_exercise", "exercise_comment", "exercise_comment_oth", "control", "exercise_comment", "interviewer"))
+dceanalysis <- select(fulldatapredrop, c("respondentID", "game_index", "option_selected", 
+                                         "participants_image.A", "community_image.A", "policymakers_image.A", "compensation_image.A", "researchfunding_image.A", 
+                                         "participants_image.B", "community_image.B", "policymakers_image.B", "compensation_image.B", "researchfunding_image.B",
+                                         "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "control",
+                                         "understood_exercise", "exercise_comment", "exercise_comment_oth", "interviewer"))
 
 #Renaming columns for ease of reference
 dceanalysis <- dceanalysis %>%
@@ -1397,7 +1423,9 @@ sum_figs <- sum_figs %>%
 sum_figs_filt <- sum_figs %>% 
   select(
     # Respondent and Household Information
-    location, districtID, district_name, wardID, ward_name, villageID, 
+    location, #districtID, 
+    district_name, #wardID, 
+    ward_name, #villageID, 
     village_name, respondentID, control, resp_age, resp_gender, resp_marital,
     hh_adults, hh_children, hh_teen, resp_education, work_seven_days, work_three_month, resp_busy,
     
@@ -2155,6 +2183,145 @@ final_table %>%
   kable(format = "html", caption = "Summary of IRB Guidelines by Type and Subfield") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE, position = "center")
 
+
+```
+
+```{r Summary Stats Figures with Percentages (Elyse Adapting Mira's code)}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# List of variables to plot
+bar_vars <- c("study_participants", "non_participants_research_communities",
+              "local_community_leaders", "local_government_officials", 
+              "foreign_government_officials", "religious_leaders",
+              "other_researchers")
+
+custom_labels <- c(
+  study_participants = "Study Participants",
+  non_participants_research_communities = "Non-Participant Community Members",
+  local_community_leaders = "Local Community Leaders",
+  local_government_officials = "Local Government Officials",
+  foreign_government_officials = "Foreign Government Officials",
+  religious_leaders = "Religious Leaders",
+  other_researchers = "Other Researchers"
+)
+
+# Prepare data with percentage and label
+bar_data_grouped <- sum_figs_labeled %>%
+  select(all_of(names(custom_labels))) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Response") %>%
+  filter(!is.na(Response)) %>%
+  group_by(Variable, Response) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  group_by(Variable) %>%
+  mutate(
+    Percent = round(100 * N / sum(N), 1),
+    Count_Label = paste0("n = ", N, "\n(", Percent, "%)")
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Variable = factor(Variable, levels = names(custom_labels)),
+    Label = custom_labels[as.character(Variable)]
+  )
+
+bar_data_grouped <- subset(bar_data_grouped, Response == "Yes")
+
+# Vertical grouped bar chart with counts + percentages
+ggplot(bar_data_grouped, aes(x = Label, y = N, fill = Response)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  geom_text(
+    aes(label = Count_Label),
+    position = position_dodge(width = 0.8),
+    vjust = -0.5,
+    size = 3.5
+  ) +
+  labs(
+    title = "Should Study Results Be Shared? Responses by Group",
+    x = "Stakeholder Group",
+    y = "Number of Respondents",
+    fill = "Response"
+  ) +
+  scale_fill_manual(
+    values = c("Yes" = "#2eab67", "No" = "#cc3366", "Unsure" = "#afcefc")
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1)
+  )
+
+# Horizontal grouped bar chart with counts + percentages
+bar_data_sorted <- bar_data_grouped %>%
+  group_by(Label) %>%
+  mutate(TotalN = sum(N)) %>%
+  ungroup() %>%
+  mutate(Label = fct_reorder(Label, TotalN, .desc = FALSE))
+
+# Plot
+ggplot(bar_data_sorted, aes(x = N, y = Label, fill = Response)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  geom_text(
+    aes(label = Count_Label),
+    position = position_dodge(width = 0.8),
+    hjust = -0.1,
+    size = 2.5
+  ) +
+  labs(
+    title = "Study Results Should be Shared With:",
+    y = "Stakeholder Group",
+    x = "Number of Respondents (n = 197)"
+  ) +
+  scale_fill_manual(
+    values = c("Yes" = "skyblue", "No" = "#cc3366", "Unsure" = "#afcefc")
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 1.4),
+    axis.text.y = element_text(size = 10),
+    legend.position = "none"
+  ) +
+  xlim(0, max(bar_data_grouped$N) * 1.1)
+
+# Response-centered bar chart with counts + percentages
+ggplot(bar_data_grouped, aes(x = Response, y = N, fill = Label)) +
+  geom_col(position = "dodge") +
+  geom_text(
+    aes(label = Count_Label),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5,
+    size = 3.2
+  ) +
+  labs(
+    title = "Responses by Group: Who Should Receive Study Results?",
+    x = "Response Category",
+    y = "Number of Respondents",
+    fill = "Stakeholder Group"
+  ) +
+  theme_minimal(base_size = 14)
+
+# Enrollment reasons chart with percentage labels
+enrol_data <- sum_figs_labeled %>%
+  filter(!is.na(enrol_study)) %>%
+  group_by(Reason = enrol_study) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  mutate(
+    Percent = round(100 * N / sum(N), 1),
+    Count_Label = paste0("n = ", N, " (", Percent, "%)")
+  )
+
+ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
+  geom_col(fill = "skyblue") +
+  geom_text(aes(label = Count_Label), hjust = -0.1, size = 3) +
+  labs(
+    title = "Reasons for Enrolling in the Study",
+    x = "Number of Respondents (n = 197)",
+    y = "Reason for Enrolling"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 3)
+  ) +
+  xlim(0, max(enrol_data$N) * 1.4)
 
 ```
 
@@ -4801,182 +4968,7 @@ adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
 adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, chosen_dominant_fund, 20)
 ```
 
-```{r Willingness to Pay Plots, eval = FALSE}
-mlogit_dcedata <- dfidx(dce_long, idx = c("game_id", "alt"), panel = TRUE, id.var = "respondentID")
-
-basic_model <- mlogit(chosen ~ participant + community + policy + comp + fund,
-                      data = mlogit_dcedata)
-names(basic_model$coefficients)
-wtp_df <- 1
-
-mlogit_allbutcomp <- mlogit(chosen ~ participant + community + policy + comp + fund, 
-                            data = mlogit_dcedata,
-                            rpar = c(fund = 't',
-                                     # include dummies for each factor level (except reference levels)
-                                     "participantResults returned to participants remotely" = 't',
-                                     "participantResults returned to participants in person" = 't',
-                                     "communityResults returned to community leaders remotely" = 't',
-                                     "communityResults returned to community in-person meeting" = 't',
-                                     "policyReport of results submitted to policymakers" = 't',
-                                     "policyResults presented in half-day workshop to policymakers" = 't'
-                                     # setNames(rep('n', length(levels(dce_long$participant)) - 1), 
-                                     #          paste0("participant", levels(dce_long$participant)[-1])),
-                                     # setNames(rep('n', length(levels(dce_long$community)) - 1), 
-                                     #          paste0("community", levels(dce_long$community)[-1])),
-                                     # setNames(rep('n', length(levels(dce_long$policy)) - 1), 
-                                     #          paste0("policy", levels(dce_long$policy)[-1]))
-                            ),
-                            halton = NA, 
-                            R = 1000)
-
-mixed_logit_summary <- summary(mlogit_allbutcomp)
-mixed_logit_coefficientsdf <- as.data.frame(a$CoefTable)
-mldf <- mixed_logit_coefficientsdf %>% 
-  rename(se = "Std. Error",
-         estimate = "Estimate")
-
-comp_coef <- unname(coef(mlogit_allbutcomp)["comp"])
-
-
-# Get a data frame of non-monetary attributes
-wtp_df <- mldf %>%
-  mutate(
-    wtp = estimate / comp_coef,
-    wtp_low = (estimate - 1.96*se) / comp_coef,
-    wtp_high = (estimate + 1.96*se) / comp_coef
-  )
-wtp_df$attribute <- rownames(wtp_df)
-wtp_df$attribute_label <- as.character(custom_labels[wtp_df$attribute])
-
-rev_order = c(
-  "SD: Research Funding",
-  "SD: Compensation",
-  "SD: Policy (Workshop)",
-  "SD: Policy (Report)",
-  "SD: Community (In-person meeting)",
-  "SD: Community (Remotely to leaders)",
-  "SD: Participants (In person)",
-  "SD: Participants (Remotely)",
-  "Research Funding",
-  "Compensation",
-  "Policy: Workshop",
-  "Policy: Report",
-  "Community: In-person meeting",
-  "Community: Remotely to leaders",
-  "Participants: In person",
-  "Participants: Remotely",
-  "Intercept"
-)
-
-wtp_df$attribute_label <- factor(wtp_df$attribute_label, levels = rev_order)
-
-ggplot(wtp_df, aes(x = wtp, y = attribute_label)) +
-  geom_point(color = "darkgreen", size = 3) +
-  geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
-  geom_vline(xintercept = 1, linetype = "dashed", color = "blue") +
-  #scale_x_continuous(limits = c(-5, 12)) + 
-  labs(
-    title = "Willingness to Pay",
-    x = "Willingness to Pay (relative to Compensation)",
-    y = "Attribute"
-  ) +
-  theme_minimal()
-
-wtp_df_dropsd <- head(wtp_df, 9)
-
-ggplot(wtp_df_dropsd, aes(x = wtp, y = attribute_label)) +
-  geom_point(color = "darkgreen", size = 3) +
-  geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
-  geom_vline(xintercept = 1, linetype = "dashed", color = "blue") +
-  scale_x_continuous(limits = c(-5, 12)) + 
-  labs(
-    title = "Willingness to Pay",
-    x = "Willingness to Pay (relative to Compensation)",
-    y = "Attribute"
-  ) + theme(plot.title = element_text(hjust = 0.5))
-  #+ theme_minimal()
-
-
-
-
-
-# CONDITIONAL LOGIT 
-
-condlogit <- clogit(
-  chosen ~ participant + community + policy + comp + fund + strata(game_id),
-  data = dce_long
-)
-
-summary(condlogit)
-
-# Extract model summary in tidy format
-condlogit_tidy <- broom::tidy(condlogit, conf.int = TRUE)
-
-condlogit_tidy$term <- recode(condlogit_tidy$term,
-  "participantResults returned to participants remotely" = "Participants: Remotely", 
-  "participantResults returned to participants in person" = "Participants: In person",
-  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
-  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
-  "policyReport of results submitted to policymakers" = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding"
-)
-
-condlogit_tidy <- condlogit_tidy %>% rename(se = "std.error")
-cond_comp_coef <- as.numeric(condlogit_tidy[7, "estimate"])
-
-cond_wtp_df <- condlogit_tidy %>%
-  mutate(
-    wtp = estimate / cond_comp_coef,
-    wtp_low = (estimate - 1.96*se) / cond_comp_coef,
-    wtp_high = (estimate + 1.96*se) / cond_comp_coef
-  )
-
-cond_rev_order = c(
-  "Research Funding",
-  "Compensation",
-  "Policy: Workshop",
-  "Policy: Report",
-  "Community: In-person meeting",
-  "Community: Remotely to leaders",
-  "Participants: In person",
-  "Participants: Remotely"
-)
-
-cond_wtp_df$term <- factor(cond_wtp_df$term, levels = cond_rev_order)
-
-ggplot(cond_wtp_df, aes(x = wtp, y = term)) +
-  geom_point(color = "darkgreen", size = 3) +
-  geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high), height = 0.2, color = "darkgreen") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
-  geom_vline(xintercept = 1, linetype = "dashed", color = "blue") +
-  #scale_x_continuous(limits = c(-5, 12)) + 
-  labs(
-    title = "Willingness to Pay",
-    x = "Willingness to Pay (relative to Compensation)",
-    y = "Attribute"
-  ) + theme(plot.title = element_text(hjust = 0.5))
-  #+ theme_minimal()
-
-
-```
-
-```{r Willingness to Pay Plots 2}
-## ─────────────────────────────────────────────────────────────
-##  Libraries & label vector  ──────────────────────────────────
-library(mlogit)
-library(broom)
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(purrr)
-
-# install.packages("patchwork")   # uncomment once
-library(patchwork)                # for side-by-side display
-
+```{r Willingness to Pay Plots}
 custom_labels <- c(
   "(Intercept):B" = "Intercept",
   "participantResults returned to participants remotely"     = "Participants: Remotely",
@@ -5020,7 +5012,7 @@ get_wtp <- function(data) {
                 term)) %>%
   rename(se = std.error, estimate = estimate)
 
-  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)
+  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)* (1000 / 890.58)
 
   tidy_est |>
     mutate(
@@ -5058,18 +5050,18 @@ plot_wtp <- function(df, title) {
     geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
     geom_vline(xintercept = 1, linetype = "dashed", color = "steelblue") +
     labs(title = title,
-         #caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
+         caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
          x = NULL,
            #"WTP (In USD, Relative to Compensation)",
          y = "Attribute") +
     #theme_minimal(base_size = 12) +
-    theme(plot.title = element_text(hjust = .5, face = "bold")) #+ 
-    #scale_x_continuous(limits = c(-20, 28))
+    theme(plot.title = element_text(hjust = .5, face = "bold")) + 
+    scale_x_continuous(limits = c(-1, 8), breaks = c(-1:8))
 }
 
-p_full  <- plot_wtp(wtp_full,  "Willingness to Pay – Full Sample")
-p_treat <- plot_wtp(wtp_treat, "Willingness to Pay – Treatment")
-p_ctrl  <- plot_wtp(wtp_ctrl,  "Willingness to Pay – Control")
+p_full  <- plot_wtp(wtp_full,  "Willingness to Pay Estimates – Full Sample")
+p_treat <- plot_wtp(wtp_treat, "Willingness to Pay Estimates – Treatment")
+p_ctrl  <- plot_wtp(wtp_ctrl,  "Willingness to Pay Estimates – Control")
 
 ## ─────────────────────────────────────────────────────────────
 ##  Show the three plots  ─────────────────────────────────────
@@ -5082,6 +5074,62 @@ p_ctrl
 # (p_full | p_treat | p_ctrl) + plot_layout(guides = "collect")
 
 ```
+
+```{r Analyze the rank results methods 1-9 - Rank Order Logit}
+rankings <- fulldata
+rankings <- rankings %>%
+  distinct(respondentID, 
+          rank_results_methods_1,
+          rank_results_methods_2,
+          rank_results_methods_3,
+          rank_results_methods_4,
+          rank_results_methods_5,
+          rank_results_methods_6,
+          rank_results_methods_7,
+          rank_results_methods_8,
+          rank_results_methods_9,
+          .keep_all = TRUE)
+
+method_labels <- c(
+  "1" = "Audio Message",
+  "2" = "SMS",
+  "3" = "Website",
+  "4" = "Flyer (Individual)",
+  "5" = "Flyer (Public)",
+  "6" = "Social Media Post",
+  "7" = "Video",
+  "8" = "Public Meeting",
+  "9" = "Private Meeting"
+)
+
+stacked_rankings <- stacked_rankings %>%
+  mutate(
+    respondentID = as.character(respondentID),
+    method = as.character(method),
+    choice = as.integer(choice)
+  )
+
+
+mlogit_data <- dfidx(data = stacked_rankings,
+                     idx = c("respondentID", "method"),
+                     choice = "choice",
+                     shape = "long",
+                     ranked = TRUE)
+
+model_ranked <- mlogit(choice ~ method | control, data = mlogit_data)
+summary(model_ranked)
+
+coefplot(model_ranked, horiz = TRUE, main = "Ranked Logit Coefficients")
+
+linmodel <- lm(choice ~ method + control, data = stacked_rankings)
+summary(linmodel)
+```
+
+```{r Analyze 3-study experiment}
+
+
+```
+
 
 ```{r DEPRECATED, include = FALSE, eval = FALSE}
 # 
