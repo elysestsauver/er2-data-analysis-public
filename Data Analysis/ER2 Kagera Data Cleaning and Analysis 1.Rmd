@@ -286,6 +286,21 @@ dcedata <- bind_rows(dcedata, dcedta)
     villageID = coalesce(villageID.x, villageID.y)
   ) %>%
   select(-ends_with(".x"), -ends_with(".y"), -respondentid)
+  
+  #Some of the rows refuse to merge correctly. This code tries to fix that by coalescing these rows (which shouldn't lose anything)
+    rows_with_merge_problems <- fulldata %>% group_by(respondentID, game_index) %>% 
+      filter(n() > 1) %>%
+      arrange(respondentID, game_index)
+    
+    merge_problem_row_IDs <- unique(as.numeric(as.character(rows_with_merge_problems$respondentID)))
+    coalesced_rows <- rows_with_merge_problems %>%
+      filter(respondentID %in% merge_problem_row_IDs) %>%
+      group_by(respondentID, game_index) %>%
+      summarise(across(everything(), ~coalesce(.[1], .[2])), .groups = "drop")
+    
+    fulldata_withoutproblemrows <- subset(fulldata, !(respondentID %in% merge_problem_row_IDs))
+    fulldata <- bind_rows(fulldata_withoutproblemrows, coalesced_rows)
+  
 # Data Cleaning
 
 # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
@@ -339,75 +354,6 @@ fulldata <- fulldata %>%
       fundB = as.numeric(gsub("^research|\\.jpeg$", "", researchfunding_image.B)),
       funding_delta = fundA - fundB
     )
-
-# Clean code for the three study experiment analysis. Generate dummy var for study, position, method
-threestudy_analysis <- select(fulldata, c("respondentID", "first_study", "first_method", "second_study", "second_method", 
-"third_study", "third_method", "rank_results_preference_1", "rank_results_preference_2", 
-"rank_results_preference_3", "rank_formats_preference_1", "rank_formats_preference_2", 
-"rank_formats_preference_3", "rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3"))
-
-threestudy_analysis <- threestudy_analysis %>%
-  pivot_longer(cols = c("first_study", "first_method", "second_study", "second_method", "third_study", "third_method"),
-               names_to = c("order", ".value"),
-               names_sep = "_") %>%
-  mutate(order = factor(order, levels = c("first", "second", "third")))
-
-threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_results_preference_1", "rank_results_preference_2", "rank_results_preference_3"))
-threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_formats_preference_1", "rank_formats_preference_2", "rank_formats_preference_3"))
-threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3"))
-threestudy_analysis$results_preference_ranking <- NA
-threestudy_analysis$formats_preference_ranking <- NA
-threestudy_analysis$formats_clarity_ranking <- NA
-#Repeat for formats preference, formats clarity
-j = 1
-
-while(j <= nrow(threestudy_analysis)) {
-    current_row <- threestudy_analysis[j,]
-    order_num = case_when(
-      current_row$order == "first" ~ 1,
-      current_row$order == "second" ~ 2,
-      current_row$order == "third" ~ 3
-    )
-    results_preference_ranking = case_when(
-      order_num == 1 & current_row$rank_results_preference_1_1 == 1 ~ 1,
-      order_num == 2 & current_row$rank_results_preference_1_2 == 1 ~ 1,
-      order_num == 3 & current_row$rank_results_preference_1_3 == 1 ~ 1,
-      order_num == 1 & current_row$rank_results_preference_2_1 == 1 ~ 2,
-      order_num == 2 & current_row$rank_results_preference_2_2 == 1 ~ 2,
-      order_num == 3 & current_row$rank_results_preference_2_3 == 1 ~ 2,
-      order_num == 1 & current_row$rank_results_preference_3_1 == 1 ~ 3,
-      order_num == 2 & current_row$rank_results_preference_3_2 == 1 ~ 3,
-      order_num == 3 & current_row$rank_results_preference_3_3 == 1 ~ 3,
-    )
-    threestudy_analysis[j, "results_preference_ranking"] <- results_preference_ranking
-    formats_preference_ranking = case_when(
-      #order_num == 1 & current_row$rank_formats_preference_1_1 == 1 ~ 1,
-      order_num == 2 & current_row$rank_formats_preference_1_2 == 1 ~ 1,
-      order_num == 3 & current_row$rank_formats_preference_1_3 == 1 ~ 1,
-      order_num == 1 & current_row$rank_formats_preference_2_1 == 1 ~ 2,
-      order_num == 2 & current_row$rank_formats_preference_2_2 == 1 ~ 2,
-      order_num == 3 & current_row$rank_formats_preference_2_3 == 1 ~ 2,
-      order_num == 1 & current_row$rank_formats_preference_3_1 == 1 ~ 3,
-      order_num == 2 & current_row$rank_formats_preference_3_2 == 1 ~ 3,
-      order_num == 3 & current_row$rank_formats_preference_3_3 == 1 ~ 3,
-    )
-    threestudy_analysis[j, "formats_preference_ranking"] <- formats_preference_ranking
-    formats_clarity_ranking = case_when(
-      order_num == 1 & current_row$rank_formats_clarity_1_1 == 1 ~ 1,
-      order_num == 2 & current_row$rank_formats_clarity_1_2 == 1 ~ 1,
-      order_num == 3 & current_row$rank_formats_clarity_1_3 == 1 ~ 1,
-      order_num == 1 & current_row$rank_formats_clarity_2_1 == 1 ~ 2,
-      order_num == 2 & current_row$rank_formats_clarity_2_2 == 1 ~ 2,
-      order_num == 3 & current_row$rank_formats_clarity_2_3 == 1 ~ 2,
-      order_num == 1 & current_row$rank_formats_clarity_3_1 == 1 ~ 3,
-      order_num == 2 & current_row$rank_formats_clarity_3_2 == 1 ~ 3,
-      order_num == 3 & current_row$rank_formats_clarity_3_3 == 1 ~ 3,
-    )
-    threestudy_analysis[j, "formats_clarity_ranking"] <- formats_clarity_ranking
-    j <- j + 1
-}
-
-threestudy_long <- unique(select(threestudy_analysis, c("respondentID", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking")))
 
 #Read in the codebook of variable names and types, adjust types that are incorrect
 codebook <- read.csv("codebook.csv")
@@ -2207,7 +2153,7 @@ final_table %>%
 
 ```
 
-```{r Summary Stats Figures with Percentages (Elyse Adapting Mira's code)}
+```{r Summary Stats Figures with Percentages (Elyse Adapting Mira's code), eval = FALSE}
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -2346,35 +2292,123 @@ ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
 
 ```
 
-```{r To-do. Analyze three study experiment}
+```{r Analyze three study experiment, eval = FALSE}
 
-# The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
+# Clean code for the three study experiment analysis. Generate dummy var for study, position, method
+threestudy_analysis <- select(fulldata, c("respondentID", "first_study", "first_method", "second_study", "second_method", 
+"third_study", "third_method", "rank_results_preference_1", "rank_results_preference_2", 
+"rank_results_preference_3", "rank_formats_preference_1", "rank_formats_preference_2", 
+"rank_formats_preference_3", "rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3", "control"))
 
-# Want a simple linear regression controlling for these (results preference, formats preference, and clarity preference)
+threestudy_analysis <- threestudy_analysis[!duplicated(threestudy_analysis), ]
 
+empty_preference_rows <- subset(threestudy_analysis, is.na(rank_results_preference_1) & is.na(rank_results_preference_2) & is.na(rank_results_preference_3))
 
-# Interpretation Note: Since the ranking value is greater when the participant preferred the option less, invert interpretations
-# Drawn from these results (i.e. negative coef is more preference, positive coef is less preference)
+threestudy_analysis <- subset(threestudy_analysis, !is.na(rank_results_preference_1) & !is.na(rank_results_preference_2) & !is.na(rank_results_preference_3))
 
+threestudy_analysis <- threestudy_analysis %>%
+  pivot_longer(cols = c("first_study", "first_method", "second_study", "second_method", "third_study", "third_method"),
+               names_to = c("order", ".value"),
+               names_sep = "_") %>%
+  mutate(order = factor(order, levels = c("first", "second", "third")))
 
-results_pref_model <- lm(results_preference_ranking ~ method + study + order + respondentID, data = threestudy_long)
-#summary(results_pref_model)
-#bptest(results_pref_model)
-#Evidence suggests presence of heteroskedasticity
-coeftest(results_pref_model, vcov = vcovHC(results_pref_model, type = "HC0", cluster = ~respondentID))
+threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_results_preference_1", "rank_results_preference_2", "rank_results_preference_3"))
+threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_formats_preference_1", "rank_formats_preference_2", "rank_formats_preference_3"))
+threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3"))
+threestudy_analysis$results_preference_ranking <- NA
+threestudy_analysis$formats_preference_ranking <- NA
+threestudy_analysis$formats_clarity_ranking <- NA
+#Repeat for formats preference, formats clarity
+j = 1
+numrows <- nrow(threestudy_analysis)
 
-formats_pref_model <- lm(formats_preference_ranking ~ method + study + order + respondentID, data = threestudy_long)
-#summary(formats_pref_model)
-#bptest(formats_pref_model)
-#Evidence suggests presence of heteroskedasticity
-coeftest(formats_pref_model, vcov = vcovHC(formats_pref_model, type = "HC0", cluster = ~respondentID))
+while(j <= numrows) {
+    current_row <- threestudy_analysis[j,]
+    order_num = case_when(
+      current_row$order == "first" ~ 1,
+      current_row$order == "second" ~ 2,
+      current_row$order == "third" ~ 3
+    )
+    results_preference_ranking = case_when(
+      #Read these as "if the current row is the "first" study and the #1 rank results preference is study 1/"first", then results_pref_ranking = 1", etc.
+      current_row$order == "first" & current_row$rank_results_preference_1_1 == 1 ~ 1,
+      current_row$order == "second" & current_row$rank_results_preference_1_2 == 1 ~ 1,
+      current_row$order == "third" & current_row$rank_results_preference_1_3 == 1 ~ 1,
+      #Read these as "if the current row is the "first" study and the #2 rank results preference is study 1/"first", then results_pref_ranking = 2", etc.
+      current_row$order == "first" & current_row$rank_results_preference_2_1 == 1 ~ 2,
+      current_row$order == "second" & current_row$rank_results_preference_2_2 == 1 ~ 2,
+      current_row$order == "third" & current_row$rank_results_preference_2_3 == 1 ~ 2,
+      #Read these as "if the current row is the "first" study and the #3 rank results preference is study 1/"first", then results_pref_ranking = 3", etc.
+      current_row$order == "first" & current_row$rank_results_preference_3_1 == 1 ~ 3,
+      current_row$order == "second" & current_row$rank_results_preference_3_2 == 1 ~ 3,
+      current_row$order == "third" & current_row$rank_results_preference_3_3 == 1 ~ 3
+    )
+    threestudy_analysis[j, "results_preference_ranking"] <- results_preference_ranking
 
-formats_clarity_model <- lm(formats_clarity_ranking ~ method + study + order + respondentID, data = threestudy_long)
-#summary(formats_clarity_model)
-#bptest(formats_clarity_model)
-#Evidence suggests against presence of heteroskedasticity, but code available below for robust standard errors
-coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0"), cluster = ~respondentID)
+    formats_preference_ranking = case_when(
+      current_row$order == "first" & current_row$rank_formats_preference_1_1 == 1 ~ 1,
+      current_row$order == "second" & current_row$rank_formats_preference_1_2 == 1 ~ 1,
+      current_row$order == "third" & current_row$rank_formats_preference_1_3 == 1 ~ 1,
+      current_row$order == "first" & current_row$rank_formats_preference_2_1 == 1 ~ 2,
+      current_row$order == "second" & current_row$rank_formats_preference_2_2 == 1 ~ 2,
+      current_row$order == "third" & current_row$rank_formats_preference_2_3 == 1 ~ 2,
+      current_row$order == "first" & current_row$rank_formats_preference_3_1 == 1 ~ 3,
+      current_row$order == "second" & current_row$rank_formats_preference_3_2 == 1 ~ 3,
+      current_row$order == "third" & current_row$rank_formats_preference_3_3 == 1 ~ 3,
+    )
+    threestudy_analysis[j, "formats_preference_ranking"] <- formats_preference_ranking
+    
+    formats_clarity_ranking = case_when(
+      current_row$order == "first" & current_row$rank_formats_clarity_1_1 == 1 ~ 1,
+      current_row$order == "second" & current_row$rank_formats_clarity_1_2 == 1 ~ 1,
+      current_row$order == "third" & current_row$rank_formats_clarity_1_3 == 1 ~ 1,
+      current_row$order == "first" & current_row$rank_formats_clarity_2_1 == 1 ~ 2,
+      current_row$order == "second" & current_row$rank_formats_clarity_2_2 == 1 ~ 2,
+      current_row$order == "third" & current_row$rank_formats_clarity_2_3 == 1 ~ 2,
+      current_row$order == "first" & current_row$rank_formats_clarity_3_1 == 1 ~ 3,
+      current_row$order == "second" & current_row$rank_formats_clarity_3_2 == 1 ~ 3,
+      current_row$order == "third" & current_row$rank_formats_clarity_3_3 == 1 ~ 3,
+    )
+    threestudy_analysis[j, "formats_clarity_ranking"] <- formats_clarity_ranking
+    
+    j <- j + 1
+}
 
+empty_preference_rows_afterclean <- subset(threestudy_analysis, is.na(results_preference_ranking) 
+                                           #& is.na(rank_results_preference_2) & is.na(rank_results_preference_3)
+                                           )
+
+threestudy <- unique(select(threestudy_analysis, c("respondentID", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking", "control")))
+
+threestudy_resultspref_data <- dfidx(
+  data = threestudy,
+  idx = c("respondentID", "order"),
+  choice = "results_preference_ranking",
+  shape = "long",
+  ranked = TRUE)
+
+threestudy_resultspref_ranked <- mlogit(results_preference_ranking ~ method + order + study | control, data = threestudy_resultspref_data)
+summary(threestudy_resultspref_ranked)
+
+coefplot(threestudy_resultspref_ranked, horiz = TRUE)
+
+threestudy_formatspref_data <- dfidx(data = threestudy,
+                     idx = c("respondentID", "order"),
+                     choice = "formats_preference_ranking",
+                     shape = "long",
+                     ranked = TRUE)
+
+threestudy_formatspref_ranked <- mlogit(formats_preference_ranking ~ order + study + method | control, data = threestudy_formatspref_data)
+summary(threestudy_formatspref_ranked)
+
+threestudy_formatsclarity_data <- dfidx(data = threestudy,
+                     idx = c("respondentID", "order"),
+                     choice = "formats_clarity_ranking",
+                     shape = "long",
+                     ranked = TRUE)
+
+threestudy_formatsclarity_ranked <- mlogit(formats_clarity_ranking ~ order + study + method| control, data = threestudy_formatsclarity_data)
+summary(threestudy_formatsclarity_ranked)
 ```
 
 ```{r To-do. Analyze activity data}
@@ -2999,9 +3033,7 @@ heatmap
 
 ```
 
-```{r To-do. Analyze the rank results methods 1-9 (What are the top method preferences?), eval = FALSE}
-
-
+```{r Analyze the rank results methods 1-9. Stacked Bar Chart Visualization, eval = FALSE}
 #renaming dataset so I don't lose anything
 rankings <- fulldata
 
@@ -3087,6 +3119,8 @@ stacked_rankings <- rankings %>%
     legend.text = element_text(size = 8),
     legend.position = "right"
   )
+
+ggthemr::ggthemr_reset()
 
 # flipped stack plot
 stacked_rankings_2 <- rankings %>%
@@ -3271,6 +3305,121 @@ summary_rank_table
 stacked_rankings_2
 stacked_rankings
 heatmap
+
+```
+
+```{r Analyze the rank results methods 1-9. Rank Order Logit, eval = FALSE}
+rankings <- fulldata
+rankings <- rankings %>%
+  distinct(respondentID, 
+          rank_results_methods_1,
+          rank_results_methods_2,
+          rank_results_methods_3,
+          rank_results_methods_4,
+          rank_results_methods_5,
+          rank_results_methods_6,
+          rank_results_methods_7,
+          rank_results_methods_8,
+          rank_results_methods_9,
+          .keep_all = TRUE)
+
+method_labels <- c(
+  "1" = "Audio Message (Baseline)",
+  "2" = "SMS",
+  "3" = "Website",
+  "4" = "Flyer (Individual)",
+  "5" = "Flyer (Public)",
+  "6" = "Social Media Post",
+  "7" = "Video",
+  "8" = "Public Meeting",
+  "9" = "Private Meeting"
+)
+
+# stacked ranking
+stacked_rankings <- rankings %>%
+  mutate(across(starts_with("rank_results_methods_"), as.character)) %>%
+  pivot_longer(
+    cols = starts_with("rank_results_methods_"),
+    names_to = "choice",
+    values_to = "method"
+  ) %>%
+  mutate(
+    choice = str_remove(choice, "rank_results_methods_"))
+
+stacked_rankings <- stacked_rankings %>%
+  mutate(
+    respondentID = as.character(respondentID),
+    method = as.character(method),
+    choice = as.integer(choice)
+  )
+
+mlogit_data <- dfidx(data = stacked_rankings,
+                     idx = c("respondentID", "method"),
+                     choice = "choice",
+                     shape = "long",
+                     ranked = TRUE)
+
+model_ranked <- mlogit(choice ~ method | control, data = mlogit_data)
+summary(model_ranked)
+
+coefplot(model_ranked, horiz = TRUE, main = "Ranked Logit Coefficients")
+
+# Get model coefficients
+coefs <- broom::tidy(model_ranked, conf.int = TRUE)
+
+# Extract method number from the term
+coefs <- coefs %>%
+  mutate(
+    term_type = case_when(
+      str_detect(term, "^\\(Intercept\\):") ~ "intercept",
+      str_detect(term, "^control:") ~ "control",
+      TRUE ~ "other"
+    ),
+    method_num = case_when(
+      term_type == "intercept" ~ str_remove(term, "^\\(Intercept\\):"),
+      term_type == "control" ~ str_remove(term, "^control:"),
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(term_type != "other")
+
+# Pivot to wide to align intercept and control
+plot_data <- coefs %>%
+  select(term_type, method_num, estimate) %>%
+  pivot_wider(names_from = term_type, values_from = estimate) %>%
+  mutate(
+    method_label = method_labels[method_num],
+    treatment = intercept,
+    control = intercept + control
+  )
+
+# Add the baseline (Audio Message) manually to plot_data
+plot_data <- plot_data %>%
+  add_row(
+    method_num = "1",
+    method_label = method_labels["1"],
+    treatment = 0,
+    control = 0  # or NA if you want to omit Control's point
+  )
+
+# Convert to long format for ggplot
+plot_data_long <- plot_data %>%
+  pivot_longer(cols = c("treatment", "control"), names_to = "group", values_to = "estimate")
+
+# Plot
+ggplot(plot_data_long, aes(x = estimate, 
+                           y = fct_reorder(method_label, estimate, .desc = FALSE), 
+                           color = group)) +
+  geom_point(size = 3) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  labs(
+    title = "Rank-Ordered Logit of Returning Methods",
+    x = "Rank-Order Coefficient",
+    y = "",
+    color = "Group"
+  ) +
+  scale_color_manual(values = c("treatment" = "darkblue", "control" = "firebrick")) +
+  theme_minimal()
 
 ```
 
@@ -4762,7 +4911,7 @@ shinyApp(ui, server)
 
 ```
 
-```{r Better Presentation Table (Conditional and Mixed Logit Models)}
+```{r Better Presentation Table (Conditional and Mixed Logit Models), eval = FALSE}
 ## ─────────────────────────────────────────────────────────────
 ##  0.  Libraries  ─────────────────────────────────────────────
 library(mlogit)
@@ -4945,51 +5094,7 @@ for (i in seq_len(nrow(sec_pos))) {
 table_out   # renders the nicely formatted table
 ```
 
-```{r Bin Scatter Plot Graphs, eval = FALSE}
-adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
-  x_var <- enquo(x_var)
-  y_var <- enquo(y_var)
-
-  # Sort data by x
-  data_sorted <- data %>%
-    arrange(!!x_var)
-
-  total_obs <- nrow(data_sorted)
-  n_bins <- floor(total_obs / threshold)
-
-  if (n_bins < 1) stop("Not enough data to form even one bin with the required threshold.")
-
-  # Assign bin index based on row number
-  data_binned <- data_sorted %>%
-    mutate(bin = cut_number(row_number(), n = n_bins)) %>%
-    group_by(bin) %>%
-    summarise(
-      x = mean(!!x_var, na.rm = TRUE),
-      y = mean(!!y_var, na.rm = TRUE),
-      se = sd(!!y_var, na.rm = TRUE) / sqrt(n()),
-      n = n(),
-      .groups = "drop"
-    )
-
-  # Plot mean x and y per bin with error bars
-  ggplot(data_binned, aes(x = x, y = y)) +
-    geom_point(size = 3) +
-    geom_errorbar(aes(ymin = y - se, ymax = y + se), width = 0.1, alpha = 0.5) +
-    geom_line() +
-    labs(
-      x = as_label(x_var),
-      y = as_label(y_var),
-      title = paste("Binned scatter plot of", as_label(y_var), "vs", as_label(x_var)),
-      subtitle = paste("Each point averages ≥", threshold, "observations (±SE error bars)")
-    ) +
-    theme_minimal()
-
-}
-
-adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, chosen_dominant_fund, 20)
-```
-
-```{r Willingness to Pay Plots}
+```{r Willingness to Pay Plots, eval = FALSE}
 custom_labels <- c(
   "(Intercept):B" = "Intercept",
   "participantResults returned to participants remotely"     = "Participants: Remotely",
@@ -5076,8 +5181,8 @@ plot_wtp <- function(df, title) {
            #"WTP (In USD, Relative to Compensation)",
          y = "Attribute") +
     #theme_minimal(base_size = 12) +
-    theme(plot.title = element_text(hjust = .5, face = "bold")) + 
-    scale_x_continuous(limits = c(-1, 8), breaks = c(-1:8))
+    theme(plot.title = element_text(hjust = .5, face = "bold")) #+ 
+    #scale_x_continuous(limits = c(-1, 8), breaks = c(-1:8))
 }
 
 p_full  <- plot_wtp(wtp_full,  "Willingness to Pay Estimates – Full Sample")
@@ -5093,61 +5198,6 @@ p_ctrl
 
 # OR side-by-side (requires {patchwork})
 # (p_full | p_treat | p_ctrl) + plot_layout(guides = "collect")
-
-```
-
-```{r Analyze the rank results methods 1-9 - Rank Order Logit}
-rankings <- fulldata
-rankings <- rankings %>%
-  distinct(respondentID, 
-          rank_results_methods_1,
-          rank_results_methods_2,
-          rank_results_methods_3,
-          rank_results_methods_4,
-          rank_results_methods_5,
-          rank_results_methods_6,
-          rank_results_methods_7,
-          rank_results_methods_8,
-          rank_results_methods_9,
-          .keep_all = TRUE)
-
-method_labels <- c(
-  "1" = "Audio Message",
-  "2" = "SMS",
-  "3" = "Website",
-  "4" = "Flyer (Individual)",
-  "5" = "Flyer (Public)",
-  "6" = "Social Media Post",
-  "7" = "Video",
-  "8" = "Public Meeting",
-  "9" = "Private Meeting"
-)
-
-stacked_rankings <- stacked_rankings %>%
-  mutate(
-    respondentID = as.character(respondentID),
-    method = as.character(method),
-    choice = as.integer(choice)
-  )
-
-
-mlogit_data <- dfidx(data = stacked_rankings,
-                     idx = c("respondentID", "method"),
-                     choice = "choice",
-                     shape = "long",
-                     ranked = TRUE)
-
-model_ranked <- mlogit(choice ~ method | control, data = mlogit_data)
-summary(model_ranked)
-
-coefplot(model_ranked, horiz = TRUE, main = "Ranked Logit Coefficients")
-
-linmodel <- lm(choice ~ method + control, data = stacked_rankings)
-summary(linmodel)
-```
-
-```{r Analyze 3-study experiment}
-
 
 ```
 
@@ -5922,4 +5972,49 @@ summary(linmodel)
 #     subtitle = "With Error Bars and 50% Reference Line"
 #   ) +
 #   theme_minimal()
+
+
+# {r Bin Scatter Plot Graphs, eval = FALSE}
+# adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
+#   x_var <- enquo(x_var)
+#   y_var <- enquo(y_var)
+# 
+#   # Sort data by x
+#   data_sorted <- data %>%
+#     arrange(!!x_var)
+# 
+#   total_obs <- nrow(data_sorted)
+#   n_bins <- floor(total_obs / threshold)
+# 
+#   if (n_bins < 1) stop("Not enough data to form even one bin with the required threshold.")
+# 
+#   # Assign bin index based on row number
+#   data_binned <- data_sorted %>%
+#     mutate(bin = cut_number(row_number(), n = n_bins)) %>%
+#     group_by(bin) %>%
+#     summarise(
+#       x = mean(!!x_var, na.rm = TRUE),
+#       y = mean(!!y_var, na.rm = TRUE),
+#       se = sd(!!y_var, na.rm = TRUE) / sqrt(n()),
+#       n = n(),
+#       .groups = "drop"
+#     )
+# 
+#   # Plot mean x and y per bin with error bars
+#   ggplot(data_binned, aes(x = x, y = y)) +
+#     geom_point(size = 3) +
+#     geom_errorbar(aes(ymin = y - se, ymax = y + se), width = 0.1, alpha = 0.5) +
+#     geom_line() +
+#     labs(
+#       x = as_label(x_var),
+#       y = as_label(y_var),
+#       title = paste("Binned scatter plot of", as_label(y_var), "vs", as_label(x_var)),
+#       subtitle = paste("Each point averages ≥", threshold, "observations (±SE error bars)")
+#     ) +
+#     theme_minimal()
+# 
+# }
+# 
+# adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, chosen_dominant_fund, 20)
+#
 ```
