@@ -1,0 +1,618 @@
+---
+title: "DCE Work 2-18-2025"
+author: "Elyse St Sauver"
+date: "2025-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(jpeg)
+
+set.seed(2025)
+```
+
+# Initalizing Code and Generating the Scenario Pair Dataset
+
+This code sets up the attributes we'll use in each scenario, along with the levels available for each set. Right now, I'm using numbers for the attribute levels for compactness, but this is easily changeable later. 
+
+```{r Set attributes, levels, and number of pairs}
+attributes = c("participants",
+               "community",
+               "policymakers",
+               "compensation",
+               "researchfunding")
+
+attributesubset = c("participants",
+                    "community",
+                    "policymakers",
+                    "researchfunding")
+
+participantlevels = c(1, 2, 3)
+communitylevels = c(1, 2, 3)
+policymakerslevels = c(1,2,3)
+compensationlevels = c(1,2,3,4,5,6,7,8,9,10,11) #1 == No compensation, 2 == 1,000 TSh, etc
+researchfundinglevels = c(1,2,3,4,5,6,7,8,9,10,11) #1 == No additional research funding, 2 == 10 villages funding, etc
+
+compensationlevelsubset <- compensationlevels[compensationlevels != 1] #Nonzero compensation levels
+
+#How many scenario pairs we want to generate
+total_pairs = 4500
+
+```
+
+This code will generate the scenario pairs by randomly selecting two attributes of the five to vary, keeping the rest fixed. Once it randomly selects the two varying attributes, it will randomly select distinct levels of the varying attributes so that scenarios A and B in the pair do not have the same value. Then, it will randomly select levels of the fixed attributes so that A and B do have the same values for the fixed attributes. It will repeat this process as specified by the "total_pairs" variable in the prior code chunk, resulting in a dataset of the scenario pairs.
+
+```{r Generate the scenario pairs}
+
+# Initialize the data frame that will hold each scenario pair. Each pair has two sets of 5 attributes
+scenariopairdf = data.frame(
+    Aparticipants = c(),
+    Acommunity = c(),
+    Apolicymakers = c(),
+    Acompensation = c(),
+    Aresearchfunding = c(),
+    Bparticipants = c(),
+    Bcommunity = c(),
+    Bpolicymakers = c(),
+    Bcompensation = c(),
+    Bresearchfunding = c(),
+    dominated = c(), 
+    compset = c()
+)
+
+# Define a function which generates a data frame of which attributes are varying.
+# compdef (2 by default) is a parameter that allows for specifying whether 
+# compensation is fixed (0), varying (1) or unspecified (2). 
+selectVaryingAttributes <- function(compdef = 2) {
+  # Create a temporary data frame variable that holds which attributes are being varied
+  tmpvary = data.frame(
+    participants = c(0),
+    community = c(0),
+    policymakers = c(0),
+    compensation = c(0),
+    researchfunding = c(0)
+  )
+  
+  if (compdef == 0) { # Compensation is fixed
+    # Randomly select two varying attributes from the set of attributes without compensation
+    tmpvary[1, sample(attributesubset, 2)] <- 1
+  }
+  if (compdef == 1) { # Compensation is varying
+    tmpvary[1, "compensation"] <- 1
+    # Randomly select the second varying attribute
+    tmpvary[1, sample(attributesubset, 1)] <- 1
+  }
+  if (compdef == 2) { # Compensation is not explicitly determined as varying or fixed
+    # Randomly select two varying attributes from the entire set of attributes
+    tmpvary[1, sample(attributes, 2)] <- 1
+  }
+  
+  return(tmpvary)
+}
+
+createScenarioPair <- function(tmpvary, compvary = 1) {
+  # Function accepts tmpvary, a data frame that describes whether each attribute
+  # is fixed (0) or varying (1), and compvary, a parameter that permits 
+  # fixing compensation at zero (0) or nonzero (2) values. For varying or unspecified compensation, compvary = 1 (default).
+  
+  #Initialize a data frame that will be used to return the selected levels for both scenarios
+  tmppair <- data.frame(
+    Aparticipants = c(0),
+    Acommunity = c(0),
+    Apolicymakers = c(0),
+    Acompensation = c(0),
+    Aresearchfunding = c(0),
+    Bparticipants = c(0),
+    Bcommunity = c(0),
+    Bpolicymakers = c(0),
+    Bcompensation = c(0),
+    Bresearchfunding = c(0),
+    dominated = c(0), 
+    compset = c(0)
+  )
+  
+  #Generate levels for the first scenario A
+  tmppair$Aparticipants <- sample(participantlevels, 1)
+  tmppair$Acommunity <- sample(communitylevels, 1)
+  tmppair$Apolicymakers <- sample(policymakerslevels, 1)
+  tmppair$Acompensation <- sample(compensationlevels, 1) # Will be overriden by compfix = 2 or 3
+  tmppair$Aresearchfunding <- sample(researchfundinglevels, 1)
+  
+  #Compensation attribute assignment for B
+  if (compvary == 1) { #If compvary == 1 (default), assign randomly generated value that matches A if fixed, else generate different value for B
+    if (tmpvary$compensation == 1) {
+      # Randomly select a compensation level for B that is not equal to A's
+      tmpcompensationlevels <- compensationlevels[compensationlevels != tmppair$Acompensation]
+      tmppair$Bcompensation <- sample(tmpcompensationlevels, 1)
+      tmppair$compset <- 1
+    } else {
+      tmppair$Bcompensation <- tmppair$Acompensation
+      tmppair$compset <- 1
+    }
+  }
+  if (compvary == 0) { # Fixed at no compensation
+    tmppair$Acompensation <- 1
+    tmppair$Bcompensation <- 1
+    tmppair$compset <- 0
+  }
+  if (compvary == 2) { # Fixed at nonzero compensation
+    tmppair$Acompensation <- sample(compensationlevelsubset, 1)
+    tmppair$Bcompensation <- tmppair$Acompensation
+    tmppair$compset <- 2
+  }
+  
+  #Other attribute assignment for scenario B
+
+  #If an attribute is fixed, set scenario B's attribute level equal to A's.
+  #If an attribute is varying, set scenario B's attribute level to a random level
+  #not equal to A's level.
+  if (tmpvary$participants == 0) {
+    tmppair$Bparticipants <- tmppair$Aparticipants
+  } else {
+    tmpparticipantlevels <- participantlevels[participantlevels != tmppair$Aparticipants]
+    tmppair$Bparticipants <- sample(tmpparticipantlevels, 1)
+  }
+  
+  if (tmpvary$community == 0) {
+    tmppair$Bcommunity <- tmppair$Acommunity
+  } else {
+    tmpcommunitylevels <- communitylevels[communitylevels != tmppair$Acommunity]
+    tmppair$Bcommunity <- sample(tmpcommunitylevels, 1)
+  }
+  
+  if (tmpvary$policymakers == 0) {
+    tmppair$Bpolicymakers <- tmppair$Apolicymakers
+  } else {
+    tmppolicymakerslevels <- policymakerslevels[policymakerslevels != tmppair$Apolicymakers]
+    tmppair$Bpolicymakers <- sample(tmppolicymakerslevels, 1)
+  }
+  
+  # Compensation is special, see above.
+  
+  if (tmpvary$researchfunding == 0) {
+    tmppair$Bresearchfunding <- tmppair$Aresearchfunding
+  } else {
+    tmpresearchfundinglevels <- researchfundinglevels[researchfundinglevels != tmppair$Aresearchfunding]
+    tmppair$Bresearchfunding <- sample(tmpresearchfundinglevels, 1)
+  }
+  
+  return(tmppair)
+}
+
+# Generate a set of scenario pairs
+for (i in 1:total_pairs) {
+  if (i <= total_pairs/2) {
+    tmppair <- createScenarioPair(selectVaryingAttributes(1), 1) # generate a scenario pair where compensation is varying
+  }
+  if (i > total_pairs / 2 & i <= total_pairs*0.75) {
+    tmppair <- createScenarioPair(selectVaryingAttributes(0), 0)# Generate a scenario pair where compensation is fixed at zero
+  } 
+  if (i > total_pairs*0.75) {
+    tmppair <- createScenarioPair(selectVaryingAttributes(0), 2) # Generate a scenario pair where compensation is fixed at nonzero value
+  }
+  scenariopairdf <- rbind(scenariopairdf, tmppair)
+}
+```
+
+## Eliminating dominated scenario pairs
+
+This code aims to eliminate scenario pairs where there is an obviously better option of the two scenarios, since asking participants to express their preference for these pairs would not be informative. To do this, it checks each attribute of the scenarios, and evaluates whether A or B is obviously better. Once it has compared each scenario's version of each attribute, if one scenario always wins (excluding ties) then that scenario pair is considered dominated, and replaced with a new randomly generated scenario pair. The new one may also be dominated, so this process runs iteratively until it checks and finds no remaining dominated pairs in the dataset.
+
+```{r Eliminate dominated scenario pairs}
+
+checkDominatedPairs <- function(pairdf) {
+  #We'll create a count of any dominated pairs we find
+  count = 0
+  #Check data frame of scenario pairs for dominated pairs. 
+  #Dominated pairs are defined as any pair where one scenario wins or ties pairwise comparisons for every attribute.
+  for (i in 1:nrow(pairdf)) {
+    row <- pairdf[i,]
+    comparisonresult <- list()
+    #print(i)
+    #print(comparisonresult)
+    #If A or B has no results returned for participants, but the other has something better, return which is better
+    comparisonresult <- append(comparisonresult, case_when (
+      row$Aparticipants == 1  & row$Bparticipants != 1 ~ "B",
+      row$Aparticipants != 1  & row$Bparticipants == 1 ~ "A",
+      row$Aparticipants == row$Bparticipants ~ "Tieparticipants"
+      )
+    )
+    
+    #If A or B has no results returned to the community, but the other has something better, return which is better
+    comparisonresult <- append(comparisonresult, case_when (
+      row$Acommunity == 1  & row$Bcommunity != 1 ~ "B",
+      row$Acommunity != 1  & row$Bcommunity == 1 ~ "A",
+      row$Acommunity == row$Bcommunity ~ "Tiecommunity"
+      )
+    )
+    
+    #If A or B has no results returned for policymakers, but the other has something better, return which is better
+    comparisonresult <- append(comparisonresult, case_when (
+      row$Apolicymakers == 1  & row$Bpolicymakers != 1 ~ "B",
+      row$Apolicymakers != 1  & row$Bpolicymakers == 1 ~ "A",
+      row$Apolicymakers == row$Bpolicymakers ~ "Tiepolicy"
+      )
+    )
+
+    #If A or B has better compensation, return which is better
+    comparisonresult <- append(comparisonresult, case_when (
+      row$Acompensation < row$Bcompensation ~ "B",
+      row$Acompensation > row$Bcompensation ~ "A",
+      row$Acompensation == row$Bcompensation  ~ "Tiecomp"
+      )
+    )
+    
+    #If A or B has better research funding, return which is better
+    comparisonresult <- append(comparisonresult, case_when (
+      row$Aresearchfunding < row$Bresearchfunding ~ "B",
+      row$Aresearchfunding > row$Bresearchfunding ~ "A",
+      row$Aresearchfunding == row$Bresearchfunding  ~ "Tierf"
+      )
+    )
+    
+    #print(comparisonresult)
+    if (("A" %in% comparisonresult & !("B" %in% comparisonresult) & !(NA %in% comparisonresult)) | 
+        (!("A" %in% comparisonresult) & "B" %in% comparisonresult) & !(NA %in% comparisonresult)) 
+      {
+      pairdf$dominated[i] <- 1
+      count <- count + 1
+    }
+  }
+  print("Found the following number of dominated pairs.")
+  print(count)
+  
+  return(pairdf)
+}
+
+replaceDominatedPairs <- function(pairdf) {
+  for (i in 1:nrow(pairdf)) {
+    if (pairdf$dominated[i] == 1) {
+      #print(pairdf[1,])
+      #Generate a new scenario pair.
+      if (i <= total_pairs/2) {
+        replacingpair <- createScenarioPair(selectVaryingAttributes(1), 1) # Generate a scenario pair where compensation is varying
+      }
+      if (i > total_pairs / 2 & i <= total_pairs*0.75) {
+        replacingpair <- createScenarioPair(selectVaryingAttributes(0), 0)# Generate a scenario pair where compensation is fixed at zero
+      } 
+      if (i > total_pairs*0.75) {
+        replacingpair <- createScenarioPair(selectVaryingAttributes(0), 2) # Generate a scenario pair where compensation is fixed at nonzero value
+      }
+      #print(replacingpair)
+      pairdf[i,] <- replacingpair
+    }
+  }
+  return(pairdf)
+}
+
+replaceUntil <- function(pairdf) {
+  pairdf <- checkDominatedPairs(pairdf)
+  while(1 %in% pairdf$dominated){
+    pairdf <- replaceDominatedPairs(pairdf)
+    pairdf <- checkDominatedPairs(pairdf)
+  }
+  return(pairdf)
+  print("Complete! There are no more dominated pairs.")
+}
+
+scenariopairdf <- replaceUntil(scenariopairdf)
+```
+# Balance Statistics
+
+In this section, I'll investigate the balance of our first three attributes (participants, community, and policymakers) across compensated and uncompensated scenarios, to examine whether we're sufficiently powered to make interpretations for all combinations of these non-continous variables in contexts both with and without compensation. 
+
+```{r}
+# Create a scenario table that provides frequencies that differentiate between whether an attribute appears as A or B
+abfrequencytable <- scenariopairdf %>% 
+  count(Aparticipants,
+        Acommunity,
+        Apolicymakers,
+        Bparticipants,
+        Bcommunity,
+        Bpolicymakers)
+
+scenariosA <- scenariopairdf[, 1:5] %>% mutate(
+  optionlabel = "A",
+  choicenumber = row_number()
+)
+
+scenariosA <- scenariosA %>%
+  rename(
+    participants = Aparticipants,
+    community = Acommunity,
+    policymakers = Apolicymakers,
+    compensation = Acompensation,
+    researchfunding = Aresearchfunding
+  )
+
+scenariosB <- scenariopairdf[, 6:10] %>% mutate (
+  optionlabel = "B",
+  choicenumber = row_number()
+)
+
+scenariosB <- scenariosB %>%
+  rename(
+    participants = Bparticipants,
+    community = Bcommunity,
+    policymakers = Bpolicymakers,
+    compensation = Bcompensation,
+    researchfunding = Bresearchfunding
+  )
+
+# After adding labels to distinguish A and B scenarios and pair numbers, bind into one dataset
+scenariosetlong <- rbind(scenariosA, scenariosB)
+
+# Create a frequency that does not differentiate between A and B scenarios,
+# Instead counting every instance of the level's occurence across both columns
+orderagnosticfrequencytable <- scenariosetlong %>% count(participants,
+                                                         community,
+                                                         policymakers)
+
+# This provides a frequency table of our desired levels when there is no compensation
+nocompoaft <- subset(scenariosetlong, compensation == 1) %>% count(participants,
+                                                         community,
+                                                         policymakers)
+
+# This provides a frequency table of our desired levels when there is nonzero compensation
+compoaft <- subset(scenariosetlong, compensation != 1) %>% count(participants,
+                                                         community,
+                                                         policymakers)
+
+```
+
+# Exporting the dataset
+
+```{r Exporting CSV}
+library(openxlsx)
+
+# Specify the string versions of the attribute levels
+participantsstring = c("No results returned", "Remote", "In-person")
+communitystring = c("No results returned", "Remote to community leader", "In-person meeting")
+policymakersstring = c("No results returned", "Report", "Half-Day Workshop")
+compensationstring = c("No additional compensation", "Compensation: 1000 TSh per participant",
+                       "Compensation: 2000 TSh per participant",
+                       "Compensation: 3000 TSh per participant",
+                       "Compensation: 4000 TSh per participant",
+                       "Compensation: 5000 TSh per participant",
+                       "Compensation: 6000 TSh per participant",
+                       "Compensation: 7000 TSh per participant",
+                       "Compensation: 8000 TSh per participant",
+                       "Compensation: 9000 TSh per participant",
+                       "Compensation: 10000 TSh per participant",
+                       "Compensation: 11000 TSh per participant",
+                       "Compensation: 12000 TSh per participant",
+                       "Compensation: 13000 TSh per participant",
+                       "Compensation: 14000 TSh per participant",
+                       "Compensation: 15000 TSh per participant")
+researchfundingstring = c("No additional funding", "Additional research in 2 more communities", 
+                          "Additional research in 4 more communities", 
+                          "Additional research in 6 more communities", 
+                          "Additional research in 8 more communities", 
+                          "Additional research in 10 more communities",
+                          "Additional research in 12 more communities",
+                          "Additional research in 14 more communities",
+                          "Additional research in 16 more communities",
+                          "Additional research in 18 more communities",
+                          "Additional research in 20 more communities")
+
+#Specify the images that relate to each level, also "title" photos for attributes
+participantsimage = c("participant1.jpeg", "participant2.jpeg", "participant3.jpeg")
+communityimage = c("community1.jpeg", "community2.jpeg", "community3.jpeg")
+policymakersimage = c("policy1.jpeg", "policy2.jpeg", "policy3.jpeg")
+compensationimage = c("0Tsh.jpeg", "1Tsh.jpeg", "2Tsh.jpeg", "3Tsh.jpeg", "4Tsh.jpeg", "5Tsh.jpeg", "6Tsh.jpeg", "7Tsh.jpeg", "8Tsh.jpeg", "9Tsh.jpeg", "10Tsh.jpeg")
+researchfundingimage = c("research0.jpeg", "research2.jpeg", "research4.jpeg", "research6.jpeg", "research8.jpeg", "research10.jpeg", "research12.jpeg", "research14.jpeg", "research16.jpeg", "research18.jpeg", "research20.jpeg")
+
+participantstitle = "participant.jpeg"
+communitytitle = "community.jpeg"
+policymakerstitle = "policy.jpeg"
+compensationtitle = "comp.jpeg"
+researchfundingtitle = "research.jpeg"
+
+# Add in the string versions of the attribute levels to the dataframe
+stringincluded_scenariosetlong <- scenariosetlong %>% mutate(
+  participants_title = participantstitle,
+  participants_image = participantsimage[participants],
+  participants_string = participantsstring[participants],
+  community_title = communitytitle,
+  community_image = communityimage[community],
+  community_string = communitystring[community],
+  policymakers_title = policymakerstitle,
+  policymakers_image = policymakersimage[policymakers],
+  policymakers_string = policymakersstring[policymakers],
+  compensation_title = compensationtitle,
+  compensation_image = compensationimage[compensation],
+  compensation_string = compensationstring[compensation],
+  researchfunding_title = researchfundingtitle,
+  researchfunding_image = researchfundingimage[researchfunding],
+  researchfunding_string = researchfundingstring[researchfunding]
+  )
+
+
+
+#Sort the dataframe, then add IDs in 10 row blocks
+stringincluded_scenariosetlong <- stringincluded_scenariosetlong %>% arrange(choicenumber, optionlabel)
+stringincluded_scenariosetlong$respondent_ID <- rep(seq(1, 450), each = 2, length.out = nrow(stringincluded_scenariosetlong))
+
+#Reorder the columns
+stringincluded_scenariosetlong <- stringincluded_scenariosetlong[,c(23,7,6,8,9,11,12,14,15,17,18,20,21)]
+
+#Create output excel file
+write.csv(stringincluded_scenariosetlong, "scenario_dataset_1.csv", row.names=FALSE)
+
+#stringincluded_scenariosetlong$image <- NA
+
+```
+
+
+
+```{r Create image array output}
+
+#For each choice set, create a stitched image with nothing in the top left, scenario 1 and scenario 2
+#Next row is participants title, scenarioA participant level, scenarioB participant level
+#And so on
+
+# Number of rows and columns
+num_rows <- 6
+num_cols <- 3
+
+createStitchedImage <- function(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, researchA, researchB, num) {
+
+  # List of image filenames
+  image_files <- c("blank.jpeg", "heading1.jpeg", "heading2.jpeg", 
+                   "participant.jpeg", participantA, participantB, 
+                   "community.jpeg", communityA, communityB, 
+                   "policy.jpeg", policyA, policyB,
+                   "comp.jpeg", compA, compB,
+                   "research.jpeg", researchA, researchB)
+  
+  # Read images, handling missing files
+  image_list <- lapply(image_files, function(file) {
+    tryCatch(readJPEG(file), error = function(e) array(0, dim = c(100, 100, 3)))  # Default blank image if missing
+  })
+
+  # Get dimensions
+  heights <- sapply(image_list, function(img) dim(img)[1])
+  widths <- sapply(image_list, function(img) dim(img)[2])
+
+  # Determine final width and height
+  final_width <- max(widths)
+  final_height <- max(heights)
+
+  # Standardize image sizes
+  standardized_images <- lapply(seq_along(image_list), function(i) {
+    img <- image_list[[i]]
+    h <- dim(img)[1]
+    w <- dim(img)[2]
+    blank_img <- array(1, dim = c(final_height, final_width, 3))
+    start_h <- floor((final_height - h) / 2) + 1
+    start_w <- floor((final_width - w) / 2) + 1
+    blank_img[start_h:(start_h + h - 1), start_w:(start_w + w - 1), ] <- img
+    blank_img
+  })
+
+  # Arrange images into a grid
+  stitched_img <- array(0, dim = c(num_rows * final_height, num_cols * final_width, 3))
+  for (r in 1:num_rows) {
+    for (c in 1:num_cols) {
+      idx <- (r - 1) * num_cols + c
+      if (idx <= length(standardized_images)) {
+        stitched_img[((r - 1) * final_height + 1):(r * final_height), 
+                     ((c - 1) * final_width + 1):(c * final_width), ] <- standardized_images[[idx]]
+      }
+    }
+  }
+
+  # Save output
+  output_filename <- paste0("stitched_output_", num, ".jpg")
+  writeJPEG(stitched_img, output_filename)
+
+  return(output_filename)
+}
+```
+
+
+```{r Generate images for entire spreadsheet}
+
+setwd(".")
+i = 1
+
+stringincluded_scenariosetlong$image <- NA
+
+while(i < nrow(stringincluded_scenariosetlong)) {
+    Arow <- stringincluded_scenariosetlong[i,]
+    Brow <- stringincluded_scenariosetlong[i+1,]
+    participantA <- stringincluded_scenariosetlong[i, 5]
+    participantB <- stringincluded_scenariosetlong[i+1, 5]
+    communityA <- stringincluded_scenariosetlong[i, 7]
+    communityB <- stringincluded_scenariosetlong[i+1, 7]
+    policyA <- stringincluded_scenariosetlong[i, 9]
+    policyB <- stringincluded_scenariosetlong[i+1, 9]
+    compA <- stringincluded_scenariosetlong[i, 11]
+    compB <- stringincluded_scenariosetlong[i+1, 11]
+    researchA <- stringincluded_scenariosetlong[i, 13]
+    researchB <- stringincluded_scenariosetlong[i+1, 13]
+    
+    # Prints the same image for both rows that are associated with that choice
+    stringincluded_scenariosetlong[i, 14] <- createStitchedImage(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, researchA, researchB, stringincluded_scenariosetlong[i, 2])
+    stringincluded_scenariosetlong[i+1, 14] <- createStitchedImage(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, researchA, researchB, stringincluded_scenariosetlong[i, 2])
+    i <- i + 2
+}
+
+
+setpredrop <- stringincluded_scenariosetlong
+```
+
+```{r Generate images for part of the spreadsheet}
+
+setwd(".")
+i = 1
+
+stringincluded_scenariosetlong$image <- NA
+
+while(i < nrow(stringincluded_scenariosetlong)) {
+  if (i <= 3000) {
+    Arow <- stringincluded_scenariosetlong[i,]
+    Brow <- stringincluded_scenariosetlong[i+1,]
+    participantA <- stringincluded_scenariosetlong[i, 5]
+    participantB <- stringincluded_scenariosetlong[i+1, 5]
+    communityA <- stringincluded_scenariosetlong[i, 7]
+    communityB <- stringincluded_scenariosetlong[i+1, 7]
+    policyA <- stringincluded_scenariosetlong[i, 9]
+    policyB <- stringincluded_scenariosetlong[i+1, 9]
+    compA <- stringincluded_scenariosetlong[i, 11]
+    compB <- stringincluded_scenariosetlong[i+1, 11]
+    researchA <- stringincluded_scenariosetlong[i, 13]
+    researchB <- stringincluded_scenariosetlong[i+1, 13]
+    
+    # Prints the same image for both rows that are associated with that choice
+    stringincluded_scenariosetlong[i, 14] <- createStitchedImage(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, researchA, researchB, stringincluded_scenariosetlong[i, 2])
+    stringincluded_scenariosetlong[i+1, 14] <- createStitchedImage(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, researchA, researchB, stringincluded_scenariosetlong[i, 2])
+  }
+    i <- i + 2
+}
+
+
+setpredrop <- stringincluded_scenariosetlong
+
+
+```
+
+
+
+```{r}
+#Had to stop image gen process, still needed the image column in name. Do not run unless stopping the image generation process early, and proceeding without the needed images. 
+#gapfill <- stringincluded_scenariosetlong
+gapfill <- setpredrop[!duplicated(setpredrop$choicenumber), ]
+gapfill$image <- paste0("stitched_output_", 1:4500, ".jpg")
+
+setpredrop <- gapfill
+
+```
+
+```{r}
+#Drop the unnecessary columns and dedupe
+
+
+stringincluded_scenariosetlong <- stringincluded_scenariosetlong[!duplicated(stringincluded_scenariosetlong$image), ]
+#outputset <- setpredrop[,c(1,14)]
+
+#Randomize the order of the rows
+outputset <- outputset[sample(1:4500), ]
+
+#Add back the order counter
+outputset <- outputset %>%
+  mutate(choicenumber = row_number())
+
+
+#Create a column that counts the question number per respondent
+outputset <- outputset %>%
+  group_by(respondent_ID) %>%
+  mutate(choicenumber2 = row_number())
+
+
+#Create output excel file
+write.csv(outputset, "scenario_dataset_pilot_march16.csv", row.names=FALSE)
+
+```

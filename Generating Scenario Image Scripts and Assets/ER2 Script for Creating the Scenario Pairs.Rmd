@@ -1,0 +1,296 @@
+---
+title: "ER2 DCE Bundle Design"
+author: "Elyse St Sauver"
+date: "2024-10-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyr)
+library(stringr)
+
+# Plan:
+# Create the bundles
+# Limit the bundles to ones we can afford (exactly afford or underspend?)
+# Examine which bundle design methodologies we can accommodate
+# See which bundle designs are most efficient
+# Determine how many qs must be asked to reach desired statistical power
+
+```
+
+```{r Create the Bundles}
+# Load the library for efficient DCE bundle design
+library(cbcTools)
+library(ggplot2)
+
+# Initalize the features and levels into "profiles" AKA bundles.
+# In the experiment participants will choose between two bundles and a default.
+
+# Generate the bundles with cbc_profiles
+totalprofiles <- cbc_profiles(
+  participants  = c("p0", "p150", "p300"),
+  community     = c("c0", "c815", "c3578"),
+  policy        = c("pnoresults0", "preport0", "p3500"),
+  compensation  = c("comp0", "comp600", "comp1200"),
+  research      = c("r0", "r700", "r1400", "r2100", "r2800", "r3500", "r4200", "r4900")
+)
+```
+# Features Need Descriptive Names
+
+```{r Estimate Cost And Drop Expensive Bundles}
+library(dplyr)
+# Set the budget value
+budget = 5000
+
+# Initialize a column which sums the cost each feature level per profile
+totalprofiles$costsum <- 0
+
+# For each feature, increment the total cost by how much that bundle cost 
+# by each feature.
+totalprofiles <- totalprofiles %>%
+  mutate(costsum = costsum + case_when(
+    participants == "p0" ~ 0,
+    participants == "p150" ~ 150,
+    participants == "p300" ~ 300
+  ))
+
+totalprofiles <- totalprofiles %>%
+  mutate(costsum = costsum + case_when(
+    community == "c0" ~ 0,
+    community == "c815" ~ 815,
+    community == "c3578" ~ 3578
+  ))
+
+totalprofiles <- totalprofiles %>%
+  mutate(costsum = costsum + case_when(
+    policy == "pnoresults0" ~ 0, 
+    policy == "preport0" ~ 0,
+    policy == "p3500" ~ 3500
+  ))
+
+totalprofiles <- totalprofiles %>%
+  mutate(costsum = costsum + case_when(
+    compensation == "comp0" ~ 0,
+    compensation == "comp600" ~ 600,
+    compensation == "comp1200" ~ 1200
+  ))
+
+#Use the profile cost up to this point to initialize a set of profiles that will
+#set whatever funding is leftover as the amount spent on research. See next code
+#chunk for handling continuous research funding
+initialstrictbudgetprofiles <- totalprofiles %>% select(-research)
+
+#Finish up with the discrete research costs
+totalprofiles <- totalprofiles %>%
+  mutate(costsum = costsum + case_when(
+    research == "r0" ~ 0,
+    research == "r700" ~ 700,
+    research == "r1400" ~ 1400,
+    research == "r2100" ~ 2100,
+    research == "r2800" ~ 2800,
+    research == "r3500" ~ 3500,
+    research == "r4200" ~ 4200,
+    research == "r4900" ~ 4900
+  ))
+
+# Subset only the profiles are within the budget
+affordableprofiles <- subset(totalprofiles, costsum <= budget)
+
+
+# Drop the costsum column now that we've excluded the overly expensive options.
+# profilestoprocess will be put through the next cbcTools functions
+profilestoprocess <- affordableprofiles %>% select(-costsum)
+```
+
+```{r Strict Budget Alternative}
+# The strictbudgetprofiles dataset does not yet include the cost of additional funding. 
+# Filter out bundles that are alredy too expensive, and set the research column
+# Equal to the remainder, such that the total cost sums to the budget
+
+# Initialize the research feature
+initialstrictbudgetprofiles$research <- NA
+
+# Subset strictbudgetprofiles to only allow for budgets that don't already exceed
+# The budget set out before research costs are considered
+strictbudgetprofiles <- unique(subset(initialstrictbudgetprofiles, costsum <= budget))
+
+# Now these profiles/bundles are all affordable, calculate leftover funds for research
+# These values will be zero or positive since we have already filtered 
+# overly expensive designs
+strictbudgetprofiles$research <- budget - strictbudgetprofiles$costsum
+
+# Prep profiles for design function by removing costsum column.
+# Note that the costsum column would equal the budget if we had incremeneted with
+# the cost of research after we calculated it, but this step is unnecessary in 
+# our case since we already know we can afford the bundles. They equal the budget
+strictbudgetprofiles <- strictbudgetprofiles %>% select(-costsum)
+
+#If strict budgeting is desired, uncomment the following line
+# profilestoprocess <- strictbudgetprofiles
+
+```
+
+```{r Generate bundle designs}
+# Generate survey designs from the profilestoprocess
+
+# This will generate bundle designs from whatever profile set provided. 
+# Ensure that profilestoprocess is the name of the desired profile set
+# before proceeding.
+
+# Set the number of respondents and questions per respondent
+numparticipants = 400
+numqs = 20
+
+# Set the number of alternatives equal to two for binary choice
+numalts = 2
+
+# Set to TRUE if a "no choice" option is permitted
+inclnochoice = TRUE
+
+# Denote features with a column vector
+features <- c("participants", "community", "policy", "research", "compensation")
+best_fit_full <- 1000
+best_se_yet <- 1000
+best_fit_rand <- 1000
+best_fit_dopt <- 1000
+i = 1
+
+# Generate a full factorial design
+for (i in 1:20) {
+fullfac_design <- cbc_design(
+profiles = profilestoprocess,
+n_resp = numparticipants, # Number of respondents
+n_alts = numalts, # Number of alternatives per question
+n_q = i, # Number of questions per respondent
+#no_choice = inclnochoice, # Whether a "no choice" option is permitted
+method = 'full' #Full-factorial design
+)
+
+# Obtain power for each design by simulating choices
+fullfac_data <- cbc_choices(
+  design = fullfac_design,
+  obsID = "obsID"
+)
+
+power_fullfac <- 
+  cbc_power(
+    data = fullfac_data,
+    pars = features, #Set parameters to the features
+    outcome = "choice",
+    obsID = "obsID",
+    nbreaks = 50,
+    n_q = i,
+    n_cores = 1
+  )
+
+average_se_given_i_full_fac = sum(power_fullfac$se)/nrow(power_fullfac)
+
+cat("The average SE for ", i, "questions per participant is ", average_se_given_i_full_fac)
+if(average_se_given_i_full_fac < best_se_yet) {best_fit_full = i}
+i <- i + 1
+}
+
+
+
+# Generate a random design
+best_se_yet <- 1000
+for (i in 1:20) {
+  
+  random_design <- cbc_design(
+  profiles = profilestoprocess,
+  n_resp = numparticipants, # Number of respondents
+  n_alts = numalts, # Number of alternatives per question
+  n_q = i, # Number of questions per respondent
+  #no_choice = inclnochoice, # Whether a "no choice" option is permitted
+  method = 'random' #random selection design
+  )
+
+random_data <- cbc_choices(
+  design = random_design,
+  obsID = "obsID"
+)
+
+power_random <- random_design |>
+  cbc_choices(obsID = "obsID") |>
+  cbc_power(
+    pars = features, #Set parameters to the features
+    outcome = "choice",
+    obsID = "obsID",
+    nbreaks = 50,
+    n_q = i,
+    n_cores = 1
+  )
+
+average_se_given_i_rand = sum(power_random$se)/nrow(power_random)
+
+cat("With ", i, "questions per participant:")
+print(power_random)
+
+i <- i + 1
+}
+
+best_se_yet <- 1000
+
+dopt_design <- cbc_design(
+  profiles = profilestoprocess,
+  n_resp = 400, # Number of respondents
+  n_alts = numalts, # Number of alternatives per question
+  n_q = 10, # Number of questions per respondent
+  n_blocks = 8,
+  #no_choice = inclnochoice, # Whether a "no choice" option is permitted
+  method = 'dopt' #random selection design
+)
+
+dopt_design_long <- dopt_design %>%
+  # Pivot the specified columns to a long format
+  pivot_longer(
+    cols = starts_with("participants") | starts_with("community") | 
+           starts_with("policy") | starts_with("compensation") | 
+           starts_with("research"),
+    names_to = "category",
+    values_to = "value"
+  ) %>%
+  # Extract the main category and numeric part
+  mutate(
+    main_category = str_extract(category, "^[^_]+"),   # Extract text before the first underscore
+    value = ifelse(value == 1, str_extract(category, "[^_]+$"), NA)  # Keep value only if present
+  ) %>%
+  # Filter out NA values
+  filter(!is.na(value)) %>%
+  # Pivot wider to have one column per main category
+  select(-category) %>%
+  pivot_wider(
+    names_from = main_category,
+    values_from = value
+  )
+
+dopt_data <- cbc_choices(
+  design = dopt_design,
+  obsID = "obsID"
+)
+
+power_dopt <- dopt_design |>
+  cbc_choices(obsID = "obsID") |>
+  cbc_power(
+    pars = features, #Set parameters to the features
+    outcome = "choice",
+    obsID = "obsID",
+    nbreaks = 50,
+    n_q = 10,
+    n_cores = 1
+  )
+
+average_se_given_i_dopt = sum(power_dopt$se)/nrow(power_dopt)
+
+cat("The average SE for ", i, "questions per participant is ", average_se_given_i_dopt)
+if(average_se_given_i_dopt < best_se_yet) {best_fit_dopt = i}
+i <- i + 1
+
+
+plot_compare_power(power_fullfac, power_random, power_dopt)
+
+```
+
+
