@@ -84,7 +84,7 @@ ________________________________________________________________________________
   
 
 ```{r Initialize}
-kageradata <- read.csv("returningresults_merged.csv")
+kageradata <- read.csv("kagera_merged.csv")
 # Data Notes: 
 #   - ID indicator is respondentID or respondent_index
 #   - For joining with DCE data, join column is SET.OF.dce_game
@@ -104,7 +104,7 @@ kageradata <- read.csv("returningresults_merged.csv")
 #   - *** future_study_willingness --> not complete
 #   
 
-kagera_dcedata <- read.csv("dce_returningresults_merged.csv")
+kagera_dcedata <- read.csv("kagera_merged_dce.csv")
 scenarios <- read.csv("scenario_dataset.csv")
 # DCE Data Notes:
 #     - No ID indicator, for joining with Kagera data, join column is SET.OF.dce_game
@@ -117,11 +117,11 @@ scenarios <- read.csv("scenario_dataset.csv")
 
 # Join Datasets
 # Concatenate the multiple longform and dce datasets. 
-dardata<- read_dta("RR-RCT.dta")
-write.csv(dardata, file = "RR-RCT.csv")
-dar_dcedata <- read_dta("RR-RCT-DCE.dta")
-write.csv(dar_dcedata, file = "RR-RCT-DCE.csv")
-dardata_controlinfo <- read_dta("dta_controlinfo.dta")
+dardata<- read_dta("dar_RR-RCT.dta")
+write.csv(dardata, file = "dar.csv")
+dar_dcedata <- read_dta("dar_RR-RCT-DCE.dta")
+write.csv(dar_dcedata, file = "dar_dce.csv")
+dardata_controlinfo <- read_dta("dar_controlinfo.dta")
 write.csv(dardata_controlinfo, file = "dardata_controlinfo.csv")
 
 dardata<- dardata%>%
@@ -417,7 +417,7 @@ fulldata <- subset(fulldata, respondentID != 111 | respondentID != 215 | respond
 fulldata <- subset(fulldata, as.numeric(exercise_comment) < 3)
 fulldata <- subset(fulldata, as.numeric(interviewer) != 1)
 
-write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
+write.csv(fulldata, file = "postscriptrun_processed_dataset.csv", row.names = FALSE)
 
 dceanalysis <- select(fulldatapredrop, c("respondentID", "game_index", "game_matrix", "option_selected", 
                                          "participants_image.A", "community_image.A", "policymakers_image.A", "compensation_image.A", "researchfunding_image.A", 
