@@ -84,7 +84,7 @@ ________________________________________________________________________________
   
 
 ```{r Initialize}
-kageradata <- read.csv("kagera_merged.csv")
+kageradata <- read.csv("../Datasets/kagera_merged.csv")
 # Data Notes: 
 #   - ID indicator is respondentID or respondent_index
 #   - For joining with DCE data, join column is SET.OF.dce_game
@@ -104,8 +104,8 @@ kageradata <- read.csv("kagera_merged.csv")
 #   - *** future_study_willingness --> not complete
 #   
 
-kagera_dcedata <- read.csv("kagera_merged_dce.csv")
-scenarios <- read.csv("scenario_dataset.csv")
+kagera_dcedata <- read.csv("../Datasets/kagera_merged_dce.csv")
+scenarios <- read.csv("../Datasets/scenario_dataset.csv")
 # DCE Data Notes:
 #     - No ID indicator, for joining with Kagera data, join column is SET.OF.dce_game
 #     - DCE data has 10 observations per ID, so it will be a many-to-one join (and that's okay)
@@ -117,12 +117,12 @@ scenarios <- read.csv("scenario_dataset.csv")
 
 # Join Datasets
 # Concatenate the multiple longform and dce datasets. 
-dardata<- read_dta("dar_RR-RCT.dta")
-write.csv(dardata, file = "dar.csv")
-dar_dcedata <- read_dta("dar_RR-RCT-DCE.dta")
-write.csv(dar_dcedata, file = "dar_dce.csv")
-dardata_controlinfo <- read_dta("dar_controlinfo.dta")
-write.csv(dardata_controlinfo, file = "dardata_controlinfo.csv")
+dardata<- read_dta("../Datasets/dar_RR-RCT.dta")
+write.csv(dardata, file = "../Datasets/dar.csv")
+dar_dcedata <- read_dta("../Datasets/dar_RR-RCT-DCE.dta")
+write.csv(dar_dcedata, file = "../Datasets/dar_dce.csv")
+dardata_controlinfo <- read_dta("../Datasets/dar_controlinfo.dta")
+write.csv(dardata_controlinfo, file = "../Datasets/dardata_controlinfo.csv")
 
 dardata<- dardata%>%
   rename(
@@ -371,7 +371,7 @@ fulldata <- fulldata %>%
     )
 
 #Read in the codebook of variable names and types, adjust types that are incorrect
-codebook <- read.csv("codebook.csv")
+codebook <- read.csv("../Datasets/codebook.csv")
 
 colnames(codebook) <- c("Variable_Name", "Type")
 

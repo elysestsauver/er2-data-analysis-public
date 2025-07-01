@@ -18,7 +18,7 @@ library(tidyverse)
 library(jpeg)
 
 # Read in dataset of scenarios and assignments that exist
-scenarioswithassignments <- read.csv("scenario_dataset_with_assignments_jun25.csv")
+scenarioswithassignments <- read.csv("scenario_dataset_with_assignments.csv")
 
 
 # Assign the first 1500 that aren't already assigned to another group to Kenya
@@ -38,7 +38,7 @@ write.csv(scenarioswithassignments, "scenario_dataset_with_assignments.csv")
 
 
 # Now we want to augment the dataset with each scenario image pair's attributes
-scenarios <- read.csv("scenario_dataset.csv")
+scenarios <- read.csv("../../Data Analysis/scenario_dataset.csv")
 kenya_augmented <- left_join(kenya, scenarios, by = join_by(image == image)) %>%
   mutate(
     respondent_ID = coalesce(respondent_ID.x, respondent_ID.y)) %>%
