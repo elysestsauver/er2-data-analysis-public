@@ -515,7 +515,7 @@ createStitchedImage <- function(participantA, participantB, communityA, communit
 
 ```{r Generate images for entire spreadsheet}
 
-setwd(".")
+# Make sure this script is running in the same folder as the Assets folder. You shouldn't need to run this code again, so I'm keeping them separate for now. If you do need to regenerate images, move this script to the Assets folder or add the assets in the Assets folder to wherever you're running this script. 
 i = 1
 
 stringincluded_scenariosetlong$image <- NA
@@ -546,7 +546,8 @@ setpredrop <- stringincluded_scenariosetlong
 
 ```{r Generate images for part of the spreadsheet}
 
-setwd(".")
+# Make sure this script is running in the same folder as the Assets folder. You shouldn't need to run this code again, so I'm keeping them separate for now. If you do need to regenerate images, move this script to the Assets folder or add the assets in the Assets folder to wherever you're running this script. 
+
 i = 1
 
 stringincluded_scenariosetlong$image <- NA

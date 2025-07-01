@@ -118,11 +118,11 @@ scenarios <- read.csv("../Datasets/scenario_dataset.csv")
 # Join Datasets
 # Concatenate the multiple longform and dce datasets. 
 dardata<- read_dta("../Datasets/dar_RR-RCT.dta")
-write.csv(dardata, file = "../Datasets/dar.csv")
+#write.csv(dardata, file = "../Datasets/dar.csv")
 dar_dcedata <- read_dta("../Datasets/dar_RR-RCT-DCE.dta")
-write.csv(dar_dcedata, file = "../Datasets/dar_dce.csv")
+#write.csv(dar_dcedata, file = "../Datasets/dar_dce.csv")
 dardata_controlinfo <- read_dta("../Datasets/dar_controlinfo.dta")
-write.csv(dardata_controlinfo, file = "../Datasets/dardata_controlinfo.csv")
+#write.csv(dardata_controlinfo, file = "../Datasets/dardata_controlinfo.csv")
 
 dardata<- dardata%>%
   rename(

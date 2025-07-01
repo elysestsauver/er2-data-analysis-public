@@ -18,7 +18,7 @@ library(tidyverse)
 library(jpeg)
 
 # Read in dataset of scenarios and assignments that exist
-scenarioswithassignments <- read.csv("scenario_dataset_with_assignments.csv")
+scenarioswithassignments <- read.csv("../scenario_dataset_with_assignments.csv")
 
 
 # Assign the first 1500 that aren't already assigned to another group to Kenya
