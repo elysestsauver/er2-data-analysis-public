@@ -10,7 +10,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(pacman)
 
-p_load(tidyverse, stargazer, ggplot2, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, readr, janitor, haven, mlogit, purrr)
+p_load(tidyverse, stargazer, sandwich, fastDummies, lmtest, scales, knitr, kableExtra, DT, fixest, ggfixest, modelsummary, patchwork, logitr, shiny, texreg, survival, skimr, gtsummary, cardx, broom, xfun, janitor, haven, mlogit)
+
+# For Elyse's pretty but slightly-annoying-to-install theme: 
+# Run this in the console:
+#      devtools::install_github('Mikata-Project/ggthemr')
+# Then uncomment and run these lines: 
+     # library(ggthemr)
+     # ggthemr('fresh')
+      
 ```
 
 Key Notes: 
@@ -42,16 +50,24 @@ Key Notes:
       - Cancelled because alternate version of logit/mixed logit is preferred. See [Dominant Option Regression]
   - [COMPLETE][DCE Dominant Choice Graphs] Create remote v. none, in person v. none, and in person v. remote graphs
   - [COMPLETE][DCE Logit Regression] Create OLS and Mixed Logit (logit complete) version of this regression. Summarize in one table
+  - [COMPLETE][Rank results methods 1-9. Rank Order Logit] Analyze the rank results methods 1-9 (What are the top method preferences?)
+  - [COMPLETE][Three study experiment. Rank Order Logit] Analyze three study experiment
+  - [COMPLETE][DCE Willingness to Pay Plots] Create WTP plots
+  - [COMPLETE][DCE Willingness to Pay Table (Main)] Create WTP tables
+  - [COMPLETE][DCE Regression Table (With Inattentive Subset)/(Without First Two Rounds)/etc] Robustness Check Tables - Regressions
+  - [COMPLETE][DCE Willingness to Pay Table (With Inattentive Subset)/(Without First Two Rounds)/etc)] Robustness Check Tables - WTP
+  - [COMPLETE][Rank results methods 1-9. Rank Order Logit Table.] Rank 9 methods table
+  - [COMPLETE][Three study experiment. Rank Order Logit] Three Studies Table
+  - [COMPLETE][Three study experiment. Rank Order Logit] Robustness Check Tables - Three Studies
+  - [COMPLETE][Rank results methods 1-9. Rank Order Logit WITH inattentive subset] Robustness Check Tables - 9 methods
   
   Ordered by priority:
   - [To-Do][Summary Statistics Table fixes] Make results correspond to actual values (i.e. 1/2 correspond to "Satisfied"/"Not satisfied", etc.)
-  - [To-Do] Analyze the rank results methods 1-9 (What are the top method preferences?)
-  - [To-Do] Analyze three study experiment (especially the "likelihood" variables)
-  - [To-Do] Can we do anything with the activity data? It's very incomplete, but let's try...
+  - [To-Do] Can we do anything with the activity data? [Did you participate in activity X/Y/Z/etc?] It's very incomplete, but let's try...
   - [To-Do] Summarize comment variables (exercise_comment and exercise_comment_oth for DCE comments, end_commet for overall comments)
   - [To-Do] Summarize challenges participants identified
 
-  ____________________________________________________________________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________________
   
   
 # Initial Data Cleaning
@@ -63,7 +79,7 @@ Key Notes:
   - Columns that need reformatting (ex. "1 - Least satisfied" and "2" in the same column, or "1 2 3 0 9" which should be one column each for "1" "2", etc.) \\
   - Anything else that looks unusual or wrong \\
   
-  Some NA values are fine, we're just especially concerned with those in columns where we need to do analysis. Those include the DCE responses*, 3-study method questions (Haushofer, etc), the activity response section, and the demographics. To start, take a look at the data and see if anything looks weird to you, I've typed up my initial thoughts below. When I figured something out while working with the data, I indicate it below as well. \\
+  Some NA values are fine, we're just especially concerned with those in columns where we need to do analysis. Those include the DCE responses*, 3-study method questions (Househofer, etc), the activity response section, and the demographics. To start, take a look at the data and see if anything looks weird to you, I've typed up my initial thoughts below. When I figured something out while working with the data, I indicate it below as well. \\
   
   *You might notice the returningresults_merged dataset doesn't have the DCE data. For some reason, it's separate in SurveyCTO-- that's okay, we just have to join the datasets together. To begin with, look at the datasets separately and we'll join them in a later step. \\
   
@@ -89,7 +105,7 @@ kageradata <- read.csv("returningresults_merged.csv")
 #   - *** future_study_willingness --> not complete
 #   
 
-dcedata <- read.csv("dce_returningresults_merged.csv")
+kagera_dcedata <- read.csv("dce_returningresults_merged.csv")
 scenarios <- read.csv("scenario_dataset.csv")
 # DCE Data Notes:
 #     - No ID indicator, for joining with Kagera data, join column is SET.OF.dce_game
@@ -102,14 +118,14 @@ scenarios <- read.csv("scenario_dataset.csv")
 
 # Join Datasets
 # Concatenate the multiple longform and dce datasets. 
-dta <- read_dta("RR-RCT.dta")
-write.csv(dta, file = "RR-RCT.csv")
-dcedta <- read_dta("RR-RCT-DCE.dta")
-write.csv(dcedta, file = "RR-RCT-DCE.csv")
-dta_controlinfo <- read_dta("dta_controlinfo.dta")
-write.csv(dta_controlinfo, file = "dta_controlinfo.csv")
+dardata<- read_dta("RR-RCT.dta")
+write.csv(dardata, file = "RR-RCT.csv")
+dar_dcedata <- read_dta("RR-RCT-DCE.dta")
+write.csv(dar_dcedata, file = "RR-RCT-DCE.csv")
+dardata_controlinfo <- read_dta("dta_controlinfo.dta")
+write.csv(dardata_controlinfo, file = "dardata_controlinfo.csv")
 
-dta <- dta %>%
+dardata<- dardata%>%
   rename(
     respo_confirm_initial = respo_confirm,
     respondentID = respondentid,
@@ -195,23 +211,23 @@ dta <- dta %>%
     KEY = key
   )
 
-dta_controlinfo$SEL_name_pull = toupper(dta_controlinfo$SEL_name_pull)
-dta$final_respondent = toupper(dta$final_respondent)
+dardata_controlinfo$SEL_name_pull = toupper(dardata_controlinfo$SEL_name_pull)
+dardata$final_respondent = toupper(dardata$final_respondent)
 
-dta_controlinfo <- dta_controlinfo %>%
+dardata_controlinfo <- dardata_controlinfo %>%
   mutate(
     control = ifelse(treatment == 0, 1, 0)
   )
 
-dta_controlinfo$control <- as.integer(dta_controlinfo$control)
-dta$past_study_challenges_addressed_by <- as.integer(dta$past_study_challenges_addressed_by)
-dta$other_participant_challenges_heard <- as.integer(dta$other_participant_challenges_heard)
-dta$game_size <- as.integer(dta$game_size)
-dta$dce_game_count <- as.integer(dta$dce_game_count)
+dardata_controlinfo$control <- as.integer(dardata_controlinfo$control)
+dardata$past_study_challenges_addressed_by <- as.integer(dardata$past_study_challenges_addressed_by)
+dardata$other_participant_challenges_heard <- as.integer(dardata$other_participant_challenges_heard)
+dardata$game_size <- as.integer(dardata$game_size)
+dardata$dce_game_count <- as.integer(dardata$dce_game_count)
 
-dta <- left_join(dta, dta_controlinfo, by = join_by("final_respondent" == "SEL_name_pull"))
-dta$control.x <- as.integer(dta$control.x)
-dta <- dta %>%
+dardata<- left_join(dardata, dardata_controlinfo, by = join_by("final_respondent" == "SEL_name_pull"))
+dardata$control.x <- as.integer(dardata$control.x)
+dardata<- dardata%>%
   mutate(
     control = coalesce(control.x, control.y))
 
@@ -228,21 +244,21 @@ kageradata$end_time <- as.POSIXct(kageradata$end_time, format = "%m-%d-%y %H:%M:
 
 
 # Finally, add both datasets
-kageradata <- bind_rows(kageradata, dta)
+kageradata <- bind_rows(kageradata, dardata)
 
 # Now add the DCE data. A little bit simpler
-dcedta <- dcedta %>%
+dar_dcedata <- dar_dcedata %>%
   rename(
     KEY = key,
     PARENT_KEY = parent_key,
     SET.OF.dce_game = setofdce_game
   )
 
-dcedta <- dcedta %>%
+dar_dcedata <- dar_dcedata %>%
   mutate(
     location = NA
   )
-dcedata <- dcedata %>%
+kagera_dcedata <- kagera_dcedata %>%
   mutate(
     districtID = NA,
     wardID = NA,
@@ -250,7 +266,7 @@ dcedata <- dcedata %>%
     respondentid = NA
   )
 
-dcedata <- bind_rows(dcedata, dcedta)
+dcedata <- bind_rows(kagera_dcedata, dar_dcedata)
 
 # Augment the DCE dataset with the scenarios set
   # Check for respondent index and image label presence, then join on those variables
@@ -286,6 +302,21 @@ dcedata <- bind_rows(dcedata, dcedta)
     villageID = coalesce(villageID.x, villageID.y)
   ) %>%
   select(-ends_with(".x"), -ends_with(".y"), -respondentid)
+  
+  #Some of the rows refuse to merge correctly. This code tries to fix that by coalescing these rows (which shouldn't lose anything)
+    rows_with_merge_problems <- fulldata %>% group_by(respondentID, game_index) %>% 
+      filter(n() > 1) %>%
+      arrange(respondentID, game_index)
+    
+    merge_problem_row_IDs <- unique(as.numeric(as.character(rows_with_merge_problems$respondentID)))
+    coalesced_rows <- rows_with_merge_problems %>%
+      filter(respondentID %in% merge_problem_row_IDs) %>%
+      group_by(respondentID, game_index) %>%
+      summarise(across(everything(), ~coalesce(.[1], .[2])), .groups = "drop")
+    
+    fulldata_withoutproblemrows <- subset(fulldata, !(respondentID %in% merge_problem_row_IDs))
+    fulldata <- bind_rows(fulldata_withoutproblemrows, coalesced_rows)
+  
 # Data Cleaning
 
 # Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
@@ -340,75 +371,6 @@ fulldata <- fulldata %>%
       funding_delta = fundA - fundB
     )
 
-# Clean code for the three study experiment analysis. Generate dummy var for study, position, method
-threestudy_analysis <- select(fulldata, c("respondentID", "first_study", "first_method", "second_study", "second_method", 
-"third_study", "third_method", "rank_results_preference_1", "rank_results_preference_2", 
-"rank_results_preference_3", "rank_formats_preference_1", "rank_formats_preference_2", 
-"rank_formats_preference_3", "rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3"))
-
-threestudy_analysis <- threestudy_analysis %>%
-  pivot_longer(cols = c("first_study", "first_method", "second_study", "second_method", "third_study", "third_method"),
-               names_to = c("order", ".value"),
-               names_sep = "_") %>%
-  mutate(order = factor(order, levels = c("first", "second", "third")))
-
-threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_results_preference_1", "rank_results_preference_2", "rank_results_preference_3"))
-threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_formats_preference_1", "rank_formats_preference_2", "rank_formats_preference_3"))
-threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3"))
-threestudy_analysis$results_preference_ranking <- NA
-threestudy_analysis$formats_preference_ranking <- NA
-threestudy_analysis$formats_clarity_ranking <- NA
-#Repeat for formats preference, formats clarity
-j = 1
-
-while(j <= nrow(threestudy_analysis)) {
-    current_row <- threestudy_analysis[j,]
-    order_num = case_when(
-      current_row$order == "first" ~ 1,
-      current_row$order == "second" ~ 2,
-      current_row$order == "third" ~ 3
-    )
-    results_preference_ranking = case_when(
-      order_num == 1 & current_row$rank_results_preference_1_1 == 1 ~ 1,
-      order_num == 2 & current_row$rank_results_preference_1_2 == 1 ~ 1,
-      order_num == 3 & current_row$rank_results_preference_1_3 == 1 ~ 1,
-      order_num == 1 & current_row$rank_results_preference_2_1 == 1 ~ 2,
-      order_num == 2 & current_row$rank_results_preference_2_2 == 1 ~ 2,
-      order_num == 3 & current_row$rank_results_preference_2_3 == 1 ~ 2,
-      order_num == 1 & current_row$rank_results_preference_3_1 == 1 ~ 3,
-      order_num == 2 & current_row$rank_results_preference_3_2 == 1 ~ 3,
-      order_num == 3 & current_row$rank_results_preference_3_3 == 1 ~ 3,
-    )
-    threestudy_analysis[j, "results_preference_ranking"] <- results_preference_ranking
-    formats_preference_ranking = case_when(
-      #order_num == 1 & current_row$rank_formats_preference_1_1 == 1 ~ 1,
-      order_num == 2 & current_row$rank_formats_preference_1_2 == 1 ~ 1,
-      order_num == 3 & current_row$rank_formats_preference_1_3 == 1 ~ 1,
-      order_num == 1 & current_row$rank_formats_preference_2_1 == 1 ~ 2,
-      order_num == 2 & current_row$rank_formats_preference_2_2 == 1 ~ 2,
-      order_num == 3 & current_row$rank_formats_preference_2_3 == 1 ~ 2,
-      order_num == 1 & current_row$rank_formats_preference_3_1 == 1 ~ 3,
-      order_num == 2 & current_row$rank_formats_preference_3_2 == 1 ~ 3,
-      order_num == 3 & current_row$rank_formats_preference_3_3 == 1 ~ 3,
-    )
-    threestudy_analysis[j, "formats_preference_ranking"] <- formats_preference_ranking
-    formats_clarity_ranking = case_when(
-      order_num == 1 & current_row$rank_formats_clarity_1_1 == 1 ~ 1,
-      order_num == 2 & current_row$rank_formats_clarity_1_2 == 1 ~ 1,
-      order_num == 3 & current_row$rank_formats_clarity_1_3 == 1 ~ 1,
-      order_num == 1 & current_row$rank_formats_clarity_2_1 == 1 ~ 2,
-      order_num == 2 & current_row$rank_formats_clarity_2_2 == 1 ~ 2,
-      order_num == 3 & current_row$rank_formats_clarity_2_3 == 1 ~ 2,
-      order_num == 1 & current_row$rank_formats_clarity_3_1 == 1 ~ 3,
-      order_num == 2 & current_row$rank_formats_clarity_3_2 == 1 ~ 3,
-      order_num == 3 & current_row$rank_formats_clarity_3_3 == 1 ~ 3,
-    )
-    threestudy_analysis[j, "formats_clarity_ranking"] <- formats_clarity_ranking
-    j <- j + 1
-}
-
-threestudy_long <- unique(select(threestudy_analysis, c("respondentID", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking")))
-
 #Read in the codebook of variable names and types, adjust types that are incorrect
 codebook <- read.csv("codebook.csv")
 
@@ -458,11 +420,11 @@ fulldata <- subset(fulldata, as.numeric(interviewer) != 1)
 
 write.csv(fulldata, file = "processeddataset.csv", row.names = FALSE)
 
-dceanalysis <- select(fulldatapredrop, c("respondentID", "game_index", "option_selected", 
+dceanalysis <- select(fulldatapredrop, c("respondentID", "game_index", "game_matrix", "option_selected", 
                                          "participants_image.A", "community_image.A", "policymakers_image.A", "compensation_image.A", "researchfunding_image.A", 
                                          "participants_image.B", "community_image.B", "policymakers_image.B", "compensation_image.B", "researchfunding_image.B",
                                          "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "control",
-                                         "understood_exercise", "exercise_comment", "exercise_comment_oth", "interviewer"))
+                                         "understood_exercise", "exercise_comment", "exercise_comment_oth", "interviewer", ))
 
 #Renaming columns for ease of reference
 dceanalysis <- dceanalysis %>%
@@ -666,317 +628,6 @@ formatted_table %>%
   cols_align(align = "right", columns = c("full_sample", "control", "treatment"))
 
 
-```
-
-```{r DCE Initialization Long Dataset}
-
-# A binary logit regression that regresses whether an option won against its feature levels.  Ex. chosen ~ has_return_results_participants_1 + has_return_results_2 + etc. 
-
-# A binary logit regression that regresses the likelihood of selecting a particular feature against what it's "up against". I.e. return_results_participants_remote_chosen ~ other_option_no_participant_results + other_option_participants_inperson + comp_delta + ....
-
-#To accomplish this, we want a long dataset. 
-
-# Pivot longer
-dce_long <- dceanalysis %>%
-  pivot_longer(
-    cols = c(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, fundA, fundB),
-    names_to = c(".value", "alt"),
-    names_pattern = "(.*)(A|B)"
-  ) %>%
-  mutate(
-    chosen = ifelse((option_selected == 0 & alt == "B") | (option_selected == 1 & alt == "A"), 1, 0)
-  ) %>%
-  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund, control, exercise_comment, interviewer)
-
-dce_long <- dce_long %>%
-  distinct(respondentID, game_index) %>%             # Get unique combinations
-  arrange(respondentID, game_index) %>%              # Order them
-  mutate(game_id = row_number()) %>%                 # Assign global game_id
-  right_join(dce_long, by = c("respondentID", "game_index"))
-
-dce_long$participant <- factor(dce_long$participant,
-                               levels = c(1, 2, 3),
-                               labels = c("No results returned to participants", "Results returned to participants remotely", "Results returned to participants in person"))
-
-dce_long$community <- factor(dce_long$community,
-                               levels = c(1, 2, 3),
-                               labels = c("No results returned to community", "Results returned to community leaders remotely", "Results returned to community in-person meeting"))
-
-dce_long$policy <- factor(dce_long$policy,
-                               levels = c(1, 2, 3),
-                               labels = c("No results returned to policymakers", "Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers"))
-
-#Want: returning results to participants chosen ~ community + policy + comp + fund, 
-     # returning results to community chosen ~ participants + policy + comp + fund,
-     # returning results to policymakers chosen ~ participants + community + comp + fund,
-
-dce_long <- dce_long %>%
-  group_by(game_id) %>%
-  mutate(
-    chosen_participant = participant[chosen == 1],
-    other_participant = participant[chosen == 0],
-    chosen_community = community[chosen == 1],
-    other_community = community[chosen == 0],
-    chosen_policy = policy[chosen == 1],
-    other_policy = policy[chosen == 0],
-    chosen_comp = comp[chosen == 1],
-    other_comp = comp[chosen == 0],
-    chosen_fund = fund[chosen == 1],
-    other_fund = fund[chosen == 0],
-    dominant_comp = case_when(
-      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "A"],
-      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "B"],
-      comp[alt == "A"] == comp[alt == "B"] ~ NA
-      ),
-    nondominant_comp = case_when(
-      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "B"],
-      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "A"],
-      comp[alt == "A"] == comp[alt == "B"] ~ NA
-    ),
-    dominant_fund = case_when(
-      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "A"],
-      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "B"],
-      fund[alt == "A"] == fund[alt == "B"] ~ NA
-      ),
-    nondominant_fund = case_when(
-      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "B"],
-      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "A"],
-      fund[alt == "A"] == fund[alt == "B"] ~ NA
-      ),
-    chosen_dominant_comp = case_when(
-      dominant_comp == NA ~ NA,
-      chosen == 1 & dominant_comp == comp ~ 1,
-      chosen == 0 & nondominant_comp == comp ~ 1,
-      TRUE ~ 0
-    ),
-    chosen_dominant_fund = case_when(
-      dominant_fund == NA ~ NA,
-      chosen == 1 & dominant_fund == fund ~ 1,
-      chosen == 0 & nondominant_fund == fund ~ 1,
-      TRUE ~ 0
-    ),
-    comp_delta = ifelse(!is.na(dominant_comp - nondominant_comp), dominant_comp - nondominant_comp, NA),
-    fund_delta = ifelse(!is.na(dominant_fund - nondominant_fund), dominant_fund - nondominant_fund, NA),
-    dominant_funding_comp_delta = case_when(
-      fund[alt == "A"] == fund[alt == "B"] ~ NA,
-      fund[alt == "A"] > fund[alt == "B"] ~ comp[alt == "A"] - comp[alt == "B"],
-      fund[alt == "B"] > fund[alt == "A"] ~ comp[alt == "B"] - comp[alt == "A"],
-    ),
-    return_results_participants = case_when(
-      participant[alt == "A"] == participant[alt == "B"] ~ NA,
-      participant[alt == "A"] != "No results returned to participants" | participant[alt == "B"] != "No results returned to participants" ~ 1,
-      TRUE ~ 0
-    ),
-    return_results_participants_none = ifelse(participant == "No results returned to participants", 1, 0),
-    return_results_participants_remote = ifelse(participant == "Results returned to participants remotely", 1, 0),
-    return_results_participants_inperson = ifelse(participant == "Results returned to participants in person", 1, 0),
-    return_results_community = case_when(
-      community[alt == "A"] == community[alt == "B"] ~ NA,
-      community[alt == "A"] != "No results returned to community" | community[alt == "B"] != "No results returned to community" ~ 1,
-      TRUE ~ 0
-    ),
-    return_results_policy = case_when(
-      policy[alt == "A"] == policy[alt == "B"] ~ NA,
-      policy[alt == "A"] != "No results returned to policymakers" | policy[alt == "B"] != "No results returned to policymakers" ~ 1,
-      TRUE ~ 0
-    ),
-    return_results_participants_chosen = case_when(
-      chosen == 1 &
-      chosen_participant %in% c("Results returned to participants remotely", "Results returned to participants in person") &
-      chosen_participant != other_participant ~ 1,
-      chosen_participant == other_participant ~ NA,
-      TRUE ~ 0
-    ),
-    return_results_community_chosen = case_when(
-      chosen == 1 &
-      chosen_community %in% c("Results returned to community leaders remotely", "Results returned to community in-person meeting") &
-      chosen_community != other_community ~ 1,
-      chosen_community == other_community ~ NA,
-      TRUE ~ 0
-    ),
-    return_results_policy_chosen = case_when(
-      chosen == 1 &
-      chosen_policy %in% c("Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers") &
-      chosen_policy != other_policy ~ 1,
-      chosen_policy == other_policy ~ NA,
-      TRUE ~ 0
-    )
-    
-  ) %>%
-  ungroup()
-
-
-# Added columns to make participant graphs
-dce_long <- dce_long %>%
-  group_by(game_id) %>%
-  mutate(
-    #Need an indicator for which has dominant participant option (v1 and v2)
-    #Need an indicator for if the dominant participant option was chosen
-    #Need an indicator for what the compensation difference is between the dominant participant option and the non dominant participant option
-    
-    dominant_rrp_v1 = case_when(
-      participant[alt == "A"] == participant[alt == "B"] ~ NA,
-      participant[alt == "A"] == "Results returned to participants in person" & alt == "A" ~ 1,
-      participant[alt == "A"] == "Results returned to participants in person" & alt == "B" ~ 0,
-      participant[alt == "B"] == "Results returned to participants in person" & alt == "B" ~ 1,
-      participant[alt == "B"] == "Results returned to participants in person" & alt == "A" ~ 0,
-      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "A" ~ 1,
-      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "B" ~ 0,
-      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "A" ~ 0,
-      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrp_v1 = case_when(
-      is.na(dominant_rrp_v1) ~ NA,
-      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrp_v1_comp_delta = case_when(
-      is.na(dominant_rrp_v1) ~ NA,
-      TRUE ~ comp[dominant_rrp_v1 == 1] - comp[dominant_rrp_v1 == 0]
-    ),
-    
-    dominant_rrp_v2 = case_when(
-      participant[alt == "A"] == participant[alt == "B"] ~ NA,
-      participant[alt == "A"] == "Results returned to participants remotely" & alt == "A" ~ 1,
-      participant[alt == "A"] == "Results returned to participants remotely" & alt == "B" ~ 0,
-      participant[alt == "B"] == "Results returned to participants remotely" & alt == "B" ~ 1,
-      participant[alt == "B"] == "Results returned to participants remotely" & alt == "A" ~ 0,
-      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "A" ~ 1,
-      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "B" ~ 0,
-      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "A" ~ 0,
-      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrp_v2 = case_when(
-      is.na(dominant_rrp_v2) ~ NA,
-      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrp_v2_comp_delta = case_when(
-      is.na(dominant_rrp_v2) ~ NA,
-      TRUE ~ comp[dominant_rrp_v2 == 1] - comp[dominant_rrp_v2 == 0]
-    ),
-    
-    
-    
-    #Now community returning results (rrc)
-    dominant_rrc_v1 = case_when(
-      community[alt == "A"] == community[alt == "B"] ~ NA,
-      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "A" ~ 1,
-      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "B" ~ 0,
-      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "B" ~ 1,
-      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "A" ~ 0,
-      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "A" ~ 1,
-      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "B" ~ 0,
-      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "A" ~ 0,
-      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrc_v1 = case_when(
-      is.na(dominant_rrc_v1) ~ NA,
-      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrc_v1_comp_delta = case_when(
-      is.na(dominant_rrc_v1) ~ NA,
-      TRUE ~ comp[dominant_rrc_v1 == 1] - comp[dominant_rrc_v1 == 0]
-    ),
-    
-    dominant_rrc_v2 = case_when(
-      community[alt == "A"] == community[alt == "B"] ~ NA,
-      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "A" ~ 1,
-      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "B" ~ 0,
-      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "B" ~ 1,
-      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "A" ~ 0,
-      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "A" ~ 1,
-      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "B" ~ 0,
-      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "A" ~ 0,
-      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrc_v2 = case_when(
-      is.na(dominant_rrc_v2) ~ NA,
-      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrc_v2_comp_delta = case_when(
-      is.na(dominant_rrc_v2) ~ NA,
-      TRUE ~ comp[dominant_rrc_v2 == 1] - comp[dominant_rrc_v2 == 0]
-    ),
-    
-    
-    
-    #Now for policymakers. Returning results to policymakers --> rrpolicy
-    dominant_rrpolicy_v1 = case_when(
-      policy[alt == "A"] == policy[alt == "B"] ~ NA,
-      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
-      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
-      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
-      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
-      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
-      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
-      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
-      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrpolicy_v1 = case_when(
-      is.na(dominant_rrpolicy_v1) ~ NA,
-      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrpolicy_v1_comp_delta = case_when(
-      is.na(dominant_rrpolicy_v1) ~ NA,
-      TRUE ~ comp[dominant_rrpolicy_v1 == 1] - comp[dominant_rrpolicy_v1 == 0]
-    ),
-    
-    dominant_rrpolicy_v2 = case_when(
-      policy[alt == "A"] == policy[alt == "B"] ~ NA,
-      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "A" ~ 1,
-      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "B" ~ 0,
-      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "B" ~ 1,
-      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "A" ~ 0,
-      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "A" ~ 1,
-      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "B" ~ 0,
-      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "A" ~ 0,
-      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "B" ~ 1,
-      TRUE ~ 0
-    ),
-    
-    chosen_dominant_rrpolicy_v2 = case_when(
-      is.na(dominant_rrpolicy_v2) ~ NA,
-      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 1) ~ 1,
-      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 0) ~ 0,
-    ),
-    
-    dominant_rrpolicy_v2_comp_delta = case_when(
-      is.na(dominant_rrpolicy_v2) ~ NA,
-      TRUE ~ comp[dominant_rrpolicy_v2 == 1] - comp[dominant_rrpolicy_v2 == 0]
-    )
-  ) %>% ungroup()
-
-dce_long <- dce_long %>%
-  mutate(
-    respondentID = as.numeric(respondentID)
-  )
-
-dce_long_predrop <- dce_long
-
-# Drop the inattentive participants 
-dce_long <- subset(dce_long, as.numeric(exercise_comment) < 3)
-dce_long <- subset(dce_long, as.numeric(interviewer) != 1)
-
-write.csv(dce_long, file = "dcelongdataset.csv")
 ```
 
 ```{r Summary Statistics Table Create the table}
@@ -2207,7 +1858,7 @@ final_table %>%
 
 ```
 
-```{r Summary Stats Figures with Percentages (Elyse Adapting Mira's code)}
+```{r Summary Stats Figures with Percentages (Elyse Adapting Mira's code), eval = FALSE}
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -2343,53 +1994,6 @@ ggplot(enrol_data, aes(x = N, y = reorder(Reason, N))) +
     plot.title = element_text(face = "bold", hjust = 3)
   ) +
   xlim(0, max(enrol_data$N) * 1.4)
-
-```
-
-```{r To-do. Analyze three study experiment}
-
-# The three-study experiment asked questions about what methods people prefer. We need to analyze whether participants exhibited a preference for any particular method after controlling for the presentation order and the study it was about. 
-
-# Want a simple linear regression controlling for these (results preference, formats preference, and clarity preference)
-
-
-# Interpretation Note: Since the ranking value is greater when the participant preferred the option less, invert interpretations
-# Drawn from these results (i.e. negative coef is more preference, positive coef is less preference)
-
-
-results_pref_model <- lm(results_preference_ranking ~ method + study + order + respondentID, data = threestudy_long)
-#summary(results_pref_model)
-#bptest(results_pref_model)
-#Evidence suggests presence of heteroskedasticity
-coeftest(results_pref_model, vcov = vcovHC(results_pref_model, type = "HC0", cluster = ~respondentID))
-
-formats_pref_model <- lm(formats_preference_ranking ~ method + study + order + respondentID, data = threestudy_long)
-#summary(formats_pref_model)
-#bptest(formats_pref_model)
-#Evidence suggests presence of heteroskedasticity
-coeftest(formats_pref_model, vcov = vcovHC(formats_pref_model, type = "HC0", cluster = ~respondentID))
-
-formats_clarity_model <- lm(formats_clarity_ranking ~ method + study + order + respondentID, data = threestudy_long)
-#summary(formats_clarity_model)
-#bptest(formats_clarity_model)
-#Evidence suggests against presence of heteroskedasticity, but code available below for robust standard errors
-coeftest(formats_clarity_model, vcov = vcovHC(formats_clarity_model, type = "HC0"), cluster = ~respondentID)
-
-```
-
-```{r To-do. Analyze activity data}
-
-# We asked questions about what activities each participant was involved with. I believe this question set was designed to provide an indication of whether or not individuals correctly recalled participating in the experiment. 
-
-    #First-- are people recalling accurately? Yes/No
-
-    #Anything else we can say about it?
-
-```
-
-```{r To-do. Summarize comment variables}
-
-# The comment variables might provide some qualitative information, but it's in Swahili. Can we compile it here and translate it?
 
 ```
 
@@ -2999,9 +2603,10 @@ heatmap
 
 ```
 
-```{r To-do. Analyze the rank results methods 1-9 (What are the top method preferences?), eval = FALSE}
 
 
+
+```{r Rank results methods 1-9. Stacked Bar Chart Visualization, eval = FALSE}
 #renaming dataset so I don't lose anything
 rankings <- fulldata
 
@@ -3087,6 +2692,8 @@ stacked_rankings <- rankings %>%
     legend.text = element_text(size = 8),
     legend.position = "right"
   )
+
+ggthemr::ggthemr_reset()
 
 # flipped stack plot
 stacked_rankings_2 <- rankings %>%
@@ -3274,9 +2881,1009 @@ heatmap
 
 ```
 
-```{r To-do. Summarize challenges participants identified, eval = FALSE}
+```{r Rank results methods 1-9. Rank Order Logit, eval = FALSE}
+rankings <- fulldata
+rankings <- rankings %>%
+  distinct(respondentID, 
+          rank_results_methods_1,
+          rank_results_methods_2,
+          rank_results_methods_3,
+          rank_results_methods_4,
+          rank_results_methods_5,
+          rank_results_methods_6,
+          rank_results_methods_7,
+          rank_results_methods_8,
+          rank_results_methods_9,
+          .keep_all = TRUE)
+
+method_labels <- c(
+  "1" = "Audio Message (Baseline)",
+  "2" = "SMS",
+  "3" = "Website",
+  "4" = "Flyer (Individual)",
+  "5" = "Flyer (Public)",
+  "6" = "Social Media Post",
+  "7" = "Video",
+  "8" = "Public Meeting",
+  "9" = "Private Meeting"
+)
+
+# stacked ranking
+stacked_rankings <- rankings %>%
+  mutate(across(starts_with("rank_results_methods_"), as.character)) %>%
+  pivot_longer(
+    cols = starts_with("rank_results_methods_"),
+    names_to = "choice",
+    values_to = "method"
+  ) %>%
+  mutate(
+    choice = str_remove(choice, "rank_results_methods_"))
+
+stacked_rankings <- stacked_rankings %>%
+  mutate(
+    respondentID = as.character(respondentID),
+    method = as.character(method),
+    choice = as.integer(choice)
+  )
+
+mlogit_data <- dfidx(data = stacked_rankings,
+                     idx = c("respondentID", "method"),
+                     choice = "choice",
+                     shape = "long",
+                     ranked = TRUE)
+
+model_ranked <- mlogit(choice ~ method | control, data = mlogit_data)
+summary(model_ranked)
+
+coefplot(model_ranked, horiz = TRUE, main = "Ranked Logit Coefficients")
+
+library(tidyverse)
+library(broom)
+library(forcats)
+
+# Compute confidence intervals
+coefs <- broom::tidy(model_ranked, conf.int = TRUE)
+
+# Process coefficients
+ci_data <- coefs %>%
+  mutate(
+    term_type = case_when(
+      str_detect(term, "^\\(Intercept\\):") ~ "intercept",
+      str_detect(term, "^control:") ~ "control",
+      TRUE ~ "other"
+    ),
+    method_num = case_when(
+      term_type == "intercept" ~ str_remove(term, "^\\(Intercept\\):"),
+      term_type == "control" ~ str_remove(term, "^control:"),
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(term_type != "other") %>%
+  select(term_type, method_num, estimate, conf.low, conf.high) %>%
+  pivot_wider(
+    names_from = term_type,
+    values_from = c(estimate, conf.low, conf.high)
+  ) %>%
+  mutate(
+    method_label = method_labels[method_num],
+    treatment = estimate_intercept,
+    treatment_low = conf.low_intercept,
+    treatment_high = conf.high_intercept,
+    control = estimate_intercept + estimate_control,
+    control_low = conf.low_intercept + conf.low_control,
+    control_high = conf.high_intercept + conf.high_control
+  )
+
+# Add baseline manually
+ci_data <- ci_data %>%
+  add_row(
+    method_num = "1",
+    method_label = method_labels["1"],
+    treatment = 0,
+    treatment_low = 0,
+    treatment_high = 0,
+    control = 0,
+    control_low = 0,
+    control_high = 0
+  )
+
+# Reshape for plotting
+ci_plot_data <- ci_data %>%
+  pivot_longer(cols = c("treatment", "control"), names_to = "group", values_to = "estimate") %>%
+  mutate(
+    lower = case_when(
+      group == "treatment" ~ treatment_low,
+      group == "control" ~ control_low
+    ),
+    upper = case_when(
+      group == "treatment" ~ treatment_high,
+      group == "control" ~ control_high
+    )
+  )
+
+# Plot with confidence intervals
+ggplot(ci_plot_data, aes(x = estimate, 
+                         y = fct_reorder(method_label, estimate, .desc = FALSE), 
+                         color = group)) +
+  geom_point(size = 3) +
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.2, linewidth = 0.8) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  labs(
+    title = "Rank-Ordered Logit of Returning Methods",
+    x = "Rank-Order Coefficient (with 95% CI)",
+    y = "",
+    color = "Group"
+  ) +
+  scale_color_manual(values = c("treatment" = "darkblue", "control" = "firebrick")) +
+  theme_minimal()
+
+# Extract coefficients and standard errors
+coefs <- broom::tidy(model_ranked, conf.int = TRUE)
+
+# Classify term type and extract method number
+coefs <- coefs %>%
+  mutate(
+    term_type = case_when(
+      str_detect(term, "^\\(Intercept\\):") ~ "intercept",
+      str_detect(term, "^control:") ~ "control",
+      TRUE ~ "other"
+    ),
+    method_num = case_when(
+      term_type == "intercept" ~ str_remove(term, "^\\(Intercept\\):"),
+      term_type == "control" ~ str_remove(term, "^control:"),
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(term_type != "other")
+
+# Merge intercept and control rows
+table_data <- coefs %>%
+  select(term_type, method_num, estimate, std.error, p.value) %>%
+  pivot_wider(
+    names_from = term_type,
+    values_from = c(estimate, std.error, p.value)
+  ) %>%
+  mutate(
+    method_label = method_labels[method_num],
+    treatment_coef = estimate_intercept,
+    treatment_se   = std.error_intercept,
+    treatment_p    = p.value_intercept,
+    control_coef   = estimate_intercept + estimate_control,
+    control_se     = sqrt(std.error_intercept^2 + std.error_control^2), # approximate
+    control_p      = p.value_control
+  ) %>%
+  select(method_label, starts_with("treatment"), starts_with("control"))
+
+# Add baseline manually (Audio Message)
+baseline_row <- tibble(
+  method_label = method_labels["1"],
+  treatment_coef = 0,
+  treatment_se = NA,
+  treatment_p = NA,
+  control_coef = 0,
+  control_se = NA,
+  control_p = NA
+)
+
+table_data <- bind_rows(baseline_row, table_data) %>%
+  arrange(treatment_coef)
+
+# Format values and significance stars
+format_with_stars <- function(est, p) {
+  stars <- case_when(
+    is.na(p) ~ "",
+    p < 0.001 ~ "***",
+    p < 0.01 ~ "**",
+    p < 0.05 ~ "*",
+    TRUE ~ ""
+  )
+  sprintf("%.3f%s", est, stars)
+}
+
+format_se <- function(se) {
+  ifelse(is.na(se), "", sprintf("(%.3f)", se))
+}
+
+final_table <- table_data %>%
+  mutate(
+    Treatment = paste0(format_with_stars(treatment_coef, treatment_p), "\n", format_se(treatment_se)),
+    Control   = paste0(format_with_stars(control_coef, control_p), "\n", format_se(control_se))
+  ) %>%
+  select(`Method` = method_label, Treatment, Control)
+
+# Create nicely styled table
+final_table %>%
+  kable(format = "html", escape = FALSE, align = c("l", "c", "c")) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE)
+
 ```
 
+```{r Rank results methods 1-9. Rank Order Logit WITH inattentive subset, eval = FALSE}
+
+incl_inattentive_rankings <- fulldatapredrop
+incl_inattentive_rankings <- incl_inattentive_rankings %>%
+  distinct(respondentID, 
+          rank_results_methods_1,
+          rank_results_methods_2,
+          rank_results_methods_3,
+          rank_results_methods_4,
+          rank_results_methods_5,
+          rank_results_methods_6,
+          rank_results_methods_7,
+          rank_results_methods_8,
+          rank_results_methods_9,
+          .keep_all = TRUE)
+
+incl_inattentive_method_labels <- c(
+  "1" = "Audio Message (Baseline)",
+  "2" = "SMS",
+  "3" = "Website",
+  "4" = "Flyer (Individual)",
+  "5" = "Flyer (Public)",
+  "6" = "Social Media Post",
+  "7" = "Video",
+  "8" = "Public Meeting",
+  "9" = "Private Meeting"
+)
+
+# stacked ranking
+incl_inattentive_stacked_rankings <- incl_inattentive_rankings %>%
+  mutate(across(starts_with("rank_results_methods_"), as.character)) %>%
+  pivot_longer(
+    cols = starts_with("rank_results_methods_"),
+    names_to = "choice",
+    values_to = "method"
+  ) %>%
+  mutate(
+    choice = str_remove(choice, "rank_results_methods_"))
+
+incl_inattentive_stacked_rankings <- incl_inattentive_stacked_rankings %>%
+  mutate(
+    respondentID = as.character(respondentID),
+    method = as.character(method),
+    choice = as.integer(choice)
+  )
+
+incl_inattentive_mlogit_data <- dfidx(data = incl_inattentive_stacked_rankings,
+                     idx = c("respondentID", "method"),
+                     choice = "choice",
+                     shape = "long",
+                     ranked = TRUE)
+
+incl_inattentive_model_ranked <- mlogit(choice ~ method | control, data = incl_inattentive_mlogit_data)
+summary(incl_inattentive_model_ranked)
+
+coefplot(incl_inattentive_model_ranked, horiz = TRUE, main = "Ranked Logit Coefficients")
+
+library(tidyverse)
+library(broom)
+library(forcats)
+
+# Compute confidence intervals
+incl_inattentive_coefs <- broom::tidy(incl_inattentive_model_ranked, conf.int = TRUE)
+
+# Process coefficients
+incl_inattentive_ci_data <- incl_inattentive_coefs %>%
+  mutate(
+    term_type = case_when(
+      str_detect(term, "^\\(Intercept\\):") ~ "intercept",
+      str_detect(term, "^control:") ~ "control",
+      TRUE ~ "other"
+    ),
+    method_num = case_when(
+      term_type == "intercept" ~ str_remove(term, "^\\(Intercept\\):"),
+      term_type == "control" ~ str_remove(term, "^control:"),
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(term_type != "other") %>%
+  select(term_type, method_num, estimate, conf.low, conf.high) %>%
+  pivot_wider(
+    names_from = term_type,
+    values_from = c(estimate, conf.low, conf.high)
+  ) %>%
+  mutate(
+    method_label = incl_inattentive_method_labels[method_num],
+    treatment = estimate_intercept,
+    treatment_low = conf.low_intercept,
+    treatment_high = conf.high_intercept,
+    control = estimate_intercept + estimate_control,
+    control_low = conf.low_intercept + conf.low_control,
+    control_high = conf.high_intercept + conf.high_control
+  )
+
+# Add baseline manually
+incl_inattentive_ci_data <- incl_inattentive_ci_data %>%
+  add_row(
+    method_num = "1",
+    method_label = incl_inattentive_method_labels["1"],
+    treatment = 0,
+    treatment_low = 0,
+    treatment_high = 0,
+    control = 0,
+    control_low = 0,
+    control_high = 0
+  )
+
+# Reshape for plotting
+incl_inattentive_ci_plot_data <- incl_inattentive_ci_data %>%
+  pivot_longer(cols = c("treatment", "control"), names_to = "group", values_to = "estimate") %>%
+  mutate(
+    lower = case_when(
+      group == "treatment" ~ treatment_low,
+      group == "control" ~ control_low
+    ),
+    upper = case_when(
+      group == "treatment" ~ treatment_high,
+      group == "control" ~ control_high
+    )
+  )
+
+# Plot with confidence intervals
+ggplot(incl_inattentive_ci_plot_data, aes(x = estimate, 
+                         y = fct_reorder(method_label, estimate, .desc = FALSE), 
+                         color = group)) +
+  geom_point(size = 3) +
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.2, linewidth = 0.8) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  labs(
+    title = "Rank-Ordered Logit of Returning Methods (With Inattentive Subset)",
+    x = "Rank-Order Coefficient (with 95% CI)",
+    y = "",
+    color = "Group"
+  ) +
+  scale_color_manual(values = c("treatment" = "darkblue", "control" = "firebrick")) +
+  theme_minimal()
+
+# Extract coefficients and standard errors
+incl_inattentive_coefs <- broom::tidy(incl_inattentive_model_ranked, conf.int = TRUE)
+
+# Classify term type and extract method number
+incl_inattentive_coefs <- incl_inattentive_coefs %>%
+  mutate(
+    term_type = case_when(
+      str_detect(term, "^\\(Intercept\\):") ~ "intercept",
+      str_detect(term, "^control:") ~ "control",
+      TRUE ~ "other"
+    ),
+    method_num = case_when(
+      term_type == "intercept" ~ str_remove(term, "^\\(Intercept\\):"),
+      term_type == "control" ~ str_remove(term, "^control:"),
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(term_type != "other")
+
+# Merge intercept and control rows
+incl_inattentive_table_data <- incl_inattentive_coefs %>%
+  select(term_type, method_num, estimate, std.error, p.value) %>%
+  pivot_wider(
+    names_from = term_type,
+    values_from = c(estimate, std.error, p.value)
+  ) %>%
+  mutate(
+    method_label = incl_inattentive_method_labels[method_num],
+    treatment_coef = estimate_intercept,
+    treatment_se   = std.error_intercept,
+    treatment_p    = p.value_intercept,
+    control_coef   = estimate_intercept + estimate_control,
+    control_se     = sqrt(std.error_intercept^2 + std.error_control^2), # approximate
+    control_p      = p.value_control
+  ) %>%
+  select(method_label, starts_with("treatment"), starts_with("control"))
+
+# Add baseline manually (Audio Message)
+incl_inattentive_baseline_row <- tibble(
+  method_label = incl_inattentive_method_labels["1"],
+  treatment_coef = 0,
+  treatment_se = NA,
+  treatment_p = NA,
+  control_coef = 0,
+  control_se = NA,
+  control_p = NA
+)
+
+incl_inattentive_table_data <- bind_rows(incl_inattentive_baseline_row, incl_inattentive_table_data) %>%
+  arrange(treatment_coef)
+
+# Format values and significance stars
+format_with_stars <- function(est, p) {
+  stars <- case_when(
+    is.na(p) ~ "",
+    p < 0.001 ~ "***",
+    p < 0.01 ~ "**",
+    p < 0.05 ~ "*",
+    TRUE ~ ""
+  )
+  sprintf("%.3f%s", est, stars)
+}
+
+format_se <- function(se) {
+  ifelse(is.na(se), "", sprintf("(%.3f)", se))
+}
+
+incl_inattentive_final_table <- incl_inattentive_table_data %>%
+  mutate(
+    Treatment = paste0(format_with_stars(treatment_coef, treatment_p), "\n", format_se(treatment_se)),
+    Control   = paste0(format_with_stars(control_coef, control_p), "\n", format_se(control_se))
+  ) %>%
+  select(`Method` = method_label, Treatment, Control)
+
+# Create nicely styled table
+incl_inattentive_final_table %>%
+  kable(format = "html", escape = FALSE, align = c("l", "c", "c")) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE)
+
+```
+
+```{r Three study experiment. Rank Order Logit (with and without inattentive subset), eval = FALSE}
+# Clean code for the three study experiment analysis. Generate dummy var for study, position, method
+threestudy_analysis <- select(fulldatapredrop, c("respondentID", "first_study", "first_method", "second_study", "second_method", 
+"third_study", "third_method", "rank_results_preference_1", "rank_results_preference_2", 
+"rank_results_preference_3", "rank_formats_preference_1", "rank_formats_preference_2", 
+"rank_formats_preference_3", "rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3", "control", "exercise_comment", "interviewer"))
+
+threestudy_analysis <- threestudy_analysis[!duplicated(threestudy_analysis), ]
+
+empty_preference_rows <- subset(threestudy_analysis, is.na(rank_results_preference_1) & is.na(rank_results_preference_2) & is.na(rank_results_preference_3))
+
+threestudy_analysis <- subset(threestudy_analysis, !is.na(rank_results_preference_1) & !is.na(rank_results_preference_2) & !is.na(rank_results_preference_3))
+
+threestudy_analysis <- threestudy_analysis %>%
+  pivot_longer(cols = c("first_study", "first_method", "second_study", "second_method", "third_study", "third_method"),
+               names_to = c("order", ".value"),
+               names_sep = "_") %>%
+  mutate(order = factor(order, levels = c("first", "second", "third")))
+
+threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_results_preference_1", "rank_results_preference_2", "rank_results_preference_3"))
+threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_formats_preference_1", "rank_formats_preference_2", "rank_formats_preference_3"))
+threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3"))
+threestudy_analysis$results_preference_ranking <- NA
+threestudy_analysis$formats_preference_ranking <- NA
+threestudy_analysis$formats_clarity_ranking <- NA
+#Repeat for formats preference, formats clarity
+j = 1
+numrows <- nrow(threestudy_analysis)
+
+while(j <= numrows) {
+    current_row <- threestudy_analysis[j,]
+    order_num = case_when(
+      current_row$order == "first" ~ 1,
+      current_row$order == "second" ~ 2,
+      current_row$order == "third" ~ 3
+    )
+    results_preference_ranking = case_when(
+      #Read these as "if the current row is the "first" study and the #1 rank results preference is study 1/"first", then results_pref_ranking = 1", etc.
+      current_row$order == "first" & current_row$rank_results_preference_1_1 == 1 ~ 1,
+      current_row$order == "second" & current_row$rank_results_preference_1_2 == 1 ~ 1,
+      current_row$order == "third" & current_row$rank_results_preference_1_3 == 1 ~ 1,
+      #Read these as "if the current row is the "first" study and the #2 rank results preference is study 1/"first", then results_pref_ranking = 2", etc.
+      current_row$order == "first" & current_row$rank_results_preference_2_1 == 1 ~ 2,
+      current_row$order == "second" & current_row$rank_results_preference_2_2 == 1 ~ 2,
+      current_row$order == "third" & current_row$rank_results_preference_2_3 == 1 ~ 2,
+      #Read these as "if the current row is the "first" study and the #3 rank results preference is study 1/"first", then results_pref_ranking = 3", etc.
+      current_row$order == "first" & current_row$rank_results_preference_3_1 == 1 ~ 3,
+      current_row$order == "second" & current_row$rank_results_preference_3_2 == 1 ~ 3,
+      current_row$order == "third" & current_row$rank_results_preference_3_3 == 1 ~ 3
+    )
+    threestudy_analysis[j, "results_preference_ranking"] <- results_preference_ranking
+
+    formats_preference_ranking = case_when(
+      current_row$order == "first" & current_row$rank_formats_preference_1_1 == 1 ~ 1,
+      current_row$order == "second" & current_row$rank_formats_preference_1_2 == 1 ~ 1,
+      current_row$order == "third" & current_row$rank_formats_preference_1_3 == 1 ~ 1,
+      current_row$order == "first" & current_row$rank_formats_preference_2_1 == 1 ~ 2,
+      current_row$order == "second" & current_row$rank_formats_preference_2_2 == 1 ~ 2,
+      current_row$order == "third" & current_row$rank_formats_preference_2_3 == 1 ~ 2,
+      current_row$order == "first" & current_row$rank_formats_preference_3_1 == 1 ~ 3,
+      current_row$order == "second" & current_row$rank_formats_preference_3_2 == 1 ~ 3,
+      current_row$order == "third" & current_row$rank_formats_preference_3_3 == 1 ~ 3,
+    )
+    threestudy_analysis[j, "formats_preference_ranking"] <- formats_preference_ranking
+    
+    formats_clarity_ranking = case_when(
+      current_row$order == "first" & current_row$rank_formats_clarity_1_1 == 1 ~ 1,
+      current_row$order == "second" & current_row$rank_formats_clarity_1_2 == 1 ~ 1,
+      current_row$order == "third" & current_row$rank_formats_clarity_1_3 == 1 ~ 1,
+      current_row$order == "first" & current_row$rank_formats_clarity_2_1 == 1 ~ 2,
+      current_row$order == "second" & current_row$rank_formats_clarity_2_2 == 1 ~ 2,
+      current_row$order == "third" & current_row$rank_formats_clarity_2_3 == 1 ~ 2,
+      current_row$order == "first" & current_row$rank_formats_clarity_3_1 == 1 ~ 3,
+      current_row$order == "second" & current_row$rank_formats_clarity_3_2 == 1 ~ 3,
+      current_row$order == "third" & current_row$rank_formats_clarity_3_3 == 1 ~ 3,
+    )
+    threestudy_analysis[j, "formats_clarity_ranking"] <- formats_clarity_ranking
+    
+    j <- j + 1
+}
+
+empty_preference_rows_afterclean <- subset(threestudy_analysis, is.na(results_preference_ranking) 
+                                           #& is.na(rank_results_preference_2) & is.na(rank_results_preference_3)
+                                           )
+
+threestudy_analysispredrop <- threestudy_analysis
+threestudy_analysis <- subset(threestudy_analysis, as.numeric(exercise_comment) < 3 & as.numeric(interviewer) != 1)
+
+threestudy <- unique(select(threestudy_analysis, c("respondentID", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking", "control")))
+
+threestudy_predrop <- unique(select(threestudy_analysispredrop, c("respondentID", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking", "control")))
+
+threestudy_resultspref_data <- dfidx(
+  data = threestudy,
+  idx = c("respondentID", "method"),
+  choice = "results_preference_ranking",
+  shape = "long",
+  ranked = TRUE)
+
+threestudy_resultspref_ranked <- mlogit(results_preference_ranking ~ method + order + study | control, data = threestudy_resultspref_data)
+summary(threestudy_resultspref_ranked)
+
+#coefplot(threestudy_resultspref_ranked, horiz = TRUE)
+
+
+
+threestudy_formatspref_data <- dfidx(data = threestudy,
+                     idx = c("respondentID", "method"),
+                     choice = "formats_preference_ranking",
+                     shape = "long",
+                     ranked = TRUE)
+
+threestudy_formatspref_ranked <- mlogit(formats_preference_ranking ~ order + study + method | control, data = threestudy_formatspref_data)
+summary(threestudy_formatspref_ranked)
+
+threestudy_formatsclarity_data <- dfidx(data = threestudy,
+                     idx = c("respondentID", "method"),
+                     choice = "formats_clarity_ranking",
+                     shape = "long",
+                     ranked = TRUE)
+
+threestudy_formatsclarity_ranked <- mlogit(formats_clarity_ranking ~ order + study + method| control, data = threestudy_formatsclarity_data)
+summary(threestudy_formatsclarity_ranked)
+
+
+
+
+threestudy_resultspref_data_incl_inattentive <- dfidx(
+  data = threestudy_predrop,
+  idx = c("respondentID", "method"),
+  choice = "results_preference_ranking",
+  shape = "long",
+  ranked = TRUE
+)
+
+threestudy_resultspref_ranked_incl_inattentive <- mlogit(results_preference_ranking ~ method + order + study | control, 
+                                                         data = threestudy_resultspref_data_incl_inattentive)
+summary(threestudy_resultspref_ranked_incl_inattentive)
+
+
+
+threestudy_formatspref_data_incl_inattentive <- dfidx(
+  data = threestudy_predrop,
+                     idx = c("respondentID", "method"),
+                     choice = "formats_preference_ranking",
+                     shape = "long",
+                     ranked = TRUE)
+
+threestudy_formatspref_ranked_incl_inattentive <- mlogit(formats_preference_ranking ~ order + study + method | control, 
+                                                         data = threestudy_formatspref_data_incl_inattentive)
+summary(threestudy_formatspref_ranked_incl_inattentive)
+
+threestudy_formatsclarity_data_incl_inattentive <- dfidx(
+  data = threestudy_predrop,
+                     idx = c("respondentID", "method"),
+                     choice = "formats_clarity_ranking",
+                     shape = "long",
+                     ranked = TRUE)
+
+threestudy_formatsclarity_ranked_incl_inattentive <- mlogit(formats_clarity_ranking ~ method + order + study | control, 
+                                                            data = threestudy_formatsclarity_data_incl_inattentive)
+summary(threestudy_formatsclarity_ranked_incl_inattentive)
+
+
+# Load required packages
+library(broom)
+library(dplyr)
+library(tidyr)
+library(kableExtra)
+
+format_mlogit_table <- function(model1, model2, model_names = c("Attentive", "All (incl. inattentive)")) {
+  tidy1 <- broom::tidy(model1) %>% mutate(model = model_names[1])
+  tidy2 <- broom::tidy(model2) %>% mutate(model = model_names[2])
+  
+  combined <- bind_rows(tidy1, tidy2) %>%
+    mutate(
+      estimate_fmt = sprintf("%.2f", estimate),
+      std.error_fmt = sprintf("(%.2f)", std.error),
+      stars = case_when(
+        p.value < 0.001 ~ "***",
+        p.value < 0.01 ~ "**",
+        p.value < 0.05 ~ "*",
+        TRUE ~ ""
+      ),
+      coef_display = paste0(estimate_fmt, stars, "\n", std.error_fmt)
+    ) %>%
+    select(term, model, coef_display) %>%
+    pivot_wider(names_from = model, values_from = coef_display) %>%
+    mutate(term = recode(term,
+      `(Intercept):sms.png`     = "SMS Message (vs. Audio) – Treatment Group Preference",
+      `control:sms.png`         = "SMS Message (vs. Audio) – Control Group Preference",
+      `(Intercept):video.mp4`   = "Video Message (vs. Audio) – Treatment Group Preference",
+      `control:video.mp4`       = "Video Message (vs. Audio) – Control Group Preference",
+      `ordersecond`             = "Presented 2nd (vs. 1st)",
+      `orderthird`              = "Presented 3rd (vs. 1st)",
+      `studyLachlan`            = "Lachlan Study (vs. Househofer)",
+      `studyRiley`              = "Riley Study (vs. Househofer)"
+    ))
+
+  # Define desired term order
+  term_levels <- c(
+    "SMS Message (vs. Audio) – Treatment Group Preference",
+    "SMS Message (vs. Audio) – Control Group Preference",
+    "Video Message (vs. Audio) – Treatment Group Preference",
+    "Video Message (vs. Audio) – Control Group Preference",
+    "Presented 2nd (vs. 1st)",
+    "Presented 3rd (vs. 1st)",
+    "Lachlan Study (vs. Househofer)",
+    "Riley Study (vs. Househofer)"
+  )
+  
+  # Ensure correct order
+  combined <- combined %>%
+    mutate(term = factor(term, levels = term_levels)) %>%
+    arrange(term)
+  
+  # Create table
+  kbl_out <- kable(combined, format = "html", escape = FALSE, align = "lcc",
+                   col.names = c("Term", model_names[1], model_names[2])) %>%
+    kable_styling(full_width = FALSE, position = "left") %>%
+    add_header_above(c(" " = 1, "Results" = 2)) %>%
+    row_spec(0, bold = TRUE) %>%
+    group_rows("Controls", 5, 8)  # Lines 5-8 are controls
+
+  return(kbl_out)
+}
+
+
+# ---- Create Tables ----
+
+# 1. Results Preference
+format_mlogit_table(
+  model1 = threestudy_resultspref_ranked,
+  model2 = threestudy_resultspref_ranked_incl_inattentive,
+  model_names = c("Attentive", "All (incl. inattentive)")
+)
+
+# 2. Formats Preference
+format_mlogit_table(
+  model1 = threestudy_formatspref_ranked,
+  model2 = threestudy_formatspref_ranked_incl_inattentive,
+  model_names = c("Attentive", "All (incl. inattentive)")
+)
+
+# 3. Formats Clarity
+format_mlogit_table(
+  model1 = threestudy_formatsclarity_ranked,
+  model2 = threestudy_formatsclarity_ranked_incl_inattentive,
+  model_names = c("Attentive", "All (incl. inattentive)")
+)
+
+```
+
+
+
+
+```{r DCE Initialization Long Dataset}
+
+# A binary logit regression that regresses whether an option won against its feature levels.  Ex. chosen ~ has_return_results_participants_1 + has_return_results_2 + etc. 
+
+# A binary logit regression that regresses the likelihood of selecting a particular feature against what it's "up against". I.e. return_results_participants_remote_chosen ~ other_option_no_participant_results + other_option_participants_inperson + comp_delta + ....
+
+#To accomplish this, we want a long dataset. 
+
+# Pivot longer
+dce_long <- dceanalysis %>%
+  pivot_longer(
+    cols = c(participantA, participantB, communityA, communityB, policyA, policyB, compA, compB, fundA, fundB),
+    names_to = c(".value", "alt"),
+    names_pattern = "(.*)(A|B)"
+  ) %>%
+  mutate(
+    chosen = ifelse((option_selected == 0 & alt == "B") | (option_selected == 1 & alt == "A"), 1, 0)
+  ) %>%
+  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund, control, exercise_comment, interviewer)
+
+dce_long <- dce_long %>%
+  distinct(respondentID, game_index) %>%             # Get unique combinations
+  arrange(respondentID, game_index) %>%              # Order them
+  mutate(game_id = row_number()) %>%                 # Assign global game_id
+  right_join(dce_long, by = c("respondentID", "game_index"))
+
+dce_long$participant <- factor(dce_long$participant,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to participants", "Results returned to participants remotely", "Results returned to participants in person"))
+
+dce_long$community <- factor(dce_long$community,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to community", "Results returned to community leaders remotely", "Results returned to community in-person meeting"))
+
+dce_long$policy <- factor(dce_long$policy,
+                               levels = c(1, 2, 3),
+                               labels = c("No results returned to policymakers", "Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers"))
+
+#Want: returning results to participants chosen ~ community + policy + comp + fund, 
+     # returning results to community chosen ~ participants + policy + comp + fund,
+     # returning results to policymakers chosen ~ participants + community + comp + fund,
+
+dce_long <- dce_long %>%
+  group_by(game_id) %>%
+  mutate(
+    chosen_participant = participant[chosen == 1],
+    other_participant = participant[chosen == 0],
+    chosen_community = community[chosen == 1],
+    other_community = community[chosen == 0],
+    chosen_policy = policy[chosen == 1],
+    other_policy = policy[chosen == 0],
+    chosen_comp = comp[chosen == 1],
+    other_comp = comp[chosen == 0],
+    chosen_fund = fund[chosen == 1],
+    other_fund = fund[chosen == 0],
+    dominant_comp = case_when(
+      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "A"],
+      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "B"],
+      comp[alt == "A"] == comp[alt == "B"] ~ NA
+      ),
+    nondominant_comp = case_when(
+      comp[alt == "A"] > comp[alt == "B"] ~ comp[alt == "B"],
+      comp[alt == "B"] > comp[alt == "A"] ~ comp[alt == "A"],
+      comp[alt == "A"] == comp[alt == "B"] ~ NA
+    ),
+    dominant_fund = case_when(
+      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "A"],
+      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "B"],
+      fund[alt == "A"] == fund[alt == "B"] ~ NA
+      ),
+    nondominant_fund = case_when(
+      fund[alt == "A"] > fund[alt == "B"] ~ fund[alt == "B"],
+      fund[alt == "B"] > fund[alt == "A"] ~ fund[alt == "A"],
+      fund[alt == "A"] == fund[alt == "B"] ~ NA
+      ),
+    chosen_dominant_comp = case_when(
+      dominant_comp == NA ~ NA,
+      chosen == 1 & dominant_comp == comp ~ 1,
+      chosen == 0 & nondominant_comp == comp ~ 1,
+      TRUE ~ 0
+    ),
+    chosen_dominant_fund = case_when(
+      dominant_fund == NA ~ NA,
+      chosen == 1 & dominant_fund == fund ~ 1,
+      chosen == 0 & nondominant_fund == fund ~ 1,
+      TRUE ~ 0
+    ),
+    comp_delta = ifelse(!is.na(dominant_comp - nondominant_comp), dominant_comp - nondominant_comp, NA),
+    fund_delta = ifelse(!is.na(dominant_fund - nondominant_fund), dominant_fund - nondominant_fund, NA),
+    dominant_funding_comp_delta = case_when(
+      fund[alt == "A"] == fund[alt == "B"] ~ NA,
+      fund[alt == "A"] > fund[alt == "B"] ~ comp[alt == "A"] - comp[alt == "B"],
+      fund[alt == "B"] > fund[alt == "A"] ~ comp[alt == "B"] - comp[alt == "A"],
+    ),
+    return_results_participants = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] != "No results returned to participants" | participant[alt == "B"] != "No results returned to participants" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_participants_none = ifelse(participant == "No results returned to participants", 1, 0),
+    return_results_participants_remote = ifelse(participant == "Results returned to participants remotely", 1, 0),
+    return_results_participants_inperson = ifelse(participant == "Results returned to participants in person", 1, 0),
+    return_results_community = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] != "No results returned to community" | community[alt == "B"] != "No results returned to community" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_policy = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] != "No results returned to policymakers" | policy[alt == "B"] != "No results returned to policymakers" ~ 1,
+      TRUE ~ 0
+    ),
+    return_results_participants_chosen = case_when(
+      chosen == 1 &
+      chosen_participant %in% c("Results returned to participants remotely", "Results returned to participants in person") &
+      chosen_participant != other_participant ~ 1,
+      chosen_participant == other_participant ~ NA,
+      TRUE ~ 0
+    ),
+    return_results_community_chosen = case_when(
+      chosen == 1 &
+      chosen_community %in% c("Results returned to community leaders remotely", "Results returned to community in-person meeting") &
+      chosen_community != other_community ~ 1,
+      chosen_community == other_community ~ NA,
+      TRUE ~ 0
+    ),
+    return_results_policy_chosen = case_when(
+      chosen == 1 &
+      chosen_policy %in% c("Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers") &
+      chosen_policy != other_policy ~ 1,
+      chosen_policy == other_policy ~ NA,
+      TRUE ~ 0
+    )
+    
+  ) %>%
+  ungroup()
+
+
+# Added columns to make participant graphs
+dce_long <- dce_long %>%
+  group_by(game_id) %>%
+  mutate(
+    #Need an indicator for which has dominant participant option (v1 and v2)
+    #Need an indicator for if the dominant participant option was chosen
+    #Need an indicator for what the compensation difference is between the dominant participant option and the non dominant participant option
+    
+    dominant_rrp_v1 = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] == "Results returned to participants in person" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants in person" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & alt == "B" ~ 1,
+      participant[alt == "B"] == "Results returned to participants in person" & alt == "A" ~ 0,
+      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants remotely" & participant[alt == "B"] != "Results returned to participants in person" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "A" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & participant[alt == "A"] != "Results returned to participants in person" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrp_v1 = case_when(
+      is.na(dominant_rrp_v1) ~ NA,
+      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrp_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrp_v1_comp_delta = case_when(
+      is.na(dominant_rrp_v1) ~ NA,
+      TRUE ~ comp[dominant_rrp_v1 == 1] - comp[dominant_rrp_v1 == 0]
+    ),
+    
+    dominant_rrp_v2 = case_when(
+      participant[alt == "A"] == participant[alt == "B"] ~ NA,
+      participant[alt == "A"] == "Results returned to participants remotely" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants remotely" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants remotely" & alt == "B" ~ 1,
+      participant[alt == "B"] == "Results returned to participants remotely" & alt == "A" ~ 0,
+      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "A" ~ 1,
+      participant[alt == "A"] == "Results returned to participants in person" & participant[alt == "B"] != "Results returned to participants remotely" & alt == "B" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "A" ~ 0,
+      participant[alt == "B"] == "Results returned to participants in person" & participant[alt == "A"] != "Results returned to participants remotely" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrp_v2 = case_when(
+      is.na(dominant_rrp_v2) ~ NA,
+      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrp_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrp_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrp_v2_comp_delta = case_when(
+      is.na(dominant_rrp_v2) ~ NA,
+      TRUE ~ comp[dominant_rrp_v2 == 1] - comp[dominant_rrp_v2 == 0]
+    ),
+    
+    
+    
+    #Now community returning results (rrc)
+    dominant_rrc_v1 = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community in-person meeting" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "B" ~ 1,
+      community[alt == "B"] == "Results returned to community in-person meeting" & alt == "A" ~ 0,
+      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community leaders remotely" & community[alt == "B"] != "Results returned to community in-person meeting" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "A" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & community[alt == "A"] != "Results returned to community in-person meeting" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrc_v1 = case_when(
+      is.na(dominant_rrc_v1) ~ NA,
+      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrc_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrc_v1_comp_delta = case_when(
+      is.na(dominant_rrc_v1) ~ NA,
+      TRUE ~ comp[dominant_rrc_v1 == 1] - comp[dominant_rrc_v1 == 0]
+    ),
+    
+    dominant_rrc_v2 = case_when(
+      community[alt == "A"] == community[alt == "B"] ~ NA,
+      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community leaders remotely" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "B" ~ 1,
+      community[alt == "B"] == "Results returned to community leaders remotely" & alt == "A" ~ 0,
+      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "A" ~ 1,
+      community[alt == "A"] == "Results returned to community in-person meeting" & community[alt == "B"] != "Results returned to community leaders remotely" & alt == "B" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "A" ~ 0,
+      community[alt == "B"] == "Results returned to community in-person meeting" & community[alt == "A"] != "Results returned to community leaders remotely" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrc_v2 = case_when(
+      is.na(dominant_rrc_v2) ~ NA,
+      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrc_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrc_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrc_v2_comp_delta = case_when(
+      is.na(dominant_rrc_v2) ~ NA,
+      TRUE ~ comp[dominant_rrc_v2 == 1] - comp[dominant_rrc_v2 == 0]
+    ),
+    
+    
+    
+    #Now for policymakers. Returning results to policymakers --> rrpolicy
+    dominant_rrpolicy_v1 = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & policy[alt == "B"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "A" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & policy[alt == "A"] != "Results presented in half-day workshop to policymakers" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrpolicy_v1 = case_when(
+      is.na(dominant_rrpolicy_v1) ~ NA,
+      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrpolicy_v1[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v1[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrpolicy_v1_comp_delta = case_when(
+      is.na(dominant_rrpolicy_v1) ~ NA,
+      TRUE ~ comp[dominant_rrpolicy_v1 == 1] - comp[dominant_rrpolicy_v1 == 0]
+    ),
+    
+    dominant_rrpolicy_v2 = case_when(
+      policy[alt == "A"] == policy[alt == "B"] ~ NA,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Report of results submitted to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "B" ~ 1,
+      policy[alt == "B"] == "Report of results submitted to policymakers" & alt == "A" ~ 0,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "A" ~ 1,
+      policy[alt == "A"] == "Results presented in half-day workshop to policymakers" & policy[alt == "B"] != "Report of results submitted to policymakers" & alt == "B" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "A" ~ 0,
+      policy[alt == "B"] == "Results presented in half-day workshop to policymakers" & policy[alt == "A"] != "Report of results submitted to policymakers" & alt == "B" ~ 1,
+      TRUE ~ 0
+    ),
+    
+    chosen_dominant_rrpolicy_v2 = case_when(
+      is.na(dominant_rrpolicy_v2) ~ NA,
+      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 1) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 1) ~ 1,
+      (option_selected == 1 & dominant_rrpolicy_v2[alt == "A"] == 0) | (option_selected == 0 & dominant_rrpolicy_v2[alt == "B"] == 0) ~ 0,
+    ),
+    
+    dominant_rrpolicy_v2_comp_delta = case_when(
+      is.na(dominant_rrpolicy_v2) ~ NA,
+      TRUE ~ comp[dominant_rrpolicy_v2 == 1] - comp[dominant_rrpolicy_v2 == 0]
+    )
+  ) %>% ungroup()
+
+dce_long <- dce_long %>%
+  mutate(
+    respondentID = as.numeric(respondentID)
+  )
+
+dce_long_predrop <- dce_long
+
+# Drop the inattentive participants 
+dce_long <- subset(dce_long, as.numeric(exercise_comment) < 3)
+dce_long <- subset(dce_long, as.numeric(interviewer) != 1)
+
+write.csv(dce_long, file = "dcelongdataset.csv")
+```
 ```{r DCE Logit Regression, eval = FALSE}
 
 set.seed(3141592653)
@@ -3366,7 +3973,6 @@ ggplot(general_pref_mixed_logit_tidy, aes(x = estimate, y = reorder(term, estima
   ) +
   theme_minimal()
 ```
-
 ```{r DCE Dominant Choice Graphs, eval = FALSE}
 # Research Funding vs. Compensation Differential
 fundinganalysisdataset <- subset(dce_long, comp_delta != 0 & fund_delta != 0)
@@ -4035,8 +4641,7 @@ plot19 <- ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta
   theme_minimal()
 
 ```
-
-```{r Interactive Dominant Choice Graph Display, eval = FALSE}
+```{r DCE Interactive Dominant Choice Graph Display, eval = FALSE}
 
 ui <- fluidPage(
   tags$head(
@@ -4762,18 +5367,7 @@ shinyApp(ui, server)
 
 ```
 
-```{r Better Presentation Table (Conditional and Mixed Logit Models)}
-## ─────────────────────────────────────────────────────────────
-##  0.  Libraries  ─────────────────────────────────────────────
-library(mlogit)
-library(broom)
-library(dplyr)
-library(tidyr)
-library(kableExtra)
-library(purrr)
-
-## ─────────────────────────────────────────────────────────────
-##  1.  Pretty labels  ─────────────────────────────────────────
+```{r DCE Regression Table (Main), eval = FALSE}
 custom_labels <- c(
   "(Intercept):B" = "Intercept",
   "participantResults returned to participants in person"   = "Participants: In person",
@@ -4795,8 +5389,6 @@ custom_labels <- c(
   "as.factor(game_index)^9:B" = "Game Index - 10"
 )
 
-## ─────────────────────────────────────────────────────────────
-##  2.  Helper functions  ─────────────────────────────────────
 run_models <- function(data) {
   mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
                        panel = TRUE, id.var = "respondentID")
@@ -4862,14 +5454,12 @@ extract_estimates <- function(mixed, conditional, grp) {
            !!paste0("Cond_",  grp) := cond_str)
 }
 
-## ─────────────────────────────────────────────────────────────
-##  3.  Fit the models  ───────────────────────────────────────
+
 models_full   <- run_models(dce_long)
 models_treat  <- run_models(filter(dce_long, control == 0))
 models_ctrl   <- run_models(filter(dce_long, control == 1))
 
-## ─────────────────────────────────────────────────────────────
-##  4.  Pull out coefficients  ────────────────────────────────
+
 est_full  <- extract_estimates(models_full$mixed,  models_full$conditional,  "Full")
 est_treat <- extract_estimates(models_treat$mixed, models_treat$conditional, "Treat")
 est_ctrl  <- extract_estimates(models_ctrl$mixed,  models_ctrl$conditional,  "Control")
@@ -4893,8 +5483,6 @@ all_combined <- reduce(list(est_full, est_treat, est_ctrl), full_join, by = "ter
     `Conditional Logit (Control)`     = Cond_Control
   )
 
-## ─────────────────────────────────────────────────────────────
-##  5.  Re-order rows & flag sections  ─────────────────────────
 row_order <- c(
   "Intercept",
   "Participants: In person", "Participants: Remotely",
@@ -4916,16 +5504,13 @@ all_combined <- all_combined |>
   arrange(order) |>
   select(-order)
 
-## ─────────────────────────────────────────────────────────────
-##  6.  Build the kable table  ────────────────────────────────
-# start/end rows for each section
 sec_pos <- all_combined |>
   mutate(rn = row_number()) |>
   filter(!is.na(Section)) |>
   group_by(Section) |>
   summarise(start = min(rn), end = max(rn), .groups = "drop")
 
-# create the base table
+
 table_out <- all_combined |>
   select(-Section) |>
   kable("html", escape = FALSE,
@@ -4934,7 +5519,7 @@ table_out <- all_combined |>
   kable_styling(full_width = FALSE,
                 bootstrap_options = c("striped", "hover"))
 
-# add the block headings
+
 for (i in seq_len(nrow(sec_pos))) {
   table_out <- pack_rows(table_out,
                          group_label = sec_pos$Section[i],
@@ -4942,54 +5527,521 @@ for (i in seq_len(nrow(sec_pos))) {
                          end_row     = sec_pos$end[i])
 }
 
+table_out <- table_out %>%
+  row_spec(8, extra_css = "border-top: 1px solid black;")
+
+
 table_out   # renders the nicely formatted table
 ```
+```{r DCE Regression Table (With Inattentive Subset), eval = FALSE}
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "participantResults returned to participants in person"   = "Participants: In person",
+  "participantResults returned to participants remotely"    = "Participants: Remotely",
+  "communityResults returned to community in-person meeting"= "Community: In-person meeting",
+  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
+  "policyReport of results submitted to policymakers"       = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding",
+  "as.factor(game_index).L:B" = "Game Index - 2",
+  "as.factor(game_index).Q:B" = "Game Index - 3",
+  "as.factor(game_index).C:B" = "Game Index - 4",
+  "as.factor(game_index)^4:B" = "Game Index - 5",
+  "as.factor(game_index)^5:B" = "Game Index - 6",
+  "as.factor(game_index)^6:B" = "Game Index - 7",
+  "as.factor(game_index)^7:B" = "Game Index - 8",
+  "as.factor(game_index)^8:B" = "Game Index - 9",
+  "as.factor(game_index)^9:B" = "Game Index - 10"
+)
 
-```{r Bin Scatter Plot Graphs, eval = FALSE}
-adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
-  x_var <- enquo(x_var)
-  y_var <- enquo(y_var)
-
-  # Sort data by x
-  data_sorted <- data %>%
-    arrange(!!x_var)
-
-  total_obs <- nrow(data_sorted)
-  n_bins <- floor(total_obs / threshold)
-
-  if (n_bins < 1) stop("Not enough data to form even one bin with the required threshold.")
-
-  # Assign bin index based on row number
-  data_binned <- data_sorted %>%
-    mutate(bin = cut_number(row_number(), n = n_bins)) %>%
-    group_by(bin) %>%
-    summarise(
-      x = mean(!!x_var, na.rm = TRUE),
-      y = mean(!!y_var, na.rm = TRUE),
-      se = sd(!!y_var, na.rm = TRUE) / sqrt(n()),
-      n = n(),
-      .groups = "drop"
-    )
-
-  # Plot mean x and y per bin with error bars
-  ggplot(data_binned, aes(x = x, y = y)) +
-    geom_point(size = 3) +
-    geom_errorbar(aes(ymin = y - se, ymax = y + se), width = 0.1, alpha = 0.5) +
-    geom_line() +
-    labs(
-      x = as_label(x_var),
-      y = as_label(y_var),
-      title = paste("Binned scatter plot of", as_label(y_var), "vs", as_label(x_var)),
-      subtitle = paste("Each point averages ≥", threshold, "observations (±SE error bars)")
-    ) +
-    theme_minimal()
-
+run_models <- function(data) {
+  mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
+                       panel = TRUE, id.var = "respondentID")
+  
+  mixed_model <- mlogit(
+    chosen ~ participant + community + policy + comp + fund 
+    #| as.factor(game_index)
+    ,
+    data   = mlogit_data,
+    rpar   = c(
+      fund = "n",
+      setNames(rep("n", length(levels(data$participant)) - 1),
+               paste0("participant", levels(data$participant)[-1])),
+      setNames(rep("n", length(levels(data$community)) - 1),
+               paste0("community",  levels(data$community)[-1])),
+      setNames(rep("n", length(levels(data$policy)) - 1),
+               paste0("policy",     levels(data$policy)[-1]))
+    ),
+    halton = NA, R = 1000
+  )
+  
+  conditional_model <- mlogit(
+    chosen ~ participant + community + policy + comp + fund #| as.factor(game_index)
+    ,
+    data   = mlogit_data
+  )
+  
+  list(mixed = mixed_model, conditional = conditional_model)
 }
 
-adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, chosen_dominant_fund, 20)
+extract_estimates <- function(mixed, conditional, grp) {
+  tidy_mixed <- tidy(mixed) |>
+    filter(!grepl("^sd\\.", term)) |>
+    mutate(
+      term_clean = term,
+      mixed_str  = sprintf("%0.3f (%0.3f)%s",
+                           estimate, std.error,
+                           case_when(
+                             p.value < 0.001 ~ "***",
+                             p.value < 0.01  ~ "**",
+                             p.value < 0.05  ~ "*",
+                             TRUE            ~ ""
+                           ))
+    ) |>
+    select(term_clean, mixed_str)
+  
+  tidy_cond <- tidy(conditional) |>
+    mutate(
+      term_clean = term,
+      cond_str   = sprintf("%0.3f (%0.3f)%s",
+                           estimate, std.error,
+                           case_when(
+                             p.value < 0.001 ~ "***",
+                             p.value < 0.01  ~ "**",
+                             p.value < 0.05  ~ "*",
+                             TRUE            ~ ""
+                           ))
+    ) |>
+    select(term_clean, cond_str)
+  
+  full_join(tidy_mixed, tidy_cond, by = "term_clean") |>
+    rename(!!paste0("Mixed_", grp) := mixed_str,
+           !!paste0("Cond_",  grp) := cond_str)
+}
+
+
+
+
+incl_inattentive_models_full   <- run_models(dce_long_predrop)
+incl_inattentive_models_treat  <- run_models(filter(dce_long_predrop, control == 0))
+incl_inattentive_models_ctrl   <- run_models(filter(dce_long_predrop, control == 1))
+
+
+incl_inattentive_est_full  <- extract_estimates(incl_inattentive_models_full$mixed,  incl_inattentive_models_full$conditional,  "Full")
+incl_inattentive_est_treat <- extract_estimates(incl_inattentive_models_treat$mixed, incl_inattentive_models_treat$conditional, "Treat")
+incl_inattentive_est_ctrl  <- extract_estimates(incl_inattentive_models_ctrl$mixed,  incl_inattentive_models_ctrl$conditional,  "Control")
+
+incl_inattentive_all_combined <- reduce(list(incl_inattentive_est_full, incl_inattentive_est_treat, incl_inattentive_est_ctrl), full_join, by = "term_clean") |>
+  mutate(
+    Term = coalesce(custom_labels[term_clean], term_clean),
+    Term = if_else(term_clean == "(Intercept)", "Intercept", Term)
+  ) |>
+  # desired column order
+  select(Term,
+         Mixed_Full,  Mixed_Treat,  Mixed_Control,
+         Cond_Full,   Cond_Treat,   Cond_Control) |>
+  # nicer labels
+  rename(
+    `Mixed Logit (Full Sample)`       = Mixed_Full,
+    `Mixed Logit (Treatment)`         = Mixed_Treat,
+    `Mixed Logit (Control)`           = Mixed_Control,
+    `Conditional Logit (Full Sample)` = Cond_Full,
+    `Conditional Logit (Treatment)`   = Cond_Treat,
+    `Conditional Logit (Control)`     = Cond_Control
+  )
+
+row_order <- c(
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Report", "Policy: Workshop",
+  "Compensation", "Research Funding"
+)
+
+incl_inattentive_all_combined <- incl_inattentive_all_combined |>
+  mutate(
+    order   = match(Term, row_order),
+    Section = case_when(
+      grepl("^Participants", Term) ~ "Participants",
+      grepl("^Community",    Term) ~ "Community",
+      grepl("^Policy",       Term) ~ "Policymakers",
+      TRUE                         ~ NA_character_
+    )
+  ) |>
+  arrange(order) |>
+  select(-order)
+
+incl_inattentive_sec_pos <- incl_inattentive_all_combined |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
+
+
+incl_inattentive_table_out <- incl_inattentive_all_combined |>
+  select(-Section) |>
+  kable("html", escape = FALSE,
+        align = "lcccccc",
+        caption = "Mixed and Conditional Logit Estimates by Group - Including Inattentive Subsample") |>
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+
+for (i in seq_len(nrow(incl_inattentive_sec_pos))) {
+  incl_inattentive_table_out <- pack_rows(incl_inattentive_table_out,
+                         group_label = incl_inattentive_sec_pos$Section[i],
+                         start_row   = incl_inattentive_sec_pos$start[i],
+                         end_row     = incl_inattentive_sec_pos$end[i])
+}
+
+incl_inattentive_table_out <- incl_inattentive_table_out %>%
+  row_spec(8, extra_css = "border-top: 1px solid black;")
+
+
+incl_inattentive_table_out   # renders the nicely formatted table
+```
+```{r DCE Regression Table (Without First Two Rounds), eval = FALSE}
+dce_long_dropfirsttwo <- subset(dce_long, game_index > 2)
+
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "participantResults returned to participants in person"   = "Participants: In person",
+  "participantResults returned to participants remotely"    = "Participants: Remotely",
+  "communityResults returned to community in-person meeting"= "Community: In-person meeting",
+  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
+  "policyReport of results submitted to policymakers"       = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding",
+  "as.factor(game_index).L:B" = "Game Index - 2",
+  "as.factor(game_index).Q:B" = "Game Index - 3",
+  "as.factor(game_index).C:B" = "Game Index - 4",
+  "as.factor(game_index)^4:B" = "Game Index - 5",
+  "as.factor(game_index)^5:B" = "Game Index - 6",
+  "as.factor(game_index)^6:B" = "Game Index - 7",
+  "as.factor(game_index)^7:B" = "Game Index - 8",
+  "as.factor(game_index)^8:B" = "Game Index - 9",
+  "as.factor(game_index)^9:B" = "Game Index - 10"
+)
+
+run_models <- function(data) {
+  mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
+                       panel = TRUE, id.var = "respondentID")
+  
+  mixed_model <- mlogit(
+    chosen ~ participant + community + policy + comp + fund 
+    #| as.factor(game_index)
+    ,
+    data   = mlogit_data,
+    rpar   = c(
+      fund = "n",
+      setNames(rep("n", length(levels(data$participant)) - 1),
+               paste0("participant", levels(data$participant)[-1])),
+      setNames(rep("n", length(levels(data$community)) - 1),
+               paste0("community",  levels(data$community)[-1])),
+      setNames(rep("n", length(levels(data$policy)) - 1),
+               paste0("policy",     levels(data$policy)[-1]))
+    ),
+    halton = NA, R = 1000
+  )
+  
+  conditional_model <- mlogit(
+    chosen ~ participant + community + policy + comp + fund #| as.factor(game_index)
+    ,
+    data   = mlogit_data
+  )
+  
+  list(mixed = mixed_model, conditional = conditional_model)
+}
+
+extract_estimates <- function(mixed, conditional, grp) {
+  tidy_mixed <- tidy(mixed) |>
+    filter(!grepl("^sd\\.", term)) |>
+    mutate(
+      term_clean = term,
+      mixed_str  = sprintf("%0.3f (%0.3f)%s",
+                           estimate, std.error,
+                           case_when(
+                             p.value < 0.001 ~ "***",
+                             p.value < 0.01  ~ "**",
+                             p.value < 0.05  ~ "*",
+                             TRUE            ~ ""
+                           ))
+    ) |>
+    select(term_clean, mixed_str)
+  
+  tidy_cond <- tidy(conditional) |>
+    mutate(
+      term_clean = term,
+      cond_str   = sprintf("%0.3f (%0.3f)%s",
+                           estimate, std.error,
+                           case_when(
+                             p.value < 0.001 ~ "***",
+                             p.value < 0.01  ~ "**",
+                             p.value < 0.05  ~ "*",
+                             TRUE            ~ ""
+                           ))
+    ) |>
+    select(term_clean, cond_str)
+  
+  full_join(tidy_mixed, tidy_cond, by = "term_clean") |>
+    rename(!!paste0("Mixed_", grp) := mixed_str,
+           !!paste0("Cond_",  grp) := cond_str)
+}
+
+
+
+
+excl_firsttwo__models_full   <- run_models(dce_long_dropfirsttwo)
+excl_firsttwo__models_treat  <- run_models(filter(dce_long_dropfirsttwo, control == 0))
+excl_firsttwo__models_ctrl   <- run_models(filter(dce_long_dropfirsttwo, control == 1))
+
+
+excl_firsttwo__est_full  <- extract_estimates(excl_firsttwo__models_full$mixed,  excl_firsttwo__models_full$conditional,  "Full")
+excl_firsttwo__est_treat <- extract_estimates(excl_firsttwo__models_treat$mixed, excl_firsttwo__models_treat$conditional, "Treat")
+excl_firsttwo__est_ctrl  <- extract_estimates(excl_firsttwo__models_ctrl$mixed,  excl_firsttwo__models_ctrl$conditional,  "Control")
+
+excl_firsttwo__all_combined <- reduce(list(excl_firsttwo__est_full, excl_firsttwo__est_treat, excl_firsttwo__est_ctrl), full_join, by = "term_clean") |>
+  mutate(
+    Term = coalesce(custom_labels[term_clean], term_clean),
+    Term = if_else(term_clean == "(Intercept)", "Intercept", Term)
+  ) |>
+  # desired column order
+  select(Term,
+         Mixed_Full,  Mixed_Treat,  Mixed_Control,
+         Cond_Full,   Cond_Treat,   Cond_Control) |>
+  # nicer labels
+  rename(
+    `Mixed Logit (Full Sample)`       = Mixed_Full,
+    `Mixed Logit (Treatment)`         = Mixed_Treat,
+    `Mixed Logit (Control)`           = Mixed_Control,
+    `Conditional Logit (Full Sample)` = Cond_Full,
+    `Conditional Logit (Treatment)`   = Cond_Treat,
+    `Conditional Logit (Control)`     = Cond_Control
+  )
+
+row_order <- c(
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Report", "Policy: Workshop",
+  "Compensation", "Research Funding"
+)
+
+excl_firsttwo__all_combined <- excl_firsttwo__all_combined |>
+  mutate(
+    order   = match(Term, row_order),
+    Section = case_when(
+      grepl("^Participants", Term) ~ "Participants",
+      grepl("^Community",    Term) ~ "Community",
+      grepl("^Policy",       Term) ~ "Policymakers",
+      TRUE                         ~ NA_character_
+    )
+  ) |>
+  arrange(order) |>
+  select(-order)
+
+excl_firsttwo__sec_pos <- excl_firsttwo__all_combined |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
+
+
+excl_firsttwo__table_out <- excl_firsttwo__all_combined |>
+  select(-Section) |>
+  kable("html", escape = FALSE,
+        align = "lcccccc",
+        caption = "Mixed and Conditional Logit Estimates by Group - Including Inattentive Subsample") |>
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+
+for (i in seq_len(nrow(excl_firsttwo__sec_pos))) {
+  excl_firsttwo__table_out <- pack_rows(excl_firsttwo__table_out,
+                         group_label = excl_firsttwo__sec_pos$Section[i],
+                         start_row   = excl_firsttwo__sec_pos$start[i],
+                         end_row     = excl_firsttwo__sec_pos$end[i])
+}
+
+excl_firsttwo__table_out <- excl_firsttwo__table_out %>%
+  row_spec(8, extra_css = "border-top: 1px solid black;")
+
+
+excl_firsttwo__table_out   # renders the nicely formatted table
+```
+```{r DCE Regression Table (Without First Two Rounds and WITH Inattentive Subset), eval = FALSE}
+dce_long_dropfirsttwo_incl_inattentive <- subset(dce_long_predrop, game_index > 2)
+
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "participantResults returned to participants in person"   = "Participants: In person",
+  "participantResults returned to participants remotely"    = "Participants: Remotely",
+  "communityResults returned to community in-person meeting"= "Community: In-person meeting",
+  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
+  "policyReport of results submitted to policymakers"       = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding",
+  "as.factor(game_index).L:B" = "Game Index - 2",
+  "as.factor(game_index).Q:B" = "Game Index - 3",
+  "as.factor(game_index).C:B" = "Game Index - 4",
+  "as.factor(game_index)^4:B" = "Game Index - 5",
+  "as.factor(game_index)^5:B" = "Game Index - 6",
+  "as.factor(game_index)^6:B" = "Game Index - 7",
+  "as.factor(game_index)^7:B" = "Game Index - 8",
+  "as.factor(game_index)^8:B" = "Game Index - 9",
+  "as.factor(game_index)^9:B" = "Game Index - 10"
+)
+
+run_models <- function(data) {
+  mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
+                       panel = TRUE, id.var = "respondentID")
+  
+  mixed_model <- mlogit(
+    chosen ~ participant + community + policy + comp + fund 
+    #| as.factor(game_index)
+    ,
+    data   = mlogit_data,
+    rpar   = c(
+      fund = "n",
+      setNames(rep("n", length(levels(data$participant)) - 1),
+               paste0("participant", levels(data$participant)[-1])),
+      setNames(rep("n", length(levels(data$community)) - 1),
+               paste0("community",  levels(data$community)[-1])),
+      setNames(rep("n", length(levels(data$policy)) - 1),
+               paste0("policy",     levels(data$policy)[-1]))
+    ),
+    halton = NA, R = 1000
+  )
+  
+  conditional_model <- mlogit(
+    chosen ~ participant + community + policy + comp + fund #| as.factor(game_index)
+    ,
+    data   = mlogit_data
+  )
+  
+  list(mixed = mixed_model, conditional = conditional_model)
+}
+
+extract_estimates <- function(mixed, conditional, grp) {
+  tidy_mixed <- tidy(mixed) |>
+    filter(!grepl("^sd\\.", term)) |>
+    mutate(
+      term_clean = term,
+      mixed_str  = sprintf("%0.3f (%0.3f)%s",
+                           estimate, std.error,
+                           case_when(
+                             p.value < 0.001 ~ "***",
+                             p.value < 0.01  ~ "**",
+                             p.value < 0.05  ~ "*",
+                             TRUE            ~ ""
+                           ))
+    ) |>
+    select(term_clean, mixed_str)
+  
+  tidy_cond <- tidy(conditional) |>
+    mutate(
+      term_clean = term,
+      cond_str   = sprintf("%0.3f (%0.3f)%s",
+                           estimate, std.error,
+                           case_when(
+                             p.value < 0.001 ~ "***",
+                             p.value < 0.01  ~ "**",
+                             p.value < 0.05  ~ "*",
+                             TRUE            ~ ""
+                           ))
+    ) |>
+    select(term_clean, cond_str)
+  
+  full_join(tidy_mixed, tidy_cond, by = "term_clean") |>
+    rename(!!paste0("Mixed_", grp) := mixed_str,
+           !!paste0("Cond_",  grp) := cond_str)
+}
+
+
+
+excl_firsttwo_incl_inattentive_models_full   <- run_models(dce_long_dropfirsttwo_incl_inattentive)
+excl_firsttwo_incl_inattentive_models_treat  <- run_models(filter(dce_long_dropfirsttwo_incl_inattentive, control == 0))
+excl_firsttwo_incl_inattentive_models_ctrl   <- run_models(filter(dce_long_dropfirsttwo_incl_inattentive, control == 1))
+
+
+excl_firsttwo_incl_inattentive_est_full  <- extract_estimates(excl_firsttwo_incl_inattentive_models_full$mixed,  excl_firsttwo_incl_inattentive_models_full$conditional,  "Full")
+excl_firsttwo_incl_inattentive_est_treat <- extract_estimates(excl_firsttwo_incl_inattentive_models_treat$mixed, excl_firsttwo_incl_inattentive_models_treat$conditional, "Treat")
+excl_firsttwo_incl_inattentive_est_ctrl  <- extract_estimates(excl_firsttwo_incl_inattentive_models_ctrl$mixed,  excl_firsttwo_incl_inattentive_models_ctrl$conditional,  "Control")
+
+excl_firsttwo_incl_inattentive_all_combined <- reduce(list(excl_firsttwo_incl_inattentive_est_full, excl_firsttwo_incl_inattentive_est_treat, excl_firsttwo_incl_inattentive_est_ctrl), full_join, by = "term_clean") |>
+  mutate(
+    Term = coalesce(custom_labels[term_clean], term_clean),
+    Term = if_else(term_clean == "(Intercept)", "Intercept", Term)
+  ) |>
+  # desired column order
+  select(Term,
+         Mixed_Full,  Mixed_Treat,  Mixed_Control,
+         Cond_Full,   Cond_Treat,   Cond_Control) |>
+  # nicer labels
+  rename(
+    `Mixed Logit (Full Sample)`       = Mixed_Full,
+    `Mixed Logit (Treatment)`         = Mixed_Treat,
+    `Mixed Logit (Control)`           = Mixed_Control,
+    `Conditional Logit (Full Sample)` = Cond_Full,
+    `Conditional Logit (Treatment)`   = Cond_Treat,
+    `Conditional Logit (Control)`     = Cond_Control
+  )
+
+row_order <- c(
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Report", "Policy: Workshop",
+  "Compensation", "Research Funding"
+)
+
+excl_firsttwo_incl_inattentive_all_combined <- excl_firsttwo_incl_inattentive_all_combined |>
+  mutate(
+    order   = match(Term, row_order),
+    Section = case_when(
+      grepl("^Participants", Term) ~ "Participants",
+      grepl("^Community",    Term) ~ "Community",
+      grepl("^Policy",       Term) ~ "Policymakers",
+      TRUE                         ~ NA_character_
+    )
+  ) |>
+  arrange(order) |>
+  select(-order)
+
+excl_firsttwo_incl_inattentive_sec_pos <- excl_firsttwo_incl_inattentive_all_combined |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
+
+
+excl_firsttwo_incl_inattentive_table_out <- excl_firsttwo_incl_inattentive_all_combined |>
+  select(-Section) |>
+  kable("html", escape = FALSE,
+        align = "lcccccc",
+        caption = "Mixed and Conditional Logit Estimates by Group - Including Inattentive Subsample") |>
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+
+for (i in seq_len(nrow(excl_firsttwo_incl_inattentive_sec_pos))) {
+  excl_firsttwo_incl_inattentive_table_out <- pack_rows(excl_firsttwo_incl_inattentive_table_out,
+                         group_label = excl_firsttwo_incl_inattentive_sec_pos$Section[i],
+                         start_row   = excl_firsttwo_incl_inattentive_sec_pos$start[i],
+                         end_row     = excl_firsttwo_incl_inattentive_sec_pos$end[i])
+}
+
+excl_firsttwo_incl_inattentive_table_out <- excl_firsttwo_incl_inattentive_table_out %>%
+  row_spec(8, extra_css = "border-top: 1px solid black;")
+
+
+excl_firsttwo_incl_inattentive_table_out   # renders the nicely formatted table
 ```
 
-```{r Willingness to Pay Plots}
+```{r DCE Willingness to Pay Plots (Main), eval = FALSE}
 custom_labels <- c(
   "(Intercept):B" = "Intercept",
   "participantResults returned to participants remotely"     = "Participants: Remotely",
@@ -5002,8 +6054,6 @@ custom_labels <- c(
   "fund" = "Research Funding"
 )
 
-## ─────────────────────────────────────────────────────────────
-##  Helper: run model + return WTP tibble  ─────────────────────
 get_wtp <- function(data) {
   ml_data <- dfidx(data,
                    idx   = c("game_id", "alt"),
@@ -5045,14 +6095,10 @@ get_wtp <- function(data) {
     select(attribute, wtp, wtp_low, wtp_high)
 }
 
-## ─────────────────────────────────────────────────────────────
-##  Build the three WTP data frames  ──────────────────────────
 wtp_full  <- get_wtp(dce_long)
 wtp_treat <- get_wtp(filter(dce_long, control == 0))
 wtp_ctrl  <- get_wtp(filter(dce_long, control == 1))
 
-## ─────────────────────────────────────────────────────────────
-##  Plot helper (same look & order for all)  ──────────────────
 plot_wtp <- function(df, title) {
   ord <- c(
     "Intercept",
@@ -5068,8 +6114,8 @@ plot_wtp <- function(df, title) {
     geom_point(color = "darkgreen", size = 2.7) +
     geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high),
                    height = .18, color = "darkgreen") +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-    geom_vline(xintercept = 1, linetype = "dashed", color = "steelblue") +
+    geom_vline(xintercept = 0, linetype = "F1", color = "gray50") +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "green") +
     labs(title = title,
          caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
          x = NULL,
@@ -5077,15 +6123,13 @@ plot_wtp <- function(df, title) {
          y = "Attribute") +
     #theme_minimal(base_size = 12) +
     theme(plot.title = element_text(hjust = .5, face = "bold")) + 
-    scale_x_continuous(limits = c(-1, 8), breaks = c(-1:8))
+    scale_x_continuous(limits = c(-3, 11), breaks = c(-3:11))
 }
 
 p_full  <- plot_wtp(wtp_full,  "Willingness to Pay Estimates – Full Sample")
 p_treat <- plot_wtp(wtp_treat, "Willingness to Pay Estimates – Treatment")
 p_ctrl  <- plot_wtp(wtp_ctrl,  "Willingness to Pay Estimates – Control")
 
-## ─────────────────────────────────────────────────────────────
-##  Show the three plots  ─────────────────────────────────────
 # Print separately (knit/console will show one after the other)
 p_full
 p_treat
@@ -5095,61 +6139,646 @@ p_ctrl
 # (p_full | p_treat | p_ctrl) + plot_layout(guides = "collect")
 
 ```
+```{r DCE Willingness to Pay Table (Main), eval = FALSE}
 
-```{r Analyze the rank results methods 1-9 - Rank Order Logit}
-rankings <- fulldata
-rankings <- rankings %>%
-  distinct(respondentID, 
-          rank_results_methods_1,
-          rank_results_methods_2,
-          rank_results_methods_3,
-          rank_results_methods_4,
-          rank_results_methods_5,
-          rank_results_methods_6,
-          rank_results_methods_7,
-          rank_results_methods_8,
-          rank_results_methods_9,
-          .keep_all = TRUE)
+format_est_se_star <- function(est, se, pval) {
+  stars <- case_when(
+    pval < 0.001 ~ "***",
+    pval < 0.01  ~ "**",
+    pval < 0.05  ~ "*",
+    TRUE         ~ ""
+  )
+  sprintf("%.2f%s\n(%.2f)", est, stars, se)
+}
 
-method_labels <- c(
-  "1" = "Audio Message",
-  "2" = "SMS",
-  "3" = "Website",
-  "4" = "Flyer (Individual)",
-  "5" = "Flyer (Public)",
-  "6" = "Social Media Post",
-  "7" = "Video",
-  "8" = "Public Meeting",
-  "9" = "Private Meeting"
+extract_wtp_table <- function(model, data_label) {
+  tidy(model) |>
+    filter(!str_detect(term, "^sd\\.")) |>
+    filter(term %in% names(custom_labels)) |>
+    mutate(
+      attribute = custom_labels[term],
+      est_str = format_est_se_star(estimate, std.error, p.value)
+    ) |>
+    select(attribute, est_str) |>
+    rename(!!data_label := est_str)
+}
+
+wtp_full_tbl  <- extract_wtp_table(models_full$mixed,  "Full Sample")
+wtp_treat_tbl <- extract_wtp_table(models_treat$mixed, "Treatment")
+wtp_ctrl_tbl  <- extract_wtp_table(models_ctrl$mixed,  "Control")
+
+wtp_table <- reduce(list(wtp_full_tbl, wtp_treat_tbl, wtp_ctrl_tbl), full_join, by = "attribute") |>
+  rename(Attribute = attribute)
+
+row_order <- c(
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Workshop", "Policy: Report",
+  "Compensation", "Research Funding"
 )
 
-stacked_rankings <- stacked_rankings %>%
-  mutate(
-    respondentID = as.character(respondentID),
-    method = as.character(method),
-    choice = as.integer(choice)
+wtp_table <- wtp_table |>
+  mutate(order = match(Attribute, row_order)) |>
+  arrange(order) |>
+  select(-order)
+
+wtp_table <- wtp_table |>
+  mutate(Section = case_when(
+    str_detect(Attribute, "^Participants") ~ "Participants",
+    str_detect(Attribute, "^Community")    ~ "Community",
+    str_detect(Attribute, "^Policy")       ~ "Policymakers",
+    TRUE                                   ~ NA_character_
+  ))
+
+wtp_sec_pos <- wtp_table |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
+
+wtp_kable <- wtp_table |>
+  select(-Section) |>
+  kable("html", escape = FALSE, align = "lccc",
+        caption = "Willingness to Pay (WTP) in USD across Samples<br><span style='font-size:smaller;'>(Standard errors in parentheses. Significance: * p < 0.05, ** p < 0.01, *** p < 0.001)</span>") |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE)
+
+for (i in seq_len(nrow(wtp_sec_pos))) {
+  wtp_kable <- pack_rows(
+    wtp_kable,
+    group_label = wtp_sec_pos$Section[i],
+    start_row   = wtp_sec_pos$start[i],
+    end_row     = wtp_sec_pos$end[i]
+  )
+}
+
+wtp_kable <- wtp_kable %>%
+  row_spec(comp_row, extra_css = "border-top: 1px solid black;")
+
+wtp_kable
+
+```
+```{r DCE Willingness to Pay Plots (With Inattentive Subset), eval = FALSE}
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "participantResults returned to participants remotely"     = "Participants: Remotely",
+  "participantResults returned to participants in person"    = "Participants: In person",
+  "communityResults returned to community leaders remotely"  = "Community: Remotely to leaders",
+  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
+  "policyReport of results submitted to policymakers"        = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding"
+)
+
+get_wtp <- function(data) {
+  ml_data <- dfidx(data,
+                   idx   = c("game_id", "alt"),
+                   panel = TRUE,
+                   id.var = "respondentID")
+
+  m_fit <- mlogit(
+    chosen ~ participant + community + policy + comp + fund 
+    #|  as.factor(game_index)
+    ,
+    data   = ml_data,
+    rpar   = c(
+      fund = "n",
+      "participantResults returned to participants remotely"     = "n",
+      "participantResults returned to participants in person"    = "n",
+      "communityResults returned to community leaders remotely"  = "n",
+      "communityResults returned to community in-person meeting" = "n",
+      "policyReport of results submitted to policymakers"        = "n",
+      "policyResults presented in half-day workshop to policymakers" = "n"
+    ),
+    halton = NA, R = 1000
   )
 
+  tidy_est <- tidy(m_fit) %>%
+  filter(!grepl("^sd\\.", term)) %>%                           # keep mean coefs only
+  filter(!grepl("^(as\\.factor\\(game_index\\)|game_index)",   # <-- drop the controls
+                term)) %>%
+  rename(se = std.error, estimate = estimate)
 
-mlogit_data <- dfidx(data = stacked_rankings,
-                     idx = c("respondentID", "method"),
-                     choice = "choice",
-                     shape = "long",
-                     ranked = TRUE)
+  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)* (1000 / 890.58)
 
-model_ranked <- mlogit(choice ~ method | control, data = mlogit_data)
-summary(model_ranked)
+  tidy_est |>
+    mutate(
+      wtp      = (estimate / comp_coef) * (1000 / 890.58),
+      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / 890.58),
+      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / 890.58),
+      attribute = custom_labels[term]
+    ) |>
+    select(attribute, wtp, wtp_low, wtp_high)
+}
 
-coefplot(model_ranked, horiz = TRUE, main = "Ranked Logit Coefficients")
+incl_inattentive_wtp_full  <- get_wtp(dce_long_predrop)
+incl_inattentive_wtp_treat <- get_wtp(filter(dce_long_predrop, control == 0))
+incl_inattentive_wtp_ctrl  <- get_wtp(filter(dce_long_predrop, control == 1))
 
-linmodel <- lm(choice ~ method + control, data = stacked_rankings)
-summary(linmodel)
+plot_wtp <- function(df, title) {
+  ord <- c(
+    "Intercept",
+    "Participants: In person", "Participants: Remotely",
+    "Community: In-person meeting", "Community: Remotely to leaders",
+    "Policy: Workshop", "Policy: Report",
+    "Compensation",
+    "Research Funding" 
+  )
+  df$attribute <- factor(df$attribute, levels = rev(ord))
+  
+  ggplot(df, aes(x = wtp, y = attribute)) +
+    geom_point(color = "darkgreen", size = 2.7) +
+    geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high),
+                   height = .18, color = "darkgreen") +
+    geom_vline(xintercept = 0, linetype = "F1", color = "gray50") +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "green") +
+    labs(title = title,
+         caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
+         x = NULL,
+           #"WTP (In USD, Relative to Compensation)",
+         y = "Attribute") +
+    #theme_minimal(base_size = 12) +
+    theme(plot.title = element_text(hjust = .5, face = "bold")) + 
+    scale_x_continuous(limits = c(-3, 11), breaks = c(-3:11))
+}
+
+incl_inattentive_p_full  <- plot_wtp(incl_inattentive_wtp_full,  "Willingness to Pay Estimates – Full Sample")
+incl_inattentive_p_treat <- plot_wtp(incl_inattentive_wtp_treat, "Willingness to Pay Estimates – Treatment")
+incl_inattentive_p_ctrl  <- plot_wtp(incl_inattentive_wtp_ctrl,  "Willingness to Pay Estimates – Control")
+
+# Print separately (knit/console will show one after the other)
+incl_inattentive_p_full
+incl_inattentive_p_treat
+incl_inattentive_p_ctrl
+
+# OR side-by-side (requires {patchwork})
+# (p_full | p_treat | p_ctrl) + plot_layout(guides = "collect")
+
+```
+```{r DCE Willingness to Pay Table (With Inattentive Subset), eval = FALSE}
+
+format_est_se_star <- function(est, se, pval) {
+  stars <- case_when(
+    pval < 0.001 ~ "***",
+    pval < 0.01  ~ "**",
+    pval < 0.05  ~ "*",
+    TRUE         ~ ""
+  )
+  sprintf("%.2f%s\n(%.2f)", est, stars, se)
+}
+
+extract_wtp_table <- function(model, data_label) {
+  tidy(model) |>
+    filter(!str_detect(term, "^sd\\.")) |>
+    filter(term %in% names(custom_labels)) |>
+    mutate(
+      attribute = custom_labels[term],
+      est_str = format_est_se_star(estimate, std.error, p.value)
+    ) |>
+    select(attribute, est_str) |>
+    rename(!!data_label := est_str)
+}
+
+incl_inattentive_wtp_full_tbl  <- extract_wtp_table(incl_inattentive_models_full$mixed,  "Full Sample")
+incl_inattentive_wtp_treat_tbl <- extract_wtp_table(incl_inattentive_models_treat$mixed, "Treatment")
+incl_inattentive_wtp_ctrl_tbl  <- extract_wtp_table(incl_inattentive_models_ctrl$mixed,  "Control")
+
+incl_inattentive_wtp_table <- reduce(list(incl_inattentive_wtp_full_tbl, incl_inattentive_wtp_treat_tbl, incl_inattentive_wtp_ctrl_tbl), full_join, by = "attribute") |>
+  rename(Attribute = attribute)
+
+row_order <- c(
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Workshop", "Policy: Report",
+  "Compensation", "Research Funding"
+)
+
+incl_inattentive_wtp_table <- incl_inattentive_wtp_table |>
+  mutate(order = match(Attribute, row_order)) |>
+  arrange(order) |>
+  select(-order)
+
+incl_inattentive_wtp_table <- incl_inattentive_wtp_table |>
+  mutate(Section = case_when(
+    str_detect(Attribute, "^Participants") ~ "Participants",
+    str_detect(Attribute, "^Community")    ~ "Community",
+    str_detect(Attribute, "^Policy")       ~ "Policymakers",
+    TRUE                                   ~ NA_character_
+  ))
+
+incl_inattentive_wtp_sec_pos <- incl_inattentive_wtp_table |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
+
+incl_inattentive_wtp_kable <- incl_inattentive_wtp_table |>
+  select(-Section) |>
+  kable("html", escape = FALSE, align = "lccc",
+        caption = "Willingness to Pay (WTP) in USD across Samples<br><span style='font-size:smaller;'>(Standard errors in parentheses. Significance: * p < 0.05, ** p < 0.01, *** p < 0.001)</span>") |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE)
+
+for (i in seq_len(nrow(incl_inattentive_wtp_sec_pos))) {
+  incl_inattentive_wtp_kable <- pack_rows(
+    incl_inattentive_wtp_kable,
+    group_label = incl_inattentive_wtp_sec_pos$Section[i],
+    start_row   = incl_inattentive_wtp_sec_pos$start[i],
+    end_row     = incl_inattentive_wtp_sec_pos$end[i]
+  )
+}
+
+incl_inattentive_wtp_kable <- incl_inattentive_wtp_kable %>%
+  row_spec(8, extra_css = "border-top: 1px solid black;")
+
+incl_inattentive_wtp_kable
+
+```
+```{r DCE Willingness to Pay Plots (Without First Two Rounds), eval = FALSE}
+dce_long_dropfirsttwo <- subset(dce_long, game_index > 2)
+
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "participantResults returned to participants remotely"     = "Participants: Remotely",
+  "participantResults returned to participants in person"    = "Participants: In person",
+  "communityResults returned to community leaders remotely"  = "Community: Remotely to leaders",
+  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
+  "policyReport of results submitted to policymakers"        = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding"
+)
+
+get_wtp <- function(data) {
+  ml_data <- dfidx(data,
+                   idx   = c("game_id", "alt"),
+                   panel = TRUE,
+                   id.var = "respondentID")
+
+  m_fit <- mlogit(
+    chosen ~ participant + community + policy + comp + fund 
+    #|  as.factor(game_index)
+    ,
+    data   = ml_data,
+    rpar   = c(
+      fund = "n",
+      "participantResults returned to participants remotely"     = "n",
+      "participantResults returned to participants in person"    = "n",
+      "communityResults returned to community leaders remotely"  = "n",
+      "communityResults returned to community in-person meeting" = "n",
+      "policyReport of results submitted to policymakers"        = "n",
+      "policyResults presented in half-day workshop to policymakers" = "n"
+    ),
+    halton = NA, R = 1000
+  )
+
+  tidy_est <- tidy(m_fit) %>%
+  filter(!grepl("^sd\\.", term)) %>%                           # keep mean coefs only
+  filter(!grepl("^(as\\.factor\\(game_index\\)|game_index)",   # <-- drop the controls
+                term)) %>%
+  rename(se = std.error, estimate = estimate)
+
+  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)* (1000 / 890.58)
+
+  tidy_est |>
+    mutate(
+      wtp      = (estimate / comp_coef) * (1000 / 890.58),
+      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / 890.58),
+      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / 890.58),
+      attribute = custom_labels[term]
+    ) |>
+    select(attribute, wtp, wtp_low, wtp_high)
+}
+
+excl_firsttwo__wtp_full  <- get_wtp(dce_long_dropfirsttwo)
+excl_firsttwo__wtp_treat <- get_wtp(filter(dce_long_dropfirsttwo, control == 0))
+excl_firsttwo__wtp_ctrl  <- get_wtp(filter(dce_long_dropfirsttwo, control == 1))
+
+plot_wtp <- function(df, title) {
+  ord <- c(
+    "Intercept",
+    "Participants: In person", "Participants: Remotely",
+    "Community: In-person meeting", "Community: Remotely to leaders",
+    "Policy: Workshop", "Policy: Report",
+    "Compensation",
+    "Research Funding" 
+  )
+  df$attribute <- factor(df$attribute, levels = rev(ord))
+  
+  ggplot(df, aes(x = wtp, y = attribute)) +
+    geom_point(color = "darkgreen", size = 2.7) +
+    geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high),
+                   height = .18, color = "darkgreen") +
+    geom_vline(xintercept = 0, linetype = "F1", color = "gray50") +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "green") +
+    labs(title = title,
+         caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
+         x = NULL,
+           #"WTP (In USD, Relative to Compensation)",
+         y = "Attribute") +
+    #theme_minimal(base_size = 12) +
+    theme(plot.title = element_text(hjust = .5, face = "bold")) + 
+    scale_x_continuous(limits = c(-3, 11), breaks = c(-3:11))
+}
+
+excl_firsttwo__p_full  <- plot_wtp(excl_firsttwo__wtp_full,  "Willingness to Pay Estimates – Full Sample")
+excl_firsttwo__p_treat <- plot_wtp(excl_firsttwo__wtp_treat, "Willingness to Pay Estimates – Treatment")
+excl_firsttwo__p_ctrl  <- plot_wtp(excl_firsttwo__wtp_ctrl,  "Willingness to Pay Estimates – Control")
+
+# Print separately (knit/console will show one after the other)
+excl_firsttwo__p_full
+excl_firsttwo__p_treat
+excl_firsttwo__p_ctrl
+
+# OR side-by-side (requires {patchwork})
+# (p_full | p_treat | p_ctrl) + plot_layout(guides = "collect")
+
+```
+```{r DCE Willingness to Pay Table (Without First Two Rounds), eval = FALSE}
+
+format_est_se_star <- function(est, se, pval) {
+  stars <- case_when(
+    pval < 0.001 ~ "***",
+    pval < 0.01  ~ "**",
+    pval < 0.05  ~ "*",
+    TRUE         ~ ""
+  )
+  sprintf("%.2f%s\n(%.2f)", est, stars, se)
+}
+
+extract_wtp_table <- function(model, data_label) {
+  tidy(model) |>
+    filter(!str_detect(term, "^sd\\.")) |>
+    filter(term %in% names(custom_labels)) |>
+    mutate(
+      attribute = custom_labels[term],
+      est_str = format_est_se_star(estimate, std.error, p.value)
+    ) |>
+    select(attribute, est_str) |>
+    rename(!!data_label := est_str)
+}
+
+excl_firsttwo__wtp_full_tbl  <- extract_wtp_table(excl_firsttwo__models_full$mixed,  "Full Sample")
+excl_firsttwo__wtp_treat_tbl <- extract_wtp_table(excl_firsttwo__models_treat$mixed, "Treatment")
+excl_firsttwo__wtp_ctrl_tbl  <- extract_wtp_table(excl_firsttwo__models_ctrl$mixed,  "Control")
+
+excl_firsttwo__wtp_table <- reduce(list(excl_firsttwo__wtp_full_tbl, excl_firsttwo__wtp_treat_tbl, excl_firsttwo__wtp_ctrl_tbl), full_join, by = "attribute") |>
+  rename(Attribute = attribute)
+
+row_order <- c(
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Workshop", "Policy: Report",
+  "Compensation", "Research Funding"
+)
+
+excl_firsttwo__wtp_table <- excl_firsttwo__wtp_table |>
+  mutate(order = match(Attribute, row_order)) |>
+  arrange(order) |>
+  select(-order)
+
+excl_firsttwo__wtp_table <- excl_firsttwo__wtp_table |>
+  mutate(Section = case_when(
+    str_detect(Attribute, "^Participants") ~ "Participants",
+    str_detect(Attribute, "^Community")    ~ "Community",
+    str_detect(Attribute, "^Policy")       ~ "Policymakers",
+    TRUE                                   ~ NA_character_
+  ))
+
+excl_firsttwo__wtp_sec_pos <- excl_firsttwo__wtp_table |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
+
+excl_firsttwo__wtp_kable <- excl_firsttwo__wtp_table |>
+  select(-Section) |>
+  kable("html", escape = FALSE, align = "lccc",
+        caption = "Willingness to Pay (WTP) in USD across Samples<br><span style='font-size:smaller;'>(Standard errors in parentheses. Significance: * p < 0.05, ** p < 0.01, *** p < 0.001)</span>") |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE)
+
+for (i in seq_len(nrow(excl_firsttwo__wtp_sec_pos))) {
+  excl_firsttwo__wtp_kable <- pack_rows(
+    excl_firsttwo__wtp_kable,
+    group_label = excl_firsttwo__wtp_sec_pos$Section[i],
+    start_row   = excl_firsttwo__wtp_sec_pos$start[i],
+    end_row     = excl_firsttwo__wtp_sec_pos$end[i]
+  )
+}
+
+excl_firsttwo__wtp_kable <- excl_firsttwo__wtp_kable %>%
+  row_spec(8, extra_css = "border-top: 1px solid black;")
+
+excl_firsttwo__wtp_kable
+
+```
+```{r DCE Willingness to Pay Plots (Without First Two Rounds and WITH Inattentive Subset), eval = FALSE}
+dce_long_dropfirsttwo_incl_inattentive <- subset(dce_long_predrop, game_index > 2)
+
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "participantResults returned to participants remotely"     = "Participants: Remotely",
+  "participantResults returned to participants in person"    = "Participants: In person",
+  "communityResults returned to community leaders remotely"  = "Community: Remotely to leaders",
+  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
+  "policyReport of results submitted to policymakers"        = "Policy: Report",
+  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+  "comp" = "Compensation",
+  "fund" = "Research Funding"
+)
+
+get_wtp <- function(data) {
+  ml_data <- dfidx(data,
+                   idx   = c("game_id", "alt"),
+                   panel = TRUE,
+                   id.var = "respondentID")
+
+  m_fit <- mlogit(
+    chosen ~ participant + community + policy + comp + fund 
+    #|  as.factor(game_index)
+    ,
+    data   = ml_data,
+    rpar   = c(
+      fund = "n",
+      "participantResults returned to participants remotely"     = "n",
+      "participantResults returned to participants in person"    = "n",
+      "communityResults returned to community leaders remotely"  = "n",
+      "communityResults returned to community in-person meeting" = "n",
+      "policyReport of results submitted to policymakers"        = "n",
+      "policyResults presented in half-day workshop to policymakers" = "n"
+    ),
+    halton = NA, R = 1000
+  )
+
+  tidy_est <- tidy(m_fit) %>%
+  filter(!grepl("^sd\\.", term)) %>%                           # keep mean coefs only
+  filter(!grepl("^(as\\.factor\\(game_index\\)|game_index)",   # <-- drop the controls
+                term)) %>%
+  rename(se = std.error, estimate = estimate)
+
+  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)* (1000 / 890.58)
+
+  tidy_est |>
+    mutate(
+      wtp      = (estimate / comp_coef) * (1000 / 890.58),
+      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / 890.58),
+      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / 890.58),
+      attribute = custom_labels[term]
+    ) |>
+    select(attribute, wtp, wtp_low, wtp_high)
+}
+
+excl_firsttwo_incl_inattentive_wtp_full  <- get_wtp(dce_long_dropfirsttwo_incl_inattentive)
+excl_firsttwo_incl_inattentive_wtp_treat <- get_wtp(filter(dce_long_dropfirsttwo_incl_inattentive, control == 0))
+excl_firsttwo_incl_inattentive_wtp_ctrl  <- get_wtp(filter(dce_long_dropfirsttwo_incl_inattentive, control == 1))
+
+plot_wtp <- function(df, title) {
+  ord <- c(
+    "Intercept",
+    "Participants: In person", "Participants: Remotely",
+    "Community: In-person meeting", "Community: Remotely to leaders",
+    "Policy: Workshop", "Policy: Report",
+    "Compensation",
+    "Research Funding" 
+  )
+  df$attribute <- factor(df$attribute, levels = rev(ord))
+  
+  ggplot(df, aes(x = wtp, y = attribute)) +
+    geom_point(color = "darkgreen", size = 2.7) +
+    geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high),
+                   height = .18, color = "darkgreen") +
+    geom_vline(xintercept = 0, linetype = "F1", color = "gray50") +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "green") +
+    labs(title = title,
+         caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
+         x = NULL,
+           #"WTP (In USD, Relative to Compensation)",
+         y = "Attribute") +
+    #theme_minimal(base_size = 12) +
+    theme(plot.title = element_text(hjust = .5, face = "bold")) + 
+    scale_x_continuous(limits = c(-3, 11), breaks = c(-3:11))
+}
+
+excl_firsttwo_incl_inattentive_p_full  <- plot_wtp(excl_firsttwo_incl_inattentive_wtp_full,  "Willingness to Pay Estimates – Full Sample")
+excl_firsttwo_incl_inattentive_p_treat <- plot_wtp(excl_firsttwo_incl_inattentive_wtp_treat, "Willingness to Pay Estimates – Treatment")
+excl_firsttwo_incl_inattentive_p_ctrl  <- plot_wtp(excl_firsttwo_incl_inattentive_wtp_ctrl,  "Willingness to Pay Estimates – Control")
+
+# Print separately (knit/console will show one after the other)
+excl_firsttwo_incl_inattentive_p_full
+excl_firsttwo_incl_inattentive_p_treat
+excl_firsttwo_incl_inattentive_p_ctrl
+
+# OR side-by-side (requires {patchwork})
+# (p_full | p_treat | p_ctrl) + plot_layout(guides = "collect")
+
+```
+```{r DCE Willingness to Pay Table (Without First Two Rounds and WITH Inattentive Subset), eval = FALSE}
+
+format_est_se_star <- function(est, se, pval) {
+  stars <- case_when(
+    pval < 0.001 ~ "***",
+    pval < 0.01  ~ "**",
+    pval < 0.05  ~ "*",
+    TRUE         ~ ""
+  )
+  sprintf("%.2f%s\n(%.2f)", est, stars, se)
+}
+
+extract_wtp_table <- function(model, data_label) {
+  tidy(model) |>
+    filter(!str_detect(term, "^sd\\.")) |>
+    filter(term %in% names(custom_labels)) |>
+    mutate(
+      attribute = custom_labels[term],
+      est_str = format_est_se_star(estimate, std.error, p.value)
+    ) |>
+    select(attribute, est_str) |>
+    rename(!!data_label := est_str)
+}
+
+excl_firsttwo_incl_inattentive_wtp_full_tbl  <- extract_wtp_table(excl_firsttwo_incl_inattentive_models_full$mixed,  "Full Sample")
+excl_firsttwo_incl_inattentive_wtp_treat_tbl <- extract_wtp_table(excl_firsttwo_incl_inattentive_models_treat$mixed, "Treatment")
+excl_firsttwo_incl_inattentive_wtp_ctrl_tbl  <- extract_wtp_table(excl_firsttwo_incl_inattentive_models_ctrl$mixed,  "Control")
+
+excl_firsttwo_incl_inattentive_wtp_table <- reduce(list(excl_firsttwo_incl_inattentive_wtp_full_tbl, excl_firsttwo_incl_inattentive_wtp_treat_tbl, excl_firsttwo_incl_inattentive_wtp_ctrl_tbl), full_join, by = "attribute") |>
+  rename(Attribute = attribute)
+
+row_order <- c(
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Workshop", "Policy: Report",
+  "Compensation", "Research Funding"
+)
+
+excl_firsttwo_incl_inattentive_wtp_table <- excl_firsttwo_incl_inattentive_wtp_table |>
+  mutate(order = match(Attribute, row_order)) |>
+  arrange(order) |>
+  select(-order)
+
+excl_firsttwo_incl_inattentive_wtp_table <- excl_firsttwo_incl_inattentive_wtp_table |>
+  mutate(Section = case_when(
+    str_detect(Attribute, "^Participants") ~ "Participants",
+    str_detect(Attribute, "^Community")    ~ "Community",
+    str_detect(Attribute, "^Policy")       ~ "Policymakers",
+    TRUE                                   ~ NA_character_
+  ))
+
+excl_firsttwo_incl_inattentive_wtp_sec_pos <- excl_firsttwo_incl_inattentive_wtp_table |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
+
+excl_firsttwo_incl_inattentive_wtp_kable <- excl_firsttwo_incl_inattentive_wtp_table |>
+  select(-Section) |>
+  kable("html", escape = FALSE, align = "lccc",
+        caption = "Willingness to Pay (WTP) in USD across Samples<br><span style='font-size:smaller;'>(Standard errors in parentheses. Significance: * p < 0.05, ** p < 0.01, *** p < 0.001)</span>") |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE)
+
+for (i in seq_len(nrow(excl_firsttwo_incl_inattentive_wtp_sec_pos))) {
+  excl_firsttwo_incl_inattentive_wtp_kable <- pack_rows(
+    excl_firsttwo_incl_inattentive_wtp_kable,
+    group_label = excl_firsttwo_incl_inattentive_wtp_sec_pos$Section[i],
+    start_row   = excl_firsttwo_incl_inattentive_wtp_sec_pos$start[i],
+    end_row     = excl_firsttwo_incl_inattentive_wtp_sec_pos$end[i]
+  )
+}
+
+excl_firsttwo_incl_inattentive_wtp_kable <- excl_firsttwo_incl_inattentive_wtp_kable %>%
+  row_spec(8, extra_css = "border-top: 1px solid black;")
+
+excl_firsttwo_incl_inattentive_wtp_kable
+
 ```
 
-```{r Analyze 3-study experiment}
 
+
+
+```{r To-do. Analyze activity data}
+
+# We asked questions about what activities each participant was involved with. I believe this question set was designed to provide an indication of whether or not individuals correctly recalled participating in the experiment. 
+
+    #First-- are people recalling accurately? Yes/No
+
+    #Anything else we can say about it?
 
 ```
+```{r To-do. Summarize comment variables}
+
+# The comment variables might provide some qualitative information, but it's in Swahili. Can we compile it here and translate it?
+
+```
+```{r To-do. Summarize challenges participants identified, eval = FALSE}
+```
+
+
 
 
 ```{r DEPRECATED, include = FALSE, eval = FALSE}
@@ -5922,4 +7551,49 @@ summary(linmodel)
 #     subtitle = "With Error Bars and 50% Reference Line"
 #   ) +
 #   theme_minimal()
+
+
+# {r Bin Scatter Plot Graphs, eval = FALSE}
+# adaptive_binned_scatter <- function(data, x_var, y_var, threshold = 10) {
+#   x_var <- enquo(x_var)
+#   y_var <- enquo(y_var)
+# 
+#   # Sort data by x
+#   data_sorted <- data %>%
+#     arrange(!!x_var)
+# 
+#   total_obs <- nrow(data_sorted)
+#   n_bins <- floor(total_obs / threshold)
+# 
+#   if (n_bins < 1) stop("Not enough data to form even one bin with the required threshold.")
+# 
+#   # Assign bin index based on row number
+#   data_binned <- data_sorted %>%
+#     mutate(bin = cut_number(row_number(), n = n_bins)) %>%
+#     group_by(bin) %>%
+#     summarise(
+#       x = mean(!!x_var, na.rm = TRUE),
+#       y = mean(!!y_var, na.rm = TRUE),
+#       se = sd(!!y_var, na.rm = TRUE) / sqrt(n()),
+#       n = n(),
+#       .groups = "drop"
+#     )
+# 
+#   # Plot mean x and y per bin with error bars
+#   ggplot(data_binned, aes(x = x, y = y)) +
+#     geom_point(size = 3) +
+#     geom_errorbar(aes(ymin = y - se, ymax = y + se), width = 0.1, alpha = 0.5) +
+#     geom_line() +
+#     labs(
+#       x = as_label(x_var),
+#       y = as_label(y_var),
+#       title = paste("Binned scatter plot of", as_label(y_var), "vs", as_label(x_var)),
+#       subtitle = paste("Each point averages ≥", threshold, "observations (±SE error bars)")
+#     ) +
+#     theme_minimal()
+# 
+# }
+# 
+# adaptive_binned_scatter(fundinganalysisdataset, dominant_funding_comp_delta, chosen_dominant_fund, 20)
+#
 ```
