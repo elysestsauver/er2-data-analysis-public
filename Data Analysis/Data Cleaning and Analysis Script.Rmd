@@ -84,24 +84,14 @@ ________________________________________________________________________________
   
 
 ```{r Initialize}
+
+# Join Datasets
+# We want to concatenate the multiple longform and dce datasets. 
+
 kageradata <- read.csv("../Datasets/kagera_merged.csv")
 # Data Notes: 
 #   - ID indicator is respondentID or respondent_index
 #   - For joining with DCE data, join column is SET.OF.dce_game
-# 
-# Data Issues:
-#   - [COMPLETE][No code needed] what is respo_confirm? 
-#           Answer --> Some respondents did not confirm and are replaced 
-#   - *** part_study_1, who_participated --> not complete
-#   - *** contact_research --> not complete ("Did you get contact information for researchers"? Confirm what this question is)
-#   - *** clear_plans, ask_results --> almost empty
-#   
-#   - [COMPLETE][No code needed] keep_documentation/have_documentation might be in the wrong order (Confirm order)
-#           Answer --> Nope, this is fine. It goes "Did they give you a written document to keep" > "Did you keep that document after the interview" > "Do you still have it"
-#   - [COMPLETE][Data Cleaning] num_past_studies has NAs that Should be 0 (when past_study_participation is 0) 
-#   
-#   - *** many 0s for past_study_participation, so much of the activity response section is empty
-#   - *** future_study_willingness --> not complete
 #   
 
 kagera_dcedata <- read.csv("../Datasets/kagera_merged_dce.csv")
@@ -110,13 +100,7 @@ scenarios <- read.csv("../Datasets/scenario_dataset.csv")
 #     - No ID indicator, for joining with Kagera data, join column is SET.OF.dce_game
 #     - DCE data has 10 observations per ID, so it will be a many-to-one join (and that's okay)
 #     
-# DCE Issues: 
-#     - [COMPLETE][Join Sets] Need to parse the game_matrix (stitched_output_##.jpg) to the actual levels and features from the Excel sheet. This means another join
-#     - [COMPLETE][Join Sets] Join on the game_matrix column (to the "image" column in the Excel spreadsheet of DCE features and levels)
 
-
-# Join Datasets
-# Concatenate the multiple longform and dce datasets. 
 dardata<- read_dta("../Datasets/dar_RR-RCT.dta")
 #write.csv(dardata, file = "../Datasets/dar.csv")
 dar_dcedata <- read_dta("../Datasets/dar_RR-RCT-DCE.dta")
@@ -242,7 +226,7 @@ kageradata$end_time <- as.POSIXct(kageradata$end_time, format = "%m-%d-%y %H:%M:
   })
 
 
-# Finally, add both datasets
+# Finally, join both datasets
 joinedsurveydata <- bind_rows(kageradata, dardata)
 
 # Now add the DCE data. A little bit simpler
@@ -317,9 +301,6 @@ dcedata <- bind_rows(kagera_dcedata, dar_dcedata)
     fulldata <- bind_rows(fulldata_withoutproblemrows, coalesced_rows)
   
 # Data Cleaning
-
-# Some respondants did not confirm, so they have been replaced with other respondants. Dropping the nonresponding rows. 
-# fulldata <- subset(fulldata, respo_confirm == 1)
 
 # Rank varaiables --> columns for radio, sms, etc. and cell values are the rank designated by participant
   # Some of the columns have collections of data that should be distributed into individual columns. These are resolved here. 
@@ -415,7 +396,7 @@ fulldata <- subset(fulldata, respondentID != 111 | respondentID != 215 | respond
 
 # Drop the inattentive participants 
 fulldata <- subset(fulldata, as.numeric(exercise_comment) < 3)
-fulldata <- subset(fulldata, !(as.numeric(interviewer) == 1 & districtID != 1)) # DistrictID is 1 for all of Dar. Dar interviewer 1 is fine, just Kagera interviewer 1 is a problem. If you change this logic, also update the DCE dataset!
+fulldata <- subset(fulldata, !(as.numeric(interviewer) == 1 & districtID != 1)) # DistrictID is 1 for all of Dar. Dar interviewer 1 is fine, just Kagera interviewer 1 is a problem. If you change this logic, also update the DCE dataset and the other analyses!
 
 write.csv(fulldata, file = "postscriptrun_processed_dataset.csv", row.names = FALSE)
 
@@ -1833,7 +1814,6 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
-# List of variables to plot
 bar_vars <- c("study_participants", "non_participants_research_communities",
               "local_community_leaders", "local_government_officials", 
               "foreign_government_officials", "religious_leaders",
@@ -1849,7 +1829,6 @@ custom_labels <- c(
   other_researchers = "Other Researchers"
 )
 
-# Prepare data with percentage and label
 bar_data_grouped <- sum_figs_labeled %>%
   select(all_of(names(custom_labels))) %>%
   pivot_longer(cols = everything(), names_to = "Variable", values_to = "Response") %>%
@@ -2903,16 +2882,15 @@ mlogit_data <- dfidx(data = stacked_rankings,
 model_ranked <- mlogit(choice ~ method | control, data = mlogit_data)
 summary(model_ranked)
 
+
 coefplot(model_ranked, horiz = TRUE, main = "Ranked Logit Coefficients")
+# The coefplot is okay, but misleading (since the Control/Treatment interaction is *relative to the baseline*). Let's fix that by plotting both on the same set of axes (and with the "change" recorded in the Control:Term added to the relevant baseline value). 
 
-library(tidyverse)
-library(broom)
-library(forcats)
 
-# Compute confidence intervals
+#Compute confidence intervals
 coefs <- broom::tidy(model_ranked, conf.int = TRUE)
 
-# Process coefficients
+#Process coefficients
 ci_data <- coefs %>%
   mutate(
     term_type = case_when(
@@ -2942,7 +2920,7 @@ ci_data <- coefs %>%
     control_high = conf.high_intercept + conf.high_control
   )
 
-# Add baseline manually
+#Add baseline manually
 ci_data <- ci_data %>%
   add_row(
     method_num = "1",
@@ -2955,7 +2933,7 @@ ci_data <- ci_data %>%
     control_high = 0
   )
 
-# Reshape for plotting
+#Reshape for plotting
 ci_plot_data <- ci_data %>%
   pivot_longer(cols = c("treatment", "control"), names_to = "group", values_to = "estimate") %>%
   mutate(
@@ -2969,7 +2947,7 @@ ci_plot_data <- ci_data %>%
     )
   )
 
-# Plot with confidence intervals
+#Plot with confidence intervals
 ggplot(ci_plot_data, aes(x = estimate, 
                          y = fct_reorder(method_label, estimate, .desc = FALSE), 
                          color = group)) +
@@ -2985,10 +2963,10 @@ ggplot(ci_plot_data, aes(x = estimate,
   scale_color_manual(values = c("treatment" = "darkblue", "control" = "firebrick")) +
   theme_minimal()
 
-# Extract coefficients and standard errors
+#Extract coefficients and standard errors
 coefs <- broom::tidy(model_ranked, conf.int = TRUE)
 
-# Classify term type and extract method number
+#Classify term type and extract method number
 coefs <- coefs %>%
   mutate(
     term_type = case_when(
@@ -3004,7 +2982,7 @@ coefs <- coefs %>%
   ) %>%
   filter(term_type != "other")
 
-# Merge intercept and control rows
+#Merge intercept and control rows
 table_data <- coefs %>%
   select(term_type, method_num, estimate, std.error, p.value) %>%
   pivot_wider(
@@ -3022,7 +3000,7 @@ table_data <- coefs %>%
   ) %>%
   select(method_label, starts_with("treatment"), starts_with("control"))
 
-# Add baseline manually (Audio Message)
+#Add baseline manually (Audio Message)
 baseline_row <- tibble(
   method_label = method_labels["1"],
   treatment_coef = 0,
@@ -3036,7 +3014,7 @@ baseline_row <- tibble(
 table_data <- bind_rows(baseline_row, table_data) %>%
   arrange(treatment_coef)
 
-# Format values and significance stars
+#Format values and significance stars
 format_with_stars <- function(est, p) {
   stars <- case_when(
     is.na(p) ~ "",
@@ -3059,7 +3037,7 @@ final_table <- table_data %>%
   ) %>%
   select(`Method` = method_label, Treatment, Control)
 
-# Create nicely styled table
+#Create nicely styled table
 final_table %>%
   kable(format = "html", escape = FALSE, align = c("l", "c", "c")) %>%
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
@@ -3067,6 +3045,7 @@ final_table %>%
 
 ```
 ```{r Rank results methods 1-9. Rank Order Logit WITH inattentive subset, eval = FALSE}
+# Now we want the same thing, but including the inattentive subset. 
 
 incl_inattentive_rankings <- fulldatapredrop
 incl_inattentive_rankings <- incl_inattentive_rankings %>%
@@ -3123,14 +3102,10 @@ summary(incl_inattentive_model_ranked)
 
 coefplot(incl_inattentive_model_ranked, horiz = TRUE, main = "Ranked Logit Coefficients")
 
-library(tidyverse)
-library(broom)
-library(forcats)
-
-# Compute confidence intervals
+#Compute confidence intervals
 incl_inattentive_coefs <- broom::tidy(incl_inattentive_model_ranked, conf.int = TRUE)
 
-# Process coefficients
+#Process coefficients
 incl_inattentive_ci_data <- incl_inattentive_coefs %>%
   mutate(
     term_type = case_when(
@@ -3160,7 +3135,7 @@ incl_inattentive_ci_data <- incl_inattentive_coefs %>%
     control_high = conf.high_intercept + conf.high_control
   )
 
-# Add baseline manually
+#Add baseline manually
 incl_inattentive_ci_data <- incl_inattentive_ci_data %>%
   add_row(
     method_num = "1",
@@ -3173,7 +3148,7 @@ incl_inattentive_ci_data <- incl_inattentive_ci_data %>%
     control_high = 0
   )
 
-# Reshape for plotting
+#Reshape for plotting
 incl_inattentive_ci_plot_data <- incl_inattentive_ci_data %>%
   pivot_longer(cols = c("treatment", "control"), names_to = "group", values_to = "estimate") %>%
   mutate(
@@ -3187,7 +3162,7 @@ incl_inattentive_ci_plot_data <- incl_inattentive_ci_data %>%
     )
   )
 
-# Plot with confidence intervals
+#Plot with confidence intervals
 ggplot(incl_inattentive_ci_plot_data, aes(x = estimate, 
                          y = fct_reorder(method_label, estimate, .desc = FALSE), 
                          color = group)) +
@@ -3203,10 +3178,10 @@ ggplot(incl_inattentive_ci_plot_data, aes(x = estimate,
   scale_color_manual(values = c("treatment" = "darkblue", "control" = "firebrick")) +
   theme_minimal()
 
-# Extract coefficients and standard errors
+#Extract coefficients and standard errors
 incl_inattentive_coefs <- broom::tidy(incl_inattentive_model_ranked, conf.int = TRUE)
 
-# Classify term type and extract method number
+#Classify term type and extract method number
 incl_inattentive_coefs <- incl_inattentive_coefs %>%
   mutate(
     term_type = case_when(
@@ -3222,7 +3197,7 @@ incl_inattentive_coefs <- incl_inattentive_coefs %>%
   ) %>%
   filter(term_type != "other")
 
-# Merge intercept and control rows
+#Merge intercept and control rows
 incl_inattentive_table_data <- incl_inattentive_coefs %>%
   select(term_type, method_num, estimate, std.error, p.value) %>%
   pivot_wider(
@@ -3240,7 +3215,7 @@ incl_inattentive_table_data <- incl_inattentive_coefs %>%
   ) %>%
   select(method_label, starts_with("treatment"), starts_with("control"))
 
-# Add baseline manually (Audio Message)
+#Add baseline manually (Audio Message)
 incl_inattentive_baseline_row <- tibble(
   method_label = incl_inattentive_method_labels["1"],
   treatment_coef = 0,
@@ -3254,7 +3229,7 @@ incl_inattentive_baseline_row <- tibble(
 incl_inattentive_table_data <- bind_rows(incl_inattentive_baseline_row, incl_inattentive_table_data) %>%
   arrange(treatment_coef)
 
-# Format values and significance stars
+#Format values and significance stars
 format_with_stars <- function(est, p) {
   stars <- case_when(
     is.na(p) ~ "",
@@ -3277,7 +3252,7 @@ incl_inattentive_final_table <- incl_inattentive_table_data %>%
   ) %>%
   select(`Method` = method_label, Treatment, Control)
 
-# Create nicely styled table
+#Create nicely styled table
 incl_inattentive_final_table %>%
   kable(format = "html", escape = FALSE, align = c("l", "c", "c")) %>%
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
@@ -3285,6 +3260,7 @@ incl_inattentive_final_table %>%
 
 ```
 ```{r Three study experiment. Rank Order Logit (with and without inattentive subset), eval = FALSE}
+
 # Clean code for the three study experiment analysis. Generate dummy var for study, position, method
 threestudy_analysis <- select(fulldatapredrop, c("respondentID", "first_study", "first_method", "second_study", "second_method", 
 "third_study", "third_method", "rank_results_preference_1", "rank_results_preference_2", 
@@ -3293,6 +3269,7 @@ threestudy_analysis <- select(fulldatapredrop, c("respondentID", "first_study", 
 
 threestudy_analysis <- threestudy_analysis[!duplicated(threestudy_analysis), ]
 
+# Checking for empty rows
 empty_preference_rows <- subset(threestudy_analysis, is.na(rank_results_preference_1) & is.na(rank_results_preference_2) & is.na(rank_results_preference_3))
 
 threestudy_analysis <- subset(threestudy_analysis, !is.na(rank_results_preference_1) & !is.na(rank_results_preference_2) & !is.na(rank_results_preference_3))
@@ -3309,7 +3286,8 @@ threestudy_analysis <- dummy_cols(threestudy_analysis, select_columns = c("rank_
 threestudy_analysis$results_preference_ranking <- NA
 threestudy_analysis$formats_preference_ranking <- NA
 threestudy_analysis$formats_clarity_ranking <- NA
-#Repeat for formats preference, formats clarity
+
+# Now we want to translate this ranking into a long format that records study, order, method, and the three types of preference ranking standing
 j = 1
 numrows <- nrow(threestudy_analysis)
 
@@ -3365,12 +3343,15 @@ while(j <= numrows) {
     j <- j + 1
 }
 
+# Checking again for empty rows
 empty_preference_rows_afterclean <- subset(threestudy_analysis, is.na(results_preference_ranking) 
                                            #& is.na(rank_results_preference_2) & is.na(rank_results_preference_3)
                                            )
 
 threestudy_analysispredrop <- threestudy_analysis
-threestudy_analysis <- subset(threestudy_analysis, as.numeric(exercise_comment) < 3 & as.numeric(interviewer) != 1)
+
+threestudy_analysis <- subset(threestudy_analysis, as.numeric(exercise_comment) < 3 & !(as.numeric(interviewer) == 1 & districtID != 1)) 
+# DistrictID is 1 for all of Dar. Dar interviewer 1 is fine, just Kagera interviewer 1 is a problem. If you change this logic, also update the main dataset and the other analyses!
 
 threestudy <- unique(select(threestudy_analysis, c("respondentID", "order", "study", "method", "results_preference_ranking", "formats_preference_ranking", "formats_clarity_ranking", "control")))
 
@@ -3446,13 +3427,6 @@ threestudy_formatsclarity_data_incl_inattentive <- dfidx(
 threestudy_formatsclarity_ranked_incl_inattentive <- mlogit(formats_clarity_ranking ~ method + order + study | control, 
                                                             data = threestudy_formatsclarity_data_incl_inattentive)
 summary(threestudy_formatsclarity_ranked_incl_inattentive)
-
-
-# Load required packages
-library(broom)
-library(dplyr)
-library(tidyr)
-library(kableExtra)
 
 format_mlogit_table <- function(model1, model2, model_names = c("Attentive", "All (incl. inattentive)")) {
   tidy1 <- broom::tidy(model1) %>% mutate(model = model_names[1])
@@ -3543,7 +3517,7 @@ dceanalysis <- select(fulldatapredrop, #Will drop the inattentives after initial
                                          "participants_image.A", "community_image.A", "policymakers_image.A", "compensation_image.A", "researchfunding_image.A", 
                                          "participants_image.B", "community_image.B", "policymakers_image.B", "compensation_image.B", "researchfunding_image.B",
                                          "compA", "compB", "fundA", "fundB", "comp_delta", "funding_delta", "compset", "control",
-                                         "understood_exercise", "exercise_comment", "exercise_comment_oth", "interviewer", ))
+                                         "understood_exercise", "exercise_comment", "exercise_comment_oth", "interviewer", "districtID"))
 
 #Renaming columns for ease of reference
 dceanalysis <- dceanalysis %>%
@@ -3578,7 +3552,7 @@ dce_long <- dceanalysis %>%
   mutate(
     chosen = ifelse((option_selected == 0 & alt == "B") | (option_selected == 1 & alt == "A"), 1, 0)
   ) %>%
-  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund, control, exercise_comment, interviewer)
+  select(respondentID, game_index, option_selected, chosen, alt, participant, community, policy, comp, fund, control, exercise_comment, interviewer, districtID)
 
 dce_long <- dce_long %>%
   distinct(respondentID, game_index) %>%             # Get unique combinations
@@ -3866,7 +3840,7 @@ dce_long_predrop <- dce_long
 
 # Drop the inattentive participants 
 dce_long <- subset(dce_long, as.numeric(exercise_comment) < 3)
-dce_long <- subset(dce_long, !(as.numeric(interviewer) == 1 & districtID != 1)) # DistrictID is 1 for all of Dar. Dar interviewer 1 is fine, just Kagera interviewer 1 is a problem. If you change this logic, also update the non-DCE dataset!
+dce_long <- subset(dce_long, !(as.numeric(interviewer) == 1 & districtID != 1))  # DistrictID is 1 for all of Dar. Dar interviewer 1 is fine, just Kagera interviewer 1 is a problem. If you change this logic, also update the main dataset and the other analyses!
 
 write.csv(dce_long, file = "dcelongdataset.csv")
 ```
