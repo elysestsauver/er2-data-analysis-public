@@ -1750,7 +1750,7 @@ ggsave("share_with_yes.png", plot = share_with_yes, width = 34, height = 21, uni
 ```
 
 ```{r IRB Guidelines Etc}
-irb_guide <- read_csv("irb_guide.csv")
+irb_guide <- read_csv("../Datasets/irb_guide.csv")
 View(irb_guide)
 
 irb_summary_nested <- irb_guide %>%
@@ -3572,6 +3572,9 @@ dce_long$policy <- factor(dce_long$policy,
                                levels = c(1, 2, 3),
                                labels = c("No results returned to policymakers", "Report of results submitted to policymakers", "Results presented in half-day workshop to policymakers"))
 
+dce_long <- dce_long %>%
+  mutate(control = factor(control, levels = c(1, 0)))
+
 #Want: returning results to participants chosen ~ community + policy + comp + fund, 
      # returning results to community chosen ~ participants + policy + comp + fund,
      # returning results to policymakers chosen ~ participants + community + comp + fund,
@@ -3621,8 +3624,8 @@ dce_long <- dce_long %>%
       chosen == 0 & nondominant_fund == fund ~ 1,
       TRUE ~ 0
     ),
-    comp_delta = ifelse(!is.na(dominant_comp - nondominant_comp), dominant_comp - nondominant_comp, NA),
-    fund_delta = ifelse(!is.na(dominant_fund - nondominant_fund), dominant_fund - nondominant_fund, NA),
+    comp_delta = ifelse(!is.na(dominant_comp - nondominant_comp), dominant_comp - nondominant_comp, ifelse(chosen_comp == other_comp, 0, NA)),
+    fund_delta = ifelse(!is.na(dominant_fund - nondominant_fund), dominant_fund - nondominant_fund, ifelse(chosen_fund == other_fund, 0, NA)),
     dominant_funding_comp_delta = case_when(
       fund[alt == "A"] == fund[alt == "B"] ~ NA,
       fund[alt == "A"] > fund[alt == "B"] ~ comp[alt == "A"] - comp[alt == "B"],
@@ -3641,11 +3644,17 @@ dce_long <- dce_long %>%
       community[alt == "A"] != "No results returned to community" | community[alt == "B"] != "No results returned to community" ~ 1,
       TRUE ~ 0
     ),
+    return_results_community_none = ifelse(community == "No results returned to community", 1, 0),
+    return_results_community_remote = ifelse(community == "Results returned to community leaders remotely", 1, 0),
+    return_results_community_inperson = ifelse(community == "Results returned to community in-person meeting", 1, 0),
     return_results_policy = case_when(
       policy[alt == "A"] == policy[alt == "B"] ~ NA,
       policy[alt == "A"] != "No results returned to policymakers" | policy[alt == "B"] != "No results returned to policymakers" ~ 1,
       TRUE ~ 0
     ),
+    return_results_policy_none = ifelse(policy == "No results returned to policymakers", 1, 0),
+    return_results_policy_remote = ifelse(policy == "Report of results submitted to policymakers", 1, 0),
+    return_results_policy_inperson = ifelse(policy == "Results presented in half-day workshop to policymakers", 1, 0),
     return_results_participants_chosen = case_when(
       chosen == 1 &
       chosen_participant %in% c("Results returned to participants remotely", "Results returned to participants in person") &
@@ -3842,9 +3851,62 @@ dce_long_predrop <- dce_long
 dce_long <- subset(dce_long, as.numeric(exercise_comment) < 3)
 dce_long <- subset(dce_long, !(as.numeric(interviewer) == 1 & districtID != 1))  # DistrictID is 1 for all of Dar. Dar interviewer 1 is fine, just Kagera interviewer 1 is a problem. If you change this logic, also update the main dataset and the other analyses!
 
+dce_long <- dce_long %>%
+  group_by(game_id) %>%
+  mutate(
+    same_participant = n_distinct(participant) == 1,
+    same_community = n_distinct(community) == 1,
+    same_policy = n_distinct(policy) == 1,
+    return_results_participants_none = ifelse(same_participant, 0, return_results_participants_none),
+    return_results_participants_remote = ifelse(same_participant, 0, return_results_participants_remote),
+    return_results_participants_inperson = ifelse(same_participant, 0, return_results_participants_inperson),
+    return_results_community_none = ifelse(same_community, 0, return_results_community_none),
+    return_results_community_remote = ifelse(same_community, 0, return_results_community_remote),
+    return_results_community_inperson = ifelse(same_community, 0, return_results_community_inperson),
+    return_results_policy_none = ifelse(same_policy, 0, return_results_policy_none),
+    return_results_policy_remote = ifelse(same_policy, 0, return_results_policy_remote),
+    return_results_policy_inperson = ifelse(same_policy, 0, return_results_policy_inperson),
+    lower_comp = min(comp, na.rm = TRUE),
+    lower_fund = min(fund, na.rm = TRUE),
+    comp_recode = comp - lower_comp,
+    fund_recode = fund - lower_fund
+  ) %>%
+  ungroup()
+
 write.csv(dce_long, file = "dcelongdataset.csv")
 ```
 
+```{r Test block}
+# To-Do: Test to see if mixed logit regression works with the dummy variables
+mlogit_data <- dfidx(dce_long, idx = c("game_id", "alt"),
+                       panel = TRUE, id.var = "respondentID")
+  
+mixed_model <- mlogit(
+    chosen ~
+      + return_results_participants_remote + return_results_participants_inperson 
+    + + return_results_community_remote + return_results_community_inperson 
+    + return_results_policy_remote + return_results_policy_inperson 
+    +  comp_recode + fund_recode
+     | as.factor(game_index) + control
+    ,
+    data   = mlogit_data,
+    rpar   = c(
+       fund_recode = "n",
+       return_results_participants_remote = "n",
+       return_results_participants_inperson = "n",
+       return_results_community_remote = "n",
+       return_results_community_inperson = "n",
+       return_results_policy_remote = "n",
+       return_results_policy_inperson = "n"
+     ),
+    halton = NA, R = 1000
+  )
+
+summary(mixed_model)
+  
+
+
+```
 
 ```{r DCE Logit Regression, eval = FALSE}
 
@@ -5330,52 +5392,62 @@ shinyApp(ui, server)
 ```
 
 ```{r DCE Regression Table (Main), eval = FALSE}
-custom_labels <- c(
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants in person"   = "Participants: In person",
-  "participantResults returned to participants remotely"    = "Participants: Remotely",
-  "communityResults returned to community in-person meeting"= "Community: In-person meeting",
-  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
-  "policyReport of results submitted to policymakers"       = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding",
-  "as.factor(game_index).L:B" = "Game Index - 2",
-  "as.factor(game_index).Q:B" = "Game Index - 3",
-  "as.factor(game_index).C:B" = "Game Index - 4",
-  "as.factor(game_index)^4:B" = "Game Index - 5",
-  "as.factor(game_index)^5:B" = "Game Index - 6",
-  "as.factor(game_index)^6:B" = "Game Index - 7",
-  "as.factor(game_index)^7:B" = "Game Index - 8",
-  "as.factor(game_index)^8:B" = "Game Index - 9",
-  "as.factor(game_index)^9:B" = "Game Index - 10"
-)
+# custom_labels <- c(
+#   "(Intercept):B" = "Intercept",
+#   "participantResults returned to participants in person"   = "Participants: In person",
+#   "participantResults returned to participants remotely"    = "Participants: Remotely",
+#   "communityResults returned to community in-person meeting"= "Community: In-person meeting",
+#   "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
+#   "policyReport of results submitted to policymakers"       = "Policy: Report",
+#   "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+#   "comp" = "Compensation",
+#   "fund" = "Research Funding",
+#   "as.factor(game_index).L:B" = "Game Index - 2",
+#   "as.factor(game_index).Q:B" = "Game Index - 3",
+#   "as.factor(game_index).C:B" = "Game Index - 4",
+#   "as.factor(game_index)^4:B" = "Game Index - 5",
+#   "as.factor(game_index)^5:B" = "Game Index - 6",
+#   "as.factor(game_index)^6:B" = "Game Index - 7",
+#   "as.factor(game_index)^7:B" = "Game Index - 8",
+#   "as.factor(game_index)^8:B" = "Game Index - 9",
+#   "as.factor(game_index)^9:B" = "Game Index - 10"
+# )
 
 run_models <- function(data) {
   mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
                        panel = TRUE, id.var = "respondentID")
   
   mixed_model <- mlogit(
-    chosen ~ participant + community + policy + comp + fund 
-    #| as.factor(game_index)
+    chosen ~
+      + return_results_participants_remote + return_results_participants_inperson 
+    + + return_results_community_remote + return_results_community_inperson 
+    + return_results_policy_remote + return_results_policy_inperson 
+    +  comp_recode + fund_recode
+     | as.factor(game_index) + control
     ,
     data   = mlogit_data,
     rpar   = c(
-      fund = "n",
-      setNames(rep("n", length(levels(data$participant)) - 1),
-               paste0("participant", levels(data$participant)[-1])),
-      setNames(rep("n", length(levels(data$community)) - 1),
-               paste0("community",  levels(data$community)[-1])),
-      setNames(rep("n", length(levels(data$policy)) - 1),
-               paste0("policy",     levels(data$policy)[-1]))
-    ),
+       fund_recode = "n",
+       return_results_participants_remote = "n",
+       return_results_participants_inperson = "n",
+       return_results_community_remote = "n",
+       return_results_community_inperson = "n",
+       return_results_policy_remote = "n",
+       return_results_policy_inperson = "n"
+     ),
     halton = NA, R = 1000
   )
   
-  conditional_model <- mlogit(
-    chosen ~ participant + community + policy + comp + fund #| as.factor(game_index)
+conditional_model <- mlogit(
+    chosen ~
+    + return_results_participants_remote + return_results_participants_inperson 
+    + + return_results_community_remote + return_results_community_inperson 
+    + return_results_policy_remote + return_results_policy_inperson 
+    +  comp_recode + fund_recode
+     | as.factor(game_index) + control
     ,
-    data   = mlogit_data
+    data   = mlogit_data,
+    rpar   = NULL
   )
   
   list(mixed = mixed_model, conditional = conditional_model)
@@ -5495,17 +5567,19 @@ table_out <- table_out %>%
 
 table_out   # renders the nicely formatted table
 ```
-```{r DCE Regression Table (With Inattentive Subset), eval = FALSE}
+```{r DCE Reg Table with Treatment Status as a Control}
+# 1. Custom labels
 custom_labels <- c(
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants in person"   = "Participants: In person",
-  "participantResults returned to participants remotely"    = "Participants: Remotely",
-  "communityResults returned to community in-person meeting"= "Community: In-person meeting",
-  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
-  "policyReport of results submitted to policymakers"       = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding",
+  "(Intercept):B" = "Intercept - Control Group",
+  "control1:B" = "Treatment Status - Treatment Group",
+  "return_results_participants_inperson"   = "Participants: In person",
+  "return_results_participants_remote"    = "Participants: Remotely",
+  "return_results_community_inperson"= "Community: In-person meeting",
+  "return_results_community_remote" = "Community: Remotely to leaders",
+  "return_results_policy_remote" = "Policy: Report",
+  "return_results_policy_inperson" = "Policy: Workshop",
+  "comp_recode" = "Compensation",
+  "fund_recode" = "Research Funding",
   "as.factor(game_index).L:B" = "Game Index - 2",
   "as.factor(game_index).Q:B" = "Game Index - 3",
   "as.factor(game_index).C:B" = "Game Index - 4",
@@ -5516,6 +5590,177 @@ custom_labels <- c(
   "as.factor(game_index)^8:B" = "Game Index - 9",
   "as.factor(game_index)^9:B" = "Game Index - 10"
 )
+
+dce_long <- dce_long %>%
+  mutate(control = relevel(control, ref = "0"))
+
+# 2. Run models
+run_models <- function(data) {
+  mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
+                       panel = TRUE, id.var = "respondentID")
+  
+  mixed_model <- mlogit(
+    chosen ~ return_results_participants_remote + return_results_participants_inperson +
+      return_results_community_remote + return_results_community_inperson +
+      return_results_policy_remote + return_results_policy_inperson +
+      comp_recode + fund_recode |
+      as.factor(game_index) + control,
+    data = mlogit_data,
+    rpar = c(
+      fund_recode = "n",
+      return_results_participants_remote = "n",
+      return_results_participants_inperson = "n",
+      return_results_community_remote = "n",
+      return_results_community_inperson = "n",
+      return_results_policy_remote = "n",
+      return_results_policy_inperson = "n"
+    ),
+    halton = NA, R = 1000
+  )
+  
+  conditional_model <- mlogit(
+    chosen ~ return_results_participants_remote + return_results_participants_inperson +
+      return_results_community_remote + return_results_community_inperson +
+      return_results_policy_remote + return_results_policy_inperson +
+      comp_recode + fund_recode |
+      as.factor(game_index) + control,
+    data = mlogit_data
+  )
+  
+  list(mixed = mixed_model, conditional = conditional_model)
+}
+
+# 3. Extract estimates
+extract_estimates <- function(mixed, conditional) {
+  tidy_mixed <- broom::tidy(mixed) |>
+    filter(!grepl("^sd\\.", term)) |>
+    mutate(
+      term_clean = term,
+      mixed_str = sprintf("%0.3f (%0.3f)%s",
+                          estimate, std.error,
+                          case_when(
+                            p.value < 0.001 ~ "***",
+                            p.value < 0.01  ~ "**",
+                            p.value < 0.05  ~ "*",
+                            TRUE            ~ ""
+                          ))
+    ) |>
+    select(term_clean, mixed_str)
+  
+  tidy_cond <- broom::tidy(conditional) |>
+    mutate(
+      term_clean = term,
+      cond_str = sprintf("%0.3f (%0.3f)%s",
+                         estimate, std.error,
+                         case_when(
+                           p.value < 0.001 ~ "***",
+                           p.value < 0.01  ~ "**",
+                           p.value < 0.05  ~ "*",
+                           TRUE            ~ ""
+                         ))
+    ) |>
+    select(term_clean, cond_str)
+  
+  full_join(tidy_mixed, tidy_cond, by = "term_clean")
+}
+
+
+
+# 4. Run and format results
+models <- run_models(dce_long)
+est <- extract_estimates(models$mixed, models$conditional)
+
+all_combined <- est |>
+  mutate(
+    Term = ifelse(
+      !is.na(custom_labels[term_clean]),
+      custom_labels[term_clean],
+      term_clean
+    ),
+    Term = if_else(term_clean == "(Intercept)", "Intercept", Term)
+  ) |>
+  select(Term, mixed_str, cond_str) |>
+  rename(
+    `Mixed Logit` = mixed_str,
+    `Conditional Logit` = cond_str
+  )
+
+row_order <- c(
+  "Intercept - Treatment Group",
+  "Treatment Status - Control Group",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Report", "Policy: Workshop",
+  "Compensation", "Research Funding"
+  
+)
+
+all_combined <- all_combined |>
+  mutate(
+    order = match(Term, row_order),
+    Section = case_when(
+      grepl("^Participants", Term) ~ "Participants",
+      grepl("^Community", Term) ~ "Community",
+      grepl("^Policy", Term) ~ "Policymakers",
+      TRUE ~ NA_character_
+    )
+  ) |>
+  arrange(order) |>
+  select(-order)
+
+sec_pos <- all_combined |>
+  mutate(rn = row_number()) |>
+  filter(!is.na(Section)) |>
+  group_by(Section) |>
+  summarise(start = min(rn), end = max(rn), .groups = "drop")
+
+# 5. Build table
+table_out <- all_combined |>
+  select(-Section) |>
+  kable("html", escape = FALSE,
+        align = "lcc",
+        caption = "Mixed and Conditional Logit Estimates by Group") |>
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+for (i in seq_len(nrow(sec_pos))) {
+  table_out <- pack_rows(table_out,
+                         group_label = sec_pos$Section[i],
+                         start_row = sec_pos$start[i],
+                         end_row = sec_pos$end[i])
+}
+
+# Optional horizontal line
+table_out <- table_out %>%
+  row_spec(8, extra_css = "border-top: 1px solid black;")
+
+table_out
+
+```
+
+
+
+```{r DCE Regression Table (With Inattentive Subset), eval = FALSE}
+# custom_labels <- c(
+#   "(Intercept):B" = "Intercept",
+#   "participantResults returned to participants in person"   = "Participants: In person",
+#   "participantResults returned to participants remotely"    = "Participants: Remotely",
+#   "communityResults returned to community in-person meeting"= "Community: In-person meeting",
+#   "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
+#   "policyReport of results submitted to policymakers"       = "Policy: Report",
+#   "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
+#   "comp" = "Compensation",
+#   "fund" = "Research Funding",
+#   "as.factor(game_index).L:B" = "Game Index - 2",
+#   "as.factor(game_index).Q:B" = "Game Index - 3",
+#   "as.factor(game_index).C:B" = "Game Index - 4",
+#   "as.factor(game_index)^4:B" = "Game Index - 5",
+#   "as.factor(game_index)^5:B" = "Game Index - 6",
+#   "as.factor(game_index)^6:B" = "Game Index - 7",
+#   "as.factor(game_index)^7:B" = "Game Index - 8",
+#   "as.factor(game_index)^8:B" = "Game Index - 9",
+#   "as.factor(game_index)^9:B" = "Game Index - 10"
+# )
 
 run_models <- function(data) {
   mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
