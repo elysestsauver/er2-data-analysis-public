@@ -18,6 +18,9 @@ p_load(tidyverse, stargazer, sandwich, fastDummies, lmtest, scales, knitr, kable
 # Then uncomment and run these lines: 
      # library(ggthemr)
      # ggthemr('fresh')
+
+library(ggthemr)
+ggthemr('fresh')
       
 ```
 
@@ -83,7 +86,7 @@ ________________________________________________________________________________
   *You might notice the returningresults_merged dataset doesn't have the DCE data. For some reason, it's separate in SurveyCTO-- that's okay, we just have to join the datasets together. To begin with, look at the datasets separately and we'll join them in a later step. \\
   
 
-```{r Initialize}
+```{r Initialize, echo = FALSE}
 
 # Join Datasets
 # We want to concatenate the multiple longform and dce datasets. 
@@ -404,7 +407,7 @@ write.csv(fulldata, file = "postscriptrun_processed_dataset.csv", row.names = FA
 
 ```
 
-```{r Summary Balance Table}
+```{r Summary Balance Table, eval = FALSE}
 library(dplyr)
 library(tidyr)
 library(janitor)
@@ -581,7 +584,7 @@ formatted_table %>%
 
 ```
 
-```{r Summary Statistics Table Create the table}
+```{r Summary Statistics Table Create the table, eval = FALSE}
 
 # We basically want summary statistics for every var and a table with everything labeled clearly. Ideally have the question on the left, stats on the right.
 #   - If numerical: Median, mean, range, standard deviation of responses for numerical
@@ -1749,7 +1752,7 @@ ggsave("share_with_yes.png", plot = share_with_yes, width = 34, height = 21, uni
 
 ```
 
-```{r IRB Guidelines Etc}
+```{r IRB Guidelines Etc, eval = FALSE}
 irb_guide <- read_csv("../Datasets/irb_guide.csv")
 View(irb_guide)
 
@@ -1809,7 +1812,7 @@ final_table %>%
 
 ```
 
-```{r Summary Stats Figures with Percentages (Elyse Adapting Mira's code), eval = FALSE}
+```{r Summary Stats Figures with Percentages. Elyse Adapting Mira code, eval = FALSE}
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -2828,7 +2831,9 @@ stacked_rankings
 heatmap
 
 ```
-```{r Rank results methods 1-9. Rank Order Logit, eval = FALSE}
+```{r Rank results methods 1-9. Rank Order Logit}
+
+
 rankings <- fulldata
 rankings <- rankings %>%
   distinct(respondentID, 
@@ -2844,9 +2849,9 @@ rankings <- rankings %>%
           .keep_all = TRUE)
 
 method_labels <- c(
-  "1" = "Audio Message (Baseline)",
+  "1" = "Audio Message",
   "2" = "SMS",
-  "3" = "Website",
+  "3" = "Website (Baseline)",
   "4" = "Flyer (Individual)",
   "5" = "Flyer (Public)",
   "6" = "Social Media Post",
@@ -3044,7 +3049,7 @@ final_table %>%
   row_spec(0, bold = TRUE)
 
 ```
-```{r Rank results methods 1-9. Rank Order Logit WITH inattentive subset, eval = FALSE}
+```{r Rank results methods 1-9. Rank Order Logit WITH inattentive subset}
 # Now we want the same thing, but including the inattentive subset. 
 
 incl_inattentive_rankings <- fulldatapredrop
@@ -3259,13 +3264,13 @@ incl_inattentive_final_table %>%
   row_spec(0, bold = TRUE)
 
 ```
-```{r Three study experiment. Rank Order Logit (with and without inattentive subset), eval = FALSE}
+```{r Three study experiment. Rank Order Logit (with and without inattentive subset)}
 
 # Clean code for the three study experiment analysis. Generate dummy var for study, position, method
 threestudy_analysis <- select(fulldatapredrop, c("respondentID", "first_study", "first_method", "second_study", "second_method", 
 "third_study", "third_method", "rank_results_preference_1", "rank_results_preference_2", 
 "rank_results_preference_3", "rank_formats_preference_1", "rank_formats_preference_2", 
-"rank_formats_preference_3", "rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3", "control", "exercise_comment", "interviewer"))
+"rank_formats_preference_3", "rank_formats_clarity_1", "rank_formats_clarity_2", "rank_formats_clarity_3", "control", "exercise_comment", "interviewer", "districtID"))
 
 threestudy_analysis <- threestudy_analysis[!duplicated(threestudy_analysis), ]
 
@@ -3489,29 +3494,30 @@ format_mlogit_table <- function(model1, model2, model_names = c("Attentive", "Al
 # ---- Create Tables ----
 
 # 1. Results Preference
-format_mlogit_table(
+print(format_mlogit_table(
   model1 = threestudy_resultspref_ranked,
   model2 = threestudy_resultspref_ranked_incl_inattentive,
   model_names = c("Attentive", "All (incl. inattentive)")
-)
+))
 
 # 2. Formats Preference
-format_mlogit_table(
+print(format_mlogit_table(
   model1 = threestudy_formatspref_ranked,
   model2 = threestudy_formatspref_ranked_incl_inattentive,
   model_names = c("Attentive", "All (incl. inattentive)")
-)
+))
 
 # 3. Formats Clarity
-format_mlogit_table(
+print(format_mlogit_table(
   model1 = threestudy_formatsclarity_ranked,
   model2 = threestudy_formatsclarity_ranked_incl_inattentive,
   model_names = c("Attentive", "All (incl. inattentive)")
-)
+))
+
 
 ```
 
-```{r DCE Initialization Long Dataset}
+```{r DCE Initialization Long Dataset, include = FALSE}
 dceanalysis <- select(fulldatapredrop, #Will drop the inattentives after initializing dce_long
                       c("respondentID", "game_index", "game_matrix", "option_selected", 
                                          "participants_image.A", "community_image.A", "policymakers_image.A", "compensation_image.A", "researchfunding_image.A", 
@@ -3845,12 +3851,6 @@ dce_long <- dce_long %>%
     respondentID = as.numeric(respondentID)
   )
 
-dce_long_predrop <- dce_long
-
-# Drop the inattentive participants 
-dce_long <- subset(dce_long, as.numeric(exercise_comment) < 3)
-dce_long <- subset(dce_long, !(as.numeric(interviewer) == 1 & districtID != 1))  # DistrictID is 1 for all of Dar. Dar interviewer 1 is fine, just Kagera interviewer 1 is a problem. If you change this logic, also update the main dataset and the other analyses!
-
 dce_long <- dce_long %>%
   group_by(game_id) %>%
   mutate(
@@ -3873,42 +3873,16 @@ dce_long <- dce_long %>%
   ) %>%
   ungroup()
 
+dce_long_predrop <- dce_long
+
+# Drop the inattentive participants 
+dce_long <- subset(dce_long, as.numeric(exercise_comment) < 3)
+dce_long <- subset(dce_long, !(as.numeric(interviewer) == 1 & districtID != 1))  # DistrictID is 1 for all of Dar. Dar interviewer 1 is fine, just Kagera interviewer 1 is a problem. If you change this logic, also update the main dataset and the other analyses!
+
 write.csv(dce_long, file = "dcelongdataset.csv")
 ```
 
-```{r Test block}
-# To-Do: Test to see if mixed logit regression works with the dummy variables
-mlogit_data <- dfidx(dce_long, idx = c("game_id", "alt"),
-                       panel = TRUE, id.var = "respondentID")
-  
-mixed_model <- mlogit(
-    chosen ~
-      + return_results_participants_remote + return_results_participants_inperson 
-    + + return_results_community_remote + return_results_community_inperson 
-    + return_results_policy_remote + return_results_policy_inperson 
-    +  comp_recode + fund_recode
-     | as.factor(game_index) + control
-    ,
-    data   = mlogit_data,
-    rpar   = c(
-       fund_recode = "n",
-       return_results_participants_remote = "n",
-       return_results_participants_inperson = "n",
-       return_results_community_remote = "n",
-       return_results_community_inperson = "n",
-       return_results_policy_remote = "n",
-       return_results_policy_inperson = "n"
-     ),
-    halton = NA, R = 1000
-  )
-
-summary(mixed_model)
-  
-
-
-```
-
-```{r DCE Logit Regression, eval = FALSE}
+```{r DCE Logit Regression. Deprecated but the seed is necessary, eval = FALSE}
 
 set.seed(3141592653)
 dce_long$comp_scaled <- (dce_long$comp - min(dce_long$comp, na.rm = TRUE)) / 
@@ -3997,7 +3971,7 @@ ggplot(general_pref_mixed_logit_tidy, aes(x = estimate, y = reorder(term, estima
   ) +
   theme_minimal()
 ```
-```{r DCE Dominant Choice Graphs, eval = FALSE}
+```{r DCE Dominant Choice Graphs. Did not end up using these, eval = FALSE}
 # Research Funding vs. Compensation Differential
 fundinganalysisdataset <- subset(dce_long, comp_delta != 0 & fund_delta != 0)
 participantanalysisdataset <- subset(dce_long, comp_delta != 0 & !is.na(return_results_participants_chosen))
@@ -4665,7 +4639,7 @@ plot19 <- ggplot(summary_data_policy_ri, aes(x = dominant_rrpolicy_v2_comp_delta
   theme_minimal()
 
 ```
-```{r DCE Interactive Dominant Choice Graph Display, eval = FALSE}
+```{r DCE Interactive Dominant Choice Graph Display. Did not end up using these, eval = FALSE}
 
 ui <- fluidPage(
   tags$head(
@@ -5392,26 +5366,29 @@ shinyApp(ui, server)
 ```
 
 ```{r DCE Regression Table (Main), eval = FALSE}
-# custom_labels <- c(
-#   "(Intercept):B" = "Intercept",
-#   "participantResults returned to participants in person"   = "Participants: In person",
-#   "participantResults returned to participants remotely"    = "Participants: Remotely",
-#   "communityResults returned to community in-person meeting"= "Community: In-person meeting",
-#   "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
-#   "policyReport of results submitted to policymakers"       = "Policy: Report",
-#   "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-#   "comp" = "Compensation",
-#   "fund" = "Research Funding",
-#   "as.factor(game_index).L:B" = "Game Index - 2",
-#   "as.factor(game_index).Q:B" = "Game Index - 3",
-#   "as.factor(game_index).C:B" = "Game Index - 4",
-#   "as.factor(game_index)^4:B" = "Game Index - 5",
-#   "as.factor(game_index)^5:B" = "Game Index - 6",
-#   "as.factor(game_index)^6:B" = "Game Index - 7",
-#   "as.factor(game_index)^7:B" = "Game Index - 8",
-#   "as.factor(game_index)^8:B" = "Game Index - 9",
-#   "as.factor(game_index)^9:B" = "Game Index - 10"
-# )
+custom_labels <- c(
+  "(Intercept):B" = "Intercept",
+  "return_results_participants_inperson"   = "Participants: In person",
+  "return_results_participants_remote"    = "Participants: Remotely",
+  "return_results_community_inperson"= "Community: In-person meeting",
+  "return_results_community_remote" = "Community: Remotely to leaders",
+  "return_results_policy_remote" = "Policy: Report",
+  "return_results_policy_inperson" = "Policy: Workshop",
+  "comp_recode" = "Compensation",
+  "fund_recode" = "Research Funding",
+  "as.factor(game_index).L:B" = "Game Index - 2",
+  "as.factor(game_index).Q:B" = "Game Index - 3",
+  "as.factor(game_index).C:B" = "Game Index - 4",
+  "as.factor(game_index)^4:B" = "Game Index - 5",
+  "as.factor(game_index)^5:B" = "Game Index - 6",
+  "as.factor(game_index)^6:B" = "Game Index - 7",
+  "as.factor(game_index)^7:B" = "Game Index - 8",
+  "as.factor(game_index)^8:B" = "Game Index - 9",
+  "as.factor(game_index)^9:B" = "Game Index - 10"
+)
+
+dce_long <- dce_long %>%
+  mutate(control = relevel(control, ref = "0"))
 
 run_models <- function(data) {
   mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
@@ -5420,10 +5397,10 @@ run_models <- function(data) {
   mixed_model <- mlogit(
     chosen ~
       + return_results_participants_remote + return_results_participants_inperson 
-    + + return_results_community_remote + return_results_community_inperson 
+    + return_results_community_remote + return_results_community_inperson 
     + return_results_policy_remote + return_results_policy_inperson 
     +  comp_recode + fund_recode
-     | as.factor(game_index) + control
+     | as.factor(game_index)
     ,
     data   = mlogit_data,
     rpar   = c(
@@ -5441,10 +5418,10 @@ run_models <- function(data) {
 conditional_model <- mlogit(
     chosen ~
     + return_results_participants_remote + return_results_participants_inperson 
-    + + return_results_community_remote + return_results_community_inperson 
+    + return_results_community_remote + return_results_community_inperson 
     + return_results_policy_remote + return_results_policy_inperson 
     +  comp_recode + fund_recode
-     | as.factor(game_index) + control
+     | as.factor(game_index)
     ,
     data   = mlogit_data,
     rpar   = NULL
@@ -5567,7 +5544,7 @@ table_out <- table_out %>%
 
 table_out   # renders the nicely formatted table
 ```
-```{r DCE Reg Table with Treatment Status as a Control}
+```{r DCE Reg Table with Treatment Status as a Control, eval = FALSE}
 # 1. Custom labels
 custom_labels <- c(
   "(Intercept):B" = "Intercept - Control Group",
@@ -5738,102 +5715,14 @@ table_out
 
 ```
 
-
-
 ```{r DCE Regression Table (With Inattentive Subset), eval = FALSE}
-# custom_labels <- c(
-#   "(Intercept):B" = "Intercept",
-#   "participantResults returned to participants in person"   = "Participants: In person",
-#   "participantResults returned to participants remotely"    = "Participants: Remotely",
-#   "communityResults returned to community in-person meeting"= "Community: In-person meeting",
-#   "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
-#   "policyReport of results submitted to policymakers"       = "Policy: Report",
-#   "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-#   "comp" = "Compensation",
-#   "fund" = "Research Funding",
-#   "as.factor(game_index).L:B" = "Game Index - 2",
-#   "as.factor(game_index).Q:B" = "Game Index - 3",
-#   "as.factor(game_index).C:B" = "Game Index - 4",
-#   "as.factor(game_index)^4:B" = "Game Index - 5",
-#   "as.factor(game_index)^5:B" = "Game Index - 6",
-#   "as.factor(game_index)^6:B" = "Game Index - 7",
-#   "as.factor(game_index)^7:B" = "Game Index - 8",
-#   "as.factor(game_index)^8:B" = "Game Index - 9",
-#   "as.factor(game_index)^9:B" = "Game Index - 10"
-# )
-
-run_models <- function(data) {
-  mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
-                       panel = TRUE, id.var = "respondentID")
-  
-  mixed_model <- mlogit(
-    chosen ~ participant + community + policy + comp + fund 
-    #| as.factor(game_index)
-    ,
-    data   = mlogit_data,
-    rpar   = c(
-      fund = "n",
-      setNames(rep("n", length(levels(data$participant)) - 1),
-               paste0("participant", levels(data$participant)[-1])),
-      setNames(rep("n", length(levels(data$community)) - 1),
-               paste0("community",  levels(data$community)[-1])),
-      setNames(rep("n", length(levels(data$policy)) - 1),
-               paste0("policy",     levels(data$policy)[-1]))
-    ),
-    halton = NA, R = 1000
-  )
-  
-  conditional_model <- mlogit(
-    chosen ~ participant + community + policy + comp + fund #| as.factor(game_index)
-    ,
-    data   = mlogit_data
-  )
-  
-  list(mixed = mixed_model, conditional = conditional_model)
-}
-
-extract_estimates <- function(mixed, conditional, grp) {
-  tidy_mixed <- tidy(mixed) |>
-    filter(!grepl("^sd\\.", term)) |>
-    mutate(
-      term_clean = term,
-      mixed_str  = sprintf("%0.3f (%0.3f)%s",
-                           estimate, std.error,
-                           case_when(
-                             p.value < 0.001 ~ "***",
-                             p.value < 0.01  ~ "**",
-                             p.value < 0.05  ~ "*",
-                             TRUE            ~ ""
-                           ))
-    ) |>
-    select(term_clean, mixed_str)
-  
-  tidy_cond <- tidy(conditional) |>
-    mutate(
-      term_clean = term,
-      cond_str   = sprintf("%0.3f (%0.3f)%s",
-                           estimate, std.error,
-                           case_when(
-                             p.value < 0.001 ~ "***",
-                             p.value < 0.01  ~ "**",
-                             p.value < 0.05  ~ "*",
-                             TRUE            ~ ""
-                           ))
-    ) |>
-    select(term_clean, cond_str)
-  
-  full_join(tidy_mixed, tidy_cond, by = "term_clean") |>
-    rename(!!paste0("Mixed_", grp) := mixed_str,
-           !!paste0("Cond_",  grp) := cond_str)
-}
-
-
-
+#ensure DCE Regression Table (Main) block has been run. 
+dce_long_predrop <- dce_long_predrop %>%
+  mutate(control = relevel(control, ref = "0"))
 
 incl_inattentive_models_full   <- run_models(dce_long_predrop)
 incl_inattentive_models_treat  <- run_models(filter(dce_long_predrop, control == 0))
 incl_inattentive_models_ctrl   <- run_models(filter(dce_long_predrop, control == 1))
-
 
 incl_inattentive_est_full  <- extract_estimates(incl_inattentive_models_full$mixed,  incl_inattentive_models_full$conditional,  "Full")
 incl_inattentive_est_treat <- extract_estimates(incl_inattentive_models_treat$mixed, incl_inattentive_models_treat$conditional, "Treat")
@@ -5857,14 +5746,6 @@ incl_inattentive_all_combined <- reduce(list(incl_inattentive_est_full, incl_ina
     `Conditional Logit (Treatment)`   = Cond_Treat,
     `Conditional Logit (Control)`     = Cond_Control
   )
-
-row_order <- c(
-  "Intercept",
-  "Participants: In person", "Participants: Remotely",
-  "Community: In-person meeting", "Community: Remotely to leaders",
-  "Policy: Report", "Policy: Workshop",
-  "Compensation", "Research Funding"
-)
 
 incl_inattentive_all_combined <- incl_inattentive_all_combined |>
   mutate(
@@ -5909,96 +5790,7 @@ incl_inattentive_table_out <- incl_inattentive_table_out %>%
 incl_inattentive_table_out   # renders the nicely formatted table
 ```
 ```{r DCE Regression Table (Without First Two Rounds), eval = FALSE}
-dce_long_dropfirsttwo <- subset(dce_long, game_index > 2)
-
-custom_labels <- c(
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants in person"   = "Participants: In person",
-  "participantResults returned to participants remotely"    = "Participants: Remotely",
-  "communityResults returned to community in-person meeting"= "Community: In-person meeting",
-  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
-  "policyReport of results submitted to policymakers"       = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding",
-  "as.factor(game_index).L:B" = "Game Index - 2",
-  "as.factor(game_index).Q:B" = "Game Index - 3",
-  "as.factor(game_index).C:B" = "Game Index - 4",
-  "as.factor(game_index)^4:B" = "Game Index - 5",
-  "as.factor(game_index)^5:B" = "Game Index - 6",
-  "as.factor(game_index)^6:B" = "Game Index - 7",
-  "as.factor(game_index)^7:B" = "Game Index - 8",
-  "as.factor(game_index)^8:B" = "Game Index - 9",
-  "as.factor(game_index)^9:B" = "Game Index - 10"
-)
-
-run_models <- function(data) {
-  mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
-                       panel = TRUE, id.var = "respondentID")
-  
-  mixed_model <- mlogit(
-    chosen ~ participant + community + policy + comp + fund 
-    #| as.factor(game_index)
-    ,
-    data   = mlogit_data,
-    rpar   = c(
-      fund = "n",
-      setNames(rep("n", length(levels(data$participant)) - 1),
-               paste0("participant", levels(data$participant)[-1])),
-      setNames(rep("n", length(levels(data$community)) - 1),
-               paste0("community",  levels(data$community)[-1])),
-      setNames(rep("n", length(levels(data$policy)) - 1),
-               paste0("policy",     levels(data$policy)[-1]))
-    ),
-    halton = NA, R = 1000
-  )
-  
-  conditional_model <- mlogit(
-    chosen ~ participant + community + policy + comp + fund #| as.factor(game_index)
-    ,
-    data   = mlogit_data
-  )
-  
-  list(mixed = mixed_model, conditional = conditional_model)
-}
-
-extract_estimates <- function(mixed, conditional, grp) {
-  tidy_mixed <- tidy(mixed) |>
-    filter(!grepl("^sd\\.", term)) |>
-    mutate(
-      term_clean = term,
-      mixed_str  = sprintf("%0.3f (%0.3f)%s",
-                           estimate, std.error,
-                           case_when(
-                             p.value < 0.001 ~ "***",
-                             p.value < 0.01  ~ "**",
-                             p.value < 0.05  ~ "*",
-                             TRUE            ~ ""
-                           ))
-    ) |>
-    select(term_clean, mixed_str)
-  
-  tidy_cond <- tidy(conditional) |>
-    mutate(
-      term_clean = term,
-      cond_str   = sprintf("%0.3f (%0.3f)%s",
-                           estimate, std.error,
-                           case_when(
-                             p.value < 0.001 ~ "***",
-                             p.value < 0.01  ~ "**",
-                             p.value < 0.05  ~ "*",
-                             TRUE            ~ ""
-                           ))
-    ) |>
-    select(term_clean, cond_str)
-  
-  full_join(tidy_mixed, tidy_cond, by = "term_clean") |>
-    rename(!!paste0("Mixed_", grp) := mixed_str,
-           !!paste0("Cond_",  grp) := cond_str)
-}
-
-
-
+dce_long_dropfirsttwo <- subset(dce_long, as.numeric(as.character(game_index)) > 2)
 
 excl_firsttwo__models_full   <- run_models(dce_long_dropfirsttwo)
 excl_firsttwo__models_treat  <- run_models(filter(dce_long_dropfirsttwo, control == 0))
@@ -6027,14 +5819,6 @@ excl_firsttwo__all_combined <- reduce(list(excl_firsttwo__est_full, excl_firsttw
     `Conditional Logit (Treatment)`   = Cond_Treat,
     `Conditional Logit (Control)`     = Cond_Control
   )
-
-row_order <- c(
-  "Intercept",
-  "Participants: In person", "Participants: Remotely",
-  "Community: In-person meeting", "Community: Remotely to leaders",
-  "Policy: Report", "Policy: Workshop",
-  "Compensation", "Research Funding"
-)
 
 excl_firsttwo__all_combined <- excl_firsttwo__all_combined |>
   mutate(
@@ -6079,95 +5863,8 @@ excl_firsttwo__table_out <- excl_firsttwo__table_out %>%
 excl_firsttwo__table_out   # renders the nicely formatted table
 ```
 ```{r DCE Regression Table (Without First Two Rounds and WITH Inattentive Subset), eval = FALSE}
-dce_long_dropfirsttwo_incl_inattentive <- subset(dce_long_predrop, game_index > 2)
-
-custom_labels <- c(
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants in person"   = "Participants: In person",
-  "participantResults returned to participants remotely"    = "Participants: Remotely",
-  "communityResults returned to community in-person meeting"= "Community: In-person meeting",
-  "communityResults returned to community leaders remotely" = "Community: Remotely to leaders",
-  "policyReport of results submitted to policymakers"       = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding",
-  "as.factor(game_index).L:B" = "Game Index - 2",
-  "as.factor(game_index).Q:B" = "Game Index - 3",
-  "as.factor(game_index).C:B" = "Game Index - 4",
-  "as.factor(game_index)^4:B" = "Game Index - 5",
-  "as.factor(game_index)^5:B" = "Game Index - 6",
-  "as.factor(game_index)^6:B" = "Game Index - 7",
-  "as.factor(game_index)^7:B" = "Game Index - 8",
-  "as.factor(game_index)^8:B" = "Game Index - 9",
-  "as.factor(game_index)^9:B" = "Game Index - 10"
-)
-
-run_models <- function(data) {
-  mlogit_data <- dfidx(data, idx = c("game_id", "alt"),
-                       panel = TRUE, id.var = "respondentID")
-  
-  mixed_model <- mlogit(
-    chosen ~ participant + community + policy + comp + fund 
-    #| as.factor(game_index)
-    ,
-    data   = mlogit_data,
-    rpar   = c(
-      fund = "n",
-      setNames(rep("n", length(levels(data$participant)) - 1),
-               paste0("participant", levels(data$participant)[-1])),
-      setNames(rep("n", length(levels(data$community)) - 1),
-               paste0("community",  levels(data$community)[-1])),
-      setNames(rep("n", length(levels(data$policy)) - 1),
-               paste0("policy",     levels(data$policy)[-1]))
-    ),
-    halton = NA, R = 1000
-  )
-  
-  conditional_model <- mlogit(
-    chosen ~ participant + community + policy + comp + fund #| as.factor(game_index)
-    ,
-    data   = mlogit_data
-  )
-  
-  list(mixed = mixed_model, conditional = conditional_model)
-}
-
-extract_estimates <- function(mixed, conditional, grp) {
-  tidy_mixed <- tidy(mixed) |>
-    filter(!grepl("^sd\\.", term)) |>
-    mutate(
-      term_clean = term,
-      mixed_str  = sprintf("%0.3f (%0.3f)%s",
-                           estimate, std.error,
-                           case_when(
-                             p.value < 0.001 ~ "***",
-                             p.value < 0.01  ~ "**",
-                             p.value < 0.05  ~ "*",
-                             TRUE            ~ ""
-                           ))
-    ) |>
-    select(term_clean, mixed_str)
-  
-  tidy_cond <- tidy(conditional) |>
-    mutate(
-      term_clean = term,
-      cond_str   = sprintf("%0.3f (%0.3f)%s",
-                           estimate, std.error,
-                           case_when(
-                             p.value < 0.001 ~ "***",
-                             p.value < 0.01  ~ "**",
-                             p.value < 0.05  ~ "*",
-                             TRUE            ~ ""
-                           ))
-    ) |>
-    select(term_clean, cond_str)
-  
-  full_join(tidy_mixed, tidy_cond, by = "term_clean") |>
-    rename(!!paste0("Mixed_", grp) := mixed_str,
-           !!paste0("Cond_",  grp) := cond_str)
-}
-
-
+dce_long_dropfirsttwo_incl_inattentive <- dce_long_predrop %>%
+  filter(!(game_index %in% levels(game_index)[1:2]))
 
 excl_firsttwo_incl_inattentive_models_full   <- run_models(dce_long_dropfirsttwo_incl_inattentive)
 excl_firsttwo_incl_inattentive_models_treat  <- run_models(filter(dce_long_dropfirsttwo_incl_inattentive, control == 0))
@@ -6196,14 +5893,6 @@ excl_firsttwo_incl_inattentive_all_combined <- reduce(list(excl_firsttwo_incl_in
     `Conditional Logit (Treatment)`   = Cond_Treat,
     `Conditional Logit (Control)`     = Cond_Control
   )
-
-row_order <- c(
-  "Intercept",
-  "Participants: In person", "Participants: Remotely",
-  "Community: In-person meeting", "Community: Remotely to leaders",
-  "Policy: Report", "Policy: Workshop",
-  "Compensation", "Research Funding"
-)
 
 excl_firsttwo_incl_inattentive_all_combined <- excl_firsttwo_incl_inattentive_all_combined |>
   mutate(
@@ -6249,38 +5938,32 @@ excl_firsttwo_incl_inattentive_table_out   # renders the nicely formatted table
 ```
 
 ```{r DCE Willingness to Pay Plots (Main), eval = FALSE}
-custom_labels <- c(
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants remotely"     = "Participants: Remotely",
-  "participantResults returned to participants in person"    = "Participants: In person",
-  "communityResults returned to community leaders remotely"  = "Community: Remotely to leaders",
-  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
-  "policyReport of results submitted to policymakers"        = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding"
-)
+
+# This is the Tsh-USD PPP as of 2024 by the World Bank (730.42 Tanzanian Shillings to 1 USD)
+  tshppp <- 730.42
 
 get_wtp <- function(data) {
-  ml_data <- dfidx(data,
-                   idx   = c("game_id", "alt"),
-                   panel = TRUE,
-                   id.var = "respondentID")
+  ml_data <- dfidx(data, idx = c("game_id", "alt"),
+                       panel = TRUE, id.var = "respondentID")
 
   m_fit <- mlogit(
-    chosen ~ participant + community + policy + comp + fund 
-    #|  as.factor(game_index)
+    chosen ~
+      + return_results_participants_remote + return_results_participants_inperson 
+    + return_results_community_remote + return_results_community_inperson 
+    + return_results_policy_remote + return_results_policy_inperson 
+    +  comp_recode + fund_recode
+     | as.factor(game_index)
     ,
     data   = ml_data,
     rpar   = c(
-      fund = "n",
-      "participantResults returned to participants remotely"     = "n",
-      "participantResults returned to participants in person"    = "n",
-      "communityResults returned to community leaders remotely"  = "n",
-      "communityResults returned to community in-person meeting" = "n",
-      "policyReport of results submitted to policymakers"        = "n",
-      "policyResults presented in half-day workshop to policymakers" = "n"
-    ),
+       fund_recode = "n",
+       return_results_participants_remote = "n",
+       return_results_participants_inperson = "n",
+       return_results_community_remote = "n",
+       return_results_community_inperson = "n",
+       return_results_policy_remote = "n",
+       return_results_policy_inperson = "n"
+     ),
     halton = NA, R = 1000
   )
 
@@ -6290,13 +5973,13 @@ get_wtp <- function(data) {
                 term)) %>%
   rename(se = std.error, estimate = estimate)
 
-  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)* (1000 / 890.58)
+  comp_coef <- tidy_est |> filter(term == "comp_recode") |> pull(estimate)* (1000 / tshppp)
 
   tidy_est |>
     mutate(
-      wtp      = (estimate / comp_coef) * (1000 / 890.58),
-      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / 890.58),
-      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / 890.58),
+      wtp      = (estimate / comp_coef) * (1000 / tshppp),
+      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / tshppp),
+      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / tshppp),
       attribute = custom_labels[term]
     ) |>
     select(attribute, wtp, wtp_low, wtp_high)
@@ -6308,13 +5991,13 @@ wtp_ctrl  <- get_wtp(filter(dce_long, control == 1))
 
 plot_wtp <- function(df, title) {
   ord <- c(
-    "Intercept",
-    "Participants: In person", "Participants: Remotely",
-    "Community: In-person meeting", "Community: Remotely to leaders",
-    "Policy: Workshop", "Policy: Report",
-    "Compensation",
-    "Research Funding" 
-  )
+  "Intercept",
+  "Participants: In person", "Participants: Remotely",
+  "Community: In-person meeting", "Community: Remotely to leaders",
+  "Policy: Report", "Policy: Workshop",
+  "Compensation", "Research Funding"
+)
+
   df$attribute <- factor(df$attribute, levels = rev(ord))
   
   ggplot(df, aes(x = wtp, y = attribute)) +
@@ -6359,17 +6042,26 @@ format_est_se_star <- function(est, se, pval) {
 }
 
 extract_wtp_table <- function(model, data_label) {
-  tidy(model) |>
+  tidy_est <- tidy(model) |>
     filter(!str_detect(term, "^sd\\.")) |>
     filter(term %in% names(custom_labels)) |>
+    rename(se = std.error, estimate = estimate)
+
+  # Get comp coefficient and scale
+  comp_coef <- tidy_est |> filter(term == "comp_recode") |> pull(estimate) * (1000 / tshppp)
+
+  tidy_est <- tidy_est |>
     mutate(
-      attribute = custom_labels[term],
-      est_str = format_est_se_star(estimate, std.error, p.value)
+      estimate_wtp = (estimate / comp_coef) * (1000 / tshppp),
+      se_wtp       = (se / comp_coef) * (1000 / tshppp),
+      attribute    = custom_labels[term],
+      est_str      = format_est_se_star(estimate_wtp, se_wtp, p.value)
     ) |>
     select(attribute, est_str) |>
     rename(!!data_label := est_str)
-}
 
+  tidy_est
+}
 wtp_full_tbl  <- extract_wtp_table(models_full$mixed,  "Full Sample")
 wtp_treat_tbl <- extract_wtp_table(models_treat$mixed, "Treatment")
 wtp_ctrl_tbl  <- extract_wtp_table(models_ctrl$mixed,  "Control")
@@ -6421,95 +6113,16 @@ for (i in seq_len(nrow(wtp_sec_pos))) {
 }
 
 wtp_kable <- wtp_kable %>%
-  row_spec(comp_row, extra_css = "border-top: 1px solid black;")
+  row_spec(8, extra_css = "border-top: 1px solid black;")
 
 wtp_kable
 
 ```
 ```{r DCE Willingness to Pay Plots (With Inattentive Subset), eval = FALSE}
-custom_labels <- c(
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants remotely"     = "Participants: Remotely",
-  "participantResults returned to participants in person"    = "Participants: In person",
-  "communityResults returned to community leaders remotely"  = "Community: Remotely to leaders",
-  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
-  "policyReport of results submitted to policymakers"        = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding"
-)
-
-get_wtp <- function(data) {
-  ml_data <- dfidx(data,
-                   idx   = c("game_id", "alt"),
-                   panel = TRUE,
-                   id.var = "respondentID")
-
-  m_fit <- mlogit(
-    chosen ~ participant + community + policy + comp + fund 
-    #|  as.factor(game_index)
-    ,
-    data   = ml_data,
-    rpar   = c(
-      fund = "n",
-      "participantResults returned to participants remotely"     = "n",
-      "participantResults returned to participants in person"    = "n",
-      "communityResults returned to community leaders remotely"  = "n",
-      "communityResults returned to community in-person meeting" = "n",
-      "policyReport of results submitted to policymakers"        = "n",
-      "policyResults presented in half-day workshop to policymakers" = "n"
-    ),
-    halton = NA, R = 1000
-  )
-
-  tidy_est <- tidy(m_fit) %>%
-  filter(!grepl("^sd\\.", term)) %>%                           # keep mean coefs only
-  filter(!grepl("^(as\\.factor\\(game_index\\)|game_index)",   # <-- drop the controls
-                term)) %>%
-  rename(se = std.error, estimate = estimate)
-
-  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)* (1000 / 890.58)
-
-  tidy_est |>
-    mutate(
-      wtp      = (estimate / comp_coef) * (1000 / 890.58),
-      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / 890.58),
-      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / 890.58),
-      attribute = custom_labels[term]
-    ) |>
-    select(attribute, wtp, wtp_low, wtp_high)
-}
 
 incl_inattentive_wtp_full  <- get_wtp(dce_long_predrop)
 incl_inattentive_wtp_treat <- get_wtp(filter(dce_long_predrop, control == 0))
 incl_inattentive_wtp_ctrl  <- get_wtp(filter(dce_long_predrop, control == 1))
-
-plot_wtp <- function(df, title) {
-  ord <- c(
-    "Intercept",
-    "Participants: In person", "Participants: Remotely",
-    "Community: In-person meeting", "Community: Remotely to leaders",
-    "Policy: Workshop", "Policy: Report",
-    "Compensation",
-    "Research Funding" 
-  )
-  df$attribute <- factor(df$attribute, levels = rev(ord))
-  
-  ggplot(df, aes(x = wtp, y = attribute)) +
-    geom_point(color = "darkgreen", size = 2.7) +
-    geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high),
-                   height = .18, color = "darkgreen") +
-    geom_vline(xintercept = 0, linetype = "F1", color = "gray50") +
-    geom_vline(xintercept = 1, linetype = "dashed", color = "green") +
-    labs(title = title,
-         caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
-         x = NULL,
-           #"WTP (In USD, Relative to Compensation)",
-         y = "Attribute") +
-    #theme_minimal(base_size = 12) +
-    theme(plot.title = element_text(hjust = .5, face = "bold")) + 
-    scale_x_continuous(limits = c(-3, 11), breaks = c(-3:11))
-}
 
 incl_inattentive_p_full  <- plot_wtp(incl_inattentive_wtp_full,  "Willingness to Pay Estimates – Full Sample")
 incl_inattentive_p_treat <- plot_wtp(incl_inattentive_wtp_treat, "Willingness to Pay Estimates – Treatment")
@@ -6525,43 +6138,12 @@ incl_inattentive_p_ctrl
 
 ```
 ```{r DCE Willingness to Pay Table (With Inattentive Subset), eval = FALSE}
-
-format_est_se_star <- function(est, se, pval) {
-  stars <- case_when(
-    pval < 0.001 ~ "***",
-    pval < 0.01  ~ "**",
-    pval < 0.05  ~ "*",
-    TRUE         ~ ""
-  )
-  sprintf("%.2f%s\n(%.2f)", est, stars, se)
-}
-
-extract_wtp_table <- function(model, data_label) {
-  tidy(model) |>
-    filter(!str_detect(term, "^sd\\.")) |>
-    filter(term %in% names(custom_labels)) |>
-    mutate(
-      attribute = custom_labels[term],
-      est_str = format_est_se_star(estimate, std.error, p.value)
-    ) |>
-    select(attribute, est_str) |>
-    rename(!!data_label := est_str)
-}
-
 incl_inattentive_wtp_full_tbl  <- extract_wtp_table(incl_inattentive_models_full$mixed,  "Full Sample")
 incl_inattentive_wtp_treat_tbl <- extract_wtp_table(incl_inattentive_models_treat$mixed, "Treatment")
 incl_inattentive_wtp_ctrl_tbl  <- extract_wtp_table(incl_inattentive_models_ctrl$mixed,  "Control")
 
 incl_inattentive_wtp_table <- reduce(list(incl_inattentive_wtp_full_tbl, incl_inattentive_wtp_treat_tbl, incl_inattentive_wtp_ctrl_tbl), full_join, by = "attribute") |>
   rename(Attribute = attribute)
-
-row_order <- c(
-  "Intercept",
-  "Participants: In person", "Participants: Remotely",
-  "Community: In-person meeting", "Community: Remotely to leaders",
-  "Policy: Workshop", "Policy: Report",
-  "Compensation", "Research Funding"
-)
 
 incl_inattentive_wtp_table <- incl_inattentive_wtp_table |>
   mutate(order = match(Attribute, row_order)) |>
@@ -6605,91 +6187,10 @@ incl_inattentive_wtp_kable
 
 ```
 ```{r DCE Willingness to Pay Plots (Without First Two Rounds), eval = FALSE}
-dce_long_dropfirsttwo <- subset(dce_long, game_index > 2)
-
-custom_labels <- c(
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants remotely"     = "Participants: Remotely",
-  "participantResults returned to participants in person"    = "Participants: In person",
-  "communityResults returned to community leaders remotely"  = "Community: Remotely to leaders",
-  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
-  "policyReport of results submitted to policymakers"        = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding"
-)
-
-get_wtp <- function(data) {
-  ml_data <- dfidx(data,
-                   idx   = c("game_id", "alt"),
-                   panel = TRUE,
-                   id.var = "respondentID")
-
-  m_fit <- mlogit(
-    chosen ~ participant + community + policy + comp + fund 
-    #|  as.factor(game_index)
-    ,
-    data   = ml_data,
-    rpar   = c(
-      fund = "n",
-      "participantResults returned to participants remotely"     = "n",
-      "participantResults returned to participants in person"    = "n",
-      "communityResults returned to community leaders remotely"  = "n",
-      "communityResults returned to community in-person meeting" = "n",
-      "policyReport of results submitted to policymakers"        = "n",
-      "policyResults presented in half-day workshop to policymakers" = "n"
-    ),
-    halton = NA, R = 1000
-  )
-
-  tidy_est <- tidy(m_fit) %>%
-  filter(!grepl("^sd\\.", term)) %>%                           # keep mean coefs only
-  filter(!grepl("^(as\\.factor\\(game_index\\)|game_index)",   # <-- drop the controls
-                term)) %>%
-  rename(se = std.error, estimate = estimate)
-
-  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)* (1000 / 890.58)
-
-  tidy_est |>
-    mutate(
-      wtp      = (estimate / comp_coef) * (1000 / 890.58),
-      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / 890.58),
-      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / 890.58),
-      attribute = custom_labels[term]
-    ) |>
-    select(attribute, wtp, wtp_low, wtp_high)
-}
-
 excl_firsttwo__wtp_full  <- get_wtp(dce_long_dropfirsttwo)
 excl_firsttwo__wtp_treat <- get_wtp(filter(dce_long_dropfirsttwo, control == 0))
 excl_firsttwo__wtp_ctrl  <- get_wtp(filter(dce_long_dropfirsttwo, control == 1))
 
-plot_wtp <- function(df, title) {
-  ord <- c(
-    "Intercept",
-    "Participants: In person", "Participants: Remotely",
-    "Community: In-person meeting", "Community: Remotely to leaders",
-    "Policy: Workshop", "Policy: Report",
-    "Compensation",
-    "Research Funding" 
-  )
-  df$attribute <- factor(df$attribute, levels = rev(ord))
-  
-  ggplot(df, aes(x = wtp, y = attribute)) +
-    geom_point(color = "darkgreen", size = 2.7) +
-    geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high),
-                   height = .18, color = "darkgreen") +
-    geom_vline(xintercept = 0, linetype = "F1", color = "gray50") +
-    geom_vline(xintercept = 1, linetype = "dashed", color = "green") +
-    labs(title = title,
-         caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
-         x = NULL,
-           #"WTP (In USD, Relative to Compensation)",
-         y = "Attribute") +
-    #theme_minimal(base_size = 12) +
-    theme(plot.title = element_text(hjust = .5, face = "bold")) + 
-    scale_x_continuous(limits = c(-3, 11), breaks = c(-3:11))
-}
 
 excl_firsttwo__p_full  <- plot_wtp(excl_firsttwo__wtp_full,  "Willingness to Pay Estimates – Full Sample")
 excl_firsttwo__p_treat <- plot_wtp(excl_firsttwo__wtp_treat, "Willingness to Pay Estimates – Treatment")
@@ -6706,42 +6207,12 @@ excl_firsttwo__p_ctrl
 ```
 ```{r DCE Willingness to Pay Table (Without First Two Rounds), eval = FALSE}
 
-format_est_se_star <- function(est, se, pval) {
-  stars <- case_when(
-    pval < 0.001 ~ "***",
-    pval < 0.01  ~ "**",
-    pval < 0.05  ~ "*",
-    TRUE         ~ ""
-  )
-  sprintf("%.2f%s\n(%.2f)", est, stars, se)
-}
-
-extract_wtp_table <- function(model, data_label) {
-  tidy(model) |>
-    filter(!str_detect(term, "^sd\\.")) |>
-    filter(term %in% names(custom_labels)) |>
-    mutate(
-      attribute = custom_labels[term],
-      est_str = format_est_se_star(estimate, std.error, p.value)
-    ) |>
-    select(attribute, est_str) |>
-    rename(!!data_label := est_str)
-}
-
 excl_firsttwo__wtp_full_tbl  <- extract_wtp_table(excl_firsttwo__models_full$mixed,  "Full Sample")
 excl_firsttwo__wtp_treat_tbl <- extract_wtp_table(excl_firsttwo__models_treat$mixed, "Treatment")
 excl_firsttwo__wtp_ctrl_tbl  <- extract_wtp_table(excl_firsttwo__models_ctrl$mixed,  "Control")
 
 excl_firsttwo__wtp_table <- reduce(list(excl_firsttwo__wtp_full_tbl, excl_firsttwo__wtp_treat_tbl, excl_firsttwo__wtp_ctrl_tbl), full_join, by = "attribute") |>
   rename(Attribute = attribute)
-
-row_order <- c(
-  "Intercept",
-  "Participants: In person", "Participants: Remotely",
-  "Community: In-person meeting", "Community: Remotely to leaders",
-  "Policy: Workshop", "Policy: Report",
-  "Compensation", "Research Funding"
-)
 
 excl_firsttwo__wtp_table <- excl_firsttwo__wtp_table |>
   mutate(order = match(Attribute, row_order)) |>
@@ -6785,91 +6256,10 @@ excl_firsttwo__wtp_kable
 
 ```
 ```{r DCE Willingness to Pay Plots (Without First Two Rounds and WITH Inattentive Subset), eval = FALSE}
-dce_long_dropfirsttwo_incl_inattentive <- subset(dce_long_predrop, game_index > 2)
-
-custom_labels <- c(
-  "(Intercept):B" = "Intercept",
-  "participantResults returned to participants remotely"     = "Participants: Remotely",
-  "participantResults returned to participants in person"    = "Participants: In person",
-  "communityResults returned to community leaders remotely"  = "Community: Remotely to leaders",
-  "communityResults returned to community in-person meeting" = "Community: In-person meeting",
-  "policyReport of results submitted to policymakers"        = "Policy: Report",
-  "policyResults presented in half-day workshop to policymakers" = "Policy: Workshop",
-  "comp" = "Compensation",
-  "fund" = "Research Funding"
-)
-
-get_wtp <- function(data) {
-  ml_data <- dfidx(data,
-                   idx   = c("game_id", "alt"),
-                   panel = TRUE,
-                   id.var = "respondentID")
-
-  m_fit <- mlogit(
-    chosen ~ participant + community + policy + comp + fund 
-    #|  as.factor(game_index)
-    ,
-    data   = ml_data,
-    rpar   = c(
-      fund = "n",
-      "participantResults returned to participants remotely"     = "n",
-      "participantResults returned to participants in person"    = "n",
-      "communityResults returned to community leaders remotely"  = "n",
-      "communityResults returned to community in-person meeting" = "n",
-      "policyReport of results submitted to policymakers"        = "n",
-      "policyResults presented in half-day workshop to policymakers" = "n"
-    ),
-    halton = NA, R = 1000
-  )
-
-  tidy_est <- tidy(m_fit) %>%
-  filter(!grepl("^sd\\.", term)) %>%                           # keep mean coefs only
-  filter(!grepl("^(as\\.factor\\(game_index\\)|game_index)",   # <-- drop the controls
-                term)) %>%
-  rename(se = std.error, estimate = estimate)
-
-  comp_coef <- tidy_est |> filter(term == "comp") |> pull(estimate)* (1000 / 890.58)
-
-  tidy_est |>
-    mutate(
-      wtp      = (estimate / comp_coef) * (1000 / 890.58),
-      wtp_low  = ((estimate - 1.96 * se) / comp_coef) * (1000 / 890.58),
-      wtp_high = ((estimate + 1.96 * se) / comp_coef) * (1000 / 890.58),
-      attribute = custom_labels[term]
-    ) |>
-    select(attribute, wtp, wtp_low, wtp_high)
-}
 
 excl_firsttwo_incl_inattentive_wtp_full  <- get_wtp(dce_long_dropfirsttwo_incl_inattentive)
 excl_firsttwo_incl_inattentive_wtp_treat <- get_wtp(filter(dce_long_dropfirsttwo_incl_inattentive, control == 0))
 excl_firsttwo_incl_inattentive_wtp_ctrl  <- get_wtp(filter(dce_long_dropfirsttwo_incl_inattentive, control == 1))
-
-plot_wtp <- function(df, title) {
-  ord <- c(
-    "Intercept",
-    "Participants: In person", "Participants: Remotely",
-    "Community: In-person meeting", "Community: Remotely to leaders",
-    "Policy: Workshop", "Policy: Report",
-    "Compensation",
-    "Research Funding" 
-  )
-  df$attribute <- factor(df$attribute, levels = rev(ord))
-  
-  ggplot(df, aes(x = wtp, y = attribute)) +
-    geom_point(color = "darkgreen", size = 2.7) +
-    geom_errorbarh(aes(xmin = wtp_low, xmax = wtp_high),
-                   height = .18, color = "darkgreen") +
-    geom_vline(xintercept = 0, linetype = "F1", color = "gray50") +
-    geom_vline(xintercept = 1, linetype = "dashed", color = "green") +
-    labs(title = title,
-         caption = "WTP in terms of USD using Tsh-USD 2021 PPP", 
-         x = NULL,
-           #"WTP (In USD, Relative to Compensation)",
-         y = "Attribute") +
-    #theme_minimal(base_size = 12) +
-    theme(plot.title = element_text(hjust = .5, face = "bold")) + 
-    scale_x_continuous(limits = c(-3, 11), breaks = c(-3:11))
-}
 
 excl_firsttwo_incl_inattentive_p_full  <- plot_wtp(excl_firsttwo_incl_inattentive_wtp_full,  "Willingness to Pay Estimates – Full Sample")
 excl_firsttwo_incl_inattentive_p_treat <- plot_wtp(excl_firsttwo_incl_inattentive_wtp_treat, "Willingness to Pay Estimates – Treatment")
@@ -6886,42 +6276,12 @@ excl_firsttwo_incl_inattentive_p_ctrl
 ```
 ```{r DCE Willingness to Pay Table (Without First Two Rounds and WITH Inattentive Subset), eval = FALSE}
 
-format_est_se_star <- function(est, se, pval) {
-  stars <- case_when(
-    pval < 0.001 ~ "***",
-    pval < 0.01  ~ "**",
-    pval < 0.05  ~ "*",
-    TRUE         ~ ""
-  )
-  sprintf("%.2f%s\n(%.2f)", est, stars, se)
-}
-
-extract_wtp_table <- function(model, data_label) {
-  tidy(model) |>
-    filter(!str_detect(term, "^sd\\.")) |>
-    filter(term %in% names(custom_labels)) |>
-    mutate(
-      attribute = custom_labels[term],
-      est_str = format_est_se_star(estimate, std.error, p.value)
-    ) |>
-    select(attribute, est_str) |>
-    rename(!!data_label := est_str)
-}
-
 excl_firsttwo_incl_inattentive_wtp_full_tbl  <- extract_wtp_table(excl_firsttwo_incl_inattentive_models_full$mixed,  "Full Sample")
 excl_firsttwo_incl_inattentive_wtp_treat_tbl <- extract_wtp_table(excl_firsttwo_incl_inattentive_models_treat$mixed, "Treatment")
 excl_firsttwo_incl_inattentive_wtp_ctrl_tbl  <- extract_wtp_table(excl_firsttwo_incl_inattentive_models_ctrl$mixed,  "Control")
 
 excl_firsttwo_incl_inattentive_wtp_table <- reduce(list(excl_firsttwo_incl_inattentive_wtp_full_tbl, excl_firsttwo_incl_inattentive_wtp_treat_tbl, excl_firsttwo_incl_inattentive_wtp_ctrl_tbl), full_join, by = "attribute") |>
   rename(Attribute = attribute)
-
-row_order <- c(
-  "Intercept",
-  "Participants: In person", "Participants: Remotely",
-  "Community: In-person meeting", "Community: Remotely to leaders",
-  "Policy: Workshop", "Policy: Report",
-  "Compensation", "Research Funding"
-)
 
 excl_firsttwo_incl_inattentive_wtp_table <- excl_firsttwo_incl_inattentive_wtp_table |>
   mutate(order = match(Attribute, row_order)) |>
@@ -6966,9 +6326,7 @@ excl_firsttwo_incl_inattentive_wtp_kable
 ```
 
 
-
-
-```{r To-do. Analyze activity data}
+```{r To-do. Analyze activity data, eval = FALSE}
 
 # We asked questions about what activities each participant was involved with. I believe this question set was designed to provide an indication of whether or not individuals correctly recalled participating in the experiment. 
 
@@ -6977,15 +6335,13 @@ excl_firsttwo_incl_inattentive_wtp_kable
     #Anything else we can say about it?
 
 ```
-```{r To-do. Summarize comment variables}
+```{r To-do. Summarize comment variables, eval = FALSE}
 
 # The comment variables might provide some qualitative information, but it's in Swahili. Can we compile it here and translate it?
 
 ```
 ```{r To-do. Summarize challenges participants identified, eval = FALSE}
 ```
-
-
 
 
 ```{r DEPRECATED, include = FALSE, eval = FALSE}
