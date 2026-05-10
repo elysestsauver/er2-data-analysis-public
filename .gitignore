@@ -1,5 +1,68 @@
-.Rproj.user
+# =============================================================================
+# .gitignore for er2-data-analysis (public version)
+# =============================================================================
+# This repo intentionally does not track raw data. Datasets contain potentially
+# identifying respondent information and are kept locally only.
+# See Datasets/README.md and Data Analysis/Codebook/README.md for the expected
+# schema if you want to bring your own data and run the analysis scripts.
+# =============================================================================
+
+# ---- Data files (NEVER commit these) ----------------------------------------
+*.csv
+*.tsv
+*.dta
+*.sav
+*.sas7bdat
+*.xlsx
+*.xls
+*.parquet
+*.feather
+*.rds
+*.RDS
+*.RData
+*.rdata
+*.RDataTmp
+*.RDataTmp[0-9]
+*.numbers
+
+# ---- R / RStudio ------------------------------------------------------------
 .Rhistory
-.RData
+.Rapp.history
 .Ruserdata
-unzipped Kenya images
+.Rproj.user/
+*.Rproj.user
+.Rcheck/
+*.Rcheck/
+*-Ex.R
+
+# ---- knitr / RMarkdown ------------------------------------------------------
+*_cache/
+*_files/
+/cache/
+/figure/
+*.utf8.md
+*.knit.md
+
+# ---- macOS / editor ---------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ---- Project-specific (carried over from older .gitignore) -----------------
+unzipped Kenya images/
+processeddataset.csv
+dcelongdataset.csv
+dta_controlinfo.csv
+RR-RCT.csv
+enrol_horiz.png
+share_with_yes.png
+
+# ---- Stata ------------------------------------------------------------------
+*.smcl
+*.log
+*.gph
