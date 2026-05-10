@@ -10,8 +10,7 @@ results from studies they take part in, using a discrete choice experiment
 This is the **public version** of the codebase as of mid-July 2025. The R/
 Stata scripts, scenario-generation tooling, and image assets are included;
 the underlying respondent-level datasets are not. See `Datasets/README.md`
-and `Data Analysis/Codebook/README.md` for the schema each script expects so
-you can supply your own data and run the analysis end-to-end.
+and `Data Analysis/Codebook/README.md` for the schema each script expects.
 
 ## Repository layout
 
